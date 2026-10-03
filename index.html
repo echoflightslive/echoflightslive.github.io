@@ -132,12 +132,14 @@ h3{margin:14px 18px 4px;font:600 16px var(--cond)}
 #toast{position:fixed;z-index:1300;left:50%;bottom:30px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:6px;font-weight:500;display:none}
 
 @media (max-width:760px){
-  #panel{left:0;right:0;top:auto;bottom:0;width:auto;height:calc(132px + env(safe-area-inset-bottom));border-radius:14px 14px 0 0;transition:height .25s ease;padding-bottom:env(safe-area-inset-bottom)}
+  #panel{left:0;right:0;top:auto;bottom:0;width:auto;height:calc(138px + env(safe-area-inset-bottom));border-radius:14px 14px 0 0;transition:height .25s ease;padding-bottom:env(safe-area-inset-bottom)}
   #panel.open{height:68vh}
   #panel.full{height:88vh}
-  #handle{display:block;width:100%;height:20px;border:0;background:none;position:relative;flex:none}
-  #handle::after{content:"";position:absolute;left:50%;top:8px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#b3acc4}
-  .head{padding:0 16px 10px}
+  #handle{display:block;width:100%;height:26px;border:0;background:none;position:relative;flex:none;touch-action:none}
+  #handle::after{content:"";position:absolute;left:50%;top:10px;width:44px;height:5px;margin-left:-22px;border-radius:3px;background:#a39bb8}
+  .head{padding:0 16px 10px;touch-action:none;cursor:grab}
+  .head input{touch-action:manipulation}
+  #panel.drag{transition:none}
   .brand h1{font-size:25px}
   .count{margin:2px 0 8px}
   .foot{display:none}
@@ -177,6 +179,10 @@ h3{margin:14px 18px 4px;font:600 16px var(--cond)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 "use strict";
+/* Where the timetable lives. The publishable key only lets a visitor call
+   echo_meta() and echo_parts(); the table itself can't be read or written. */
+const SB_URL="https://lqdgdkksdccpeorxedbl.supabase.co", SB_KEY="sb_publishable_Pjrbdd5unAzYqWiamDz_Tw_QJAcj7Rd";
+
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmtN=n=>Number(n||0).toLocaleString("en-US");
@@ -184,159 +190,187 @@ const mod=(x,n)=>((x%n)+n)%n;
 const REGION=(()=>{try{return new Intl.DisplayNames(["en"],{type:"region"});}catch(_){return null;}})();
 const country=cc=>{try{return REGION&&cc?REGION.of(cc):cc||"";}catch(_){return cc||"";}};
 
-let D=null, AP={}, AL=[], ROT=[], MODELS=[], ACL=[];
-const S={planes:[],sel:null,follow:false,filter:new Set(),col:"airline",view:"home",hover:null,lastScan:0,scanDay:null};
-
-/* ---------- time ----------
-   Every time in the game is local to its airport. Offsets come from each
-   airport's real time zone, read for the instant in question. */
-const TZF=[], OFF=new Map();
-function off(z,ms){
-  const h=Math.floor(ms/36e5), k=z*1e7+h;
-  let v=OFF.get(k); if(v!==undefined)return v;
-  try{
-    const f=TZF[z]||(TZF[z]=new Intl.DateTimeFormat("en-US",{timeZone:D.tz[z],hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
-    const p={};f.formatToParts(new Date(h*36e5)).forEach(x=>p[x.type]=x.value);
-    v=Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-h*36e5)/6e4);
-  }catch(_){v=0;}
-  OFF.set(k,v);return v;
-}
-const offAt=(code,min)=>off(AP[code].z,min*6e4);
-/* a local clock time on a local date → minutes since 1970 UTC */
-function fromLocal(code,day,m){const L=day*1440+m, z=AP[code].z, u=L-off(z,L*6e4);return L-off(z,u*6e4);}
-const localMin=(code,min)=>min+offAt(code,min);
-const hhmm=m=>{m=mod(Math.round(m),1440);return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");};
-function localTime(code,min){return hhmm(localMin(code,min));}
-function dayTag(code,min,refCode,refMin){const a=Math.floor(localMin(code,min)/1440),b=Math.floor(localMin(refCode,refMin)/1440);const d=a-b;return d?(d>0?" +"+d:" "+d):"";}
-const dur=m=>{m=Math.max(0,Math.round(m));const h=Math.floor(m/60),mm=m%60;return h?`${h}h ${String(mm).padStart(2,"0")}m`:`${mm}m`;};
-const nowMin=()=>Date.now()/6e4;
-
-/* ---------- geography ---------- */
-const R2D=180/Math.PI,D2R=Math.PI/180;
-function km(a,b){const A=AP[a],B=AP[b];if(!A||!B)return 0;const dla=(B.la-A.la)*D2R,dlo=(B.lo-A.lo)*D2R;
-  const h=Math.sin(dla/2)**2+Math.cos(A.la*D2R)*Math.cos(B.la*D2R)*Math.sin(dlo/2)**2;return 2*6371*Math.asin(Math.min(1,Math.sqrt(h)));}
-const vec=(la,lo)=>[Math.cos(la*D2R)*Math.cos(lo*D2R),Math.cos(la*D2R)*Math.sin(lo*D2R),Math.sin(la*D2R)];
-function gcSetup(a,b){const A=AP[a],B=AP[b],va=vec(A.la,A.lo),vb=vec(B.la,B.lo);
-  const dot=Math.max(-1,Math.min(1,va[0]*vb[0]+va[1]*vb[1]+va[2]*vb[2]));const w=Math.acos(dot);return {va,vb,w,s:Math.sin(w)||1};}
-function gcAt(g,f){if(g.w<1e-9)return [Math.asin(g.va[2])*R2D,Math.atan2(g.va[1],g.va[0])*R2D];
-  const k1=Math.sin((1-f)*g.w)/g.s,k2=Math.sin(f*g.w)/g.s;
-  const x=k1*g.va[0]+k2*g.vb[0],y=k1*g.va[1]+k2*g.vb[1],z=k1*g.va[2]+k2*g.vb[2];
-  return [Math.atan2(z,Math.hypot(x,y))*R2D,Math.atan2(y,x)*R2D];}
-function bearing(la1,lo1,la2,lo2){const p1=la1*D2R,p2=la2*D2R,dl=(lo2-lo1)*D2R;
-  return mod(Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))*R2D,360);}
-
 /* ---------- the schedule ----------
-   The game stores one row per route. The way back is worked out the way the
-   game does it: after landing the aircraft waits a ground time set by the
-   route's length (60 min up to 1,500 km, 90 to 4,000, 120 to 10,000, 150
-   beyond) plus the airline's extra turnaround, then flies home on the route's
-   own inbound time. A stopover route continues from the stop at its own listed
-   time; on the way home it turns at the far end and waits 60 minutes at the
-   stop. Days of the week count Monday as 0 and belong to the first departure. */
-const groundMin=(a,b)=>{const k=km(a,b);return k<=1500?60:k<=4000?90:k<=10000?120:150;};
-function parseRot(r,i){
-  const o={i,ai:r[0],A:r[1],B:r[2],fn:r[3],ifn:r[4],ts:r[5],dur:r[6],idur:r[7],turn:r[8],ac:r[9],dm:r[10],C:null,cs:null};
-  let k=11;
-  if(typeof r[11]==="string"){Object.assign(o,{C:r[11],cfn:r[12],cifn:r[13],cts:r[14],cdur:r[15],cidur:r[16],cturn:r[17]});k=18;}
-  if(Array.isArray(r[k]))o.cs=r[k];
-  return o;
-}
-/* the legs of one rotation that starts on local date `day` at its origin */
-function legsOf(r,day){
-  const t0=fromLocal(r.A,day,r.ts), L=[];
-  const mk=(seq,from,to,fn,t,d)=>({r,day,seq,from,to,fn,t,dur:d,key:r.i+":"+day+":"+seq});
-  L.push(mk(0,r.A,r.B,r.fn,t0,r.dur));
-  let back;
-  if(r.C){
-    const c0=fromLocal(r.B,day,r.cts),c1=c0+r.cdur;
-    L.push(mk(1,r.B,r.C,r.cfn,c0,r.cdur));
-    const k0=c1+groundMin(r.B,r.C)+(r.turn||0)+(r.cturn||0);
-    L.push(mk(2,r.C,r.B,r.cifn!=null?r.cifn:r.cfn+1,k0,r.cidur||r.cdur));
-    back=k0+(r.cidur||r.cdur)+60;
-  }else back=t0+r.dur+groundMin(r.A,r.B)+(r.turn||0);
-  L.push(mk(3,r.B,r.A,r.ifn!=null?r.ifn:r.fn+1,back,r.idur||r.dur));
-  return L;
-}
-const runsOn=(r,day)=>(r.dm>>mod(day+3,7))&1;      // 1 Jan 1970 was a Thursday
-function legsAround(r,fromMin,toMin){
-  const out=[], d0=Math.floor(fromMin/1440)-3, d1=Math.floor(toMin/1440)+1;
-  for(let d=d0;d<=d1;d++){if(!runsOn(r,d))continue;
-    for(const l of legsOf(r,d))if(l.t<toMin&&l.t+l.dur>fromMin)out.push(l);}
-  return out;
+   Shared by the page and the background worker (which works out where every
+   plane is), so both follow exactly the same rules.
+   Every time in the game is local to its airport, read with the airport's real
+   time zone at the instant in question. The game stores one row per route; the
+   way back leaves after a ground time set by the route's length (60 min up to
+   1,500 km, 90 to 4,000, 120 to 10,000, 150 beyond) plus the airline's extra
+   turnaround, and flies the route's own inbound time. A stopover route goes on
+   from the stop at its own listed time; coming home it turns at the far end and
+   waits 60 minutes at the stop. Weekdays count Monday as 0 and belong to the
+   first departure. */
+function CORE(D){
+  const AP={};for(const c in D.ap){const x=D.ap[c];AP[c]={la:x[0],lo:x[1],z:x[2],name:x[3],city:x[4],cc:x[5],hub:false};}
+  const TZF=[],OFF=new Map();
+  function off(z,ms){
+    const h=Math.floor(ms/36e5),k=z*1e7+h;let v=OFF.get(k);if(v!==undefined)return v;
+    try{const f=TZF[z]||(TZF[z]=new Intl.DateTimeFormat("en-US",{timeZone:D.tz[z],hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
+      const p={};f.formatToParts(new Date(h*36e5)).forEach(x=>p[x.type]=x.value);
+      v=Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-h*36e5)/6e4);}catch(_){v=0;}
+    if(OFF.size>200000)OFF.clear();OFF.set(k,v);return v;}
+  const offAt=(c,min)=>off(AP[c].z,min*6e4);
+  function fromLocal(c,day,m){const L=day*1440+m,z=AP[c].z,u=L-off(z,L*6e4);return L-off(z,u*6e4);}
+  const D2R=Math.PI/180,R2D=180/Math.PI;
+  function km(a,b){const A=AP[a],B=AP[b];if(!A||!B)return 0;const dla=(B.la-A.la)*D2R,dlo=(B.lo-A.lo)*D2R;
+    const h=Math.sin(dla/2)**2+Math.cos(A.la*D2R)*Math.cos(B.la*D2R)*Math.sin(dlo/2)**2;return 2*6371*Math.asin(Math.min(1,Math.sqrt(h)));}
+  const groundMin=(a,b)=>{const k=km(a,b);return k<=1500?60:k<=4000?90:k<=10000?120:150;};
+  function parseRot(r,i){
+    const o={i,ai:r[0],A:r[1],B:r[2],fn:r[3],ifn:r[4],ts:r[5],dur:r[6],idur:r[7],turn:r[8],ac:r[9],dm:r[10],C:null,cs:null};let k=11;
+    if(typeof r[11]==="string"){Object.assign(o,{C:r[11],cfn:r[12],cifn:r[13],cts:r[14],cdur:r[15],cidur:r[16],cturn:r[17]});k=18;}
+    if(Array.isArray(r[k]))o.cs=r[k];return o;}
+  const ROT=D.rot.map(parseRot);
+  function legsOf(r,day){
+    const t0=fromLocal(r.A,day,r.ts),L=[];
+    const mk=(seq,from,to,fn,t,d)=>({r,day,seq,from,to,fn,t,dur:d,key:r.i+":"+day+":"+seq});
+    L.push(mk(0,r.A,r.B,r.fn,t0,r.dur));let back;
+    if(r.C){const c0=fromLocal(r.B,day,r.cts),c1=c0+r.cdur;L.push(mk(1,r.B,r.C,r.cfn,c0,r.cdur));
+      const k0=c1+groundMin(r.B,r.C)+(r.turn||0)+(r.cturn||0);L.push(mk(2,r.C,r.B,r.cifn!=null?r.cifn:r.cfn+1,k0,r.cidur||r.cdur));
+      back=k0+(r.cidur||r.cdur)+60;}
+    else back=t0+r.dur+groundMin(r.A,r.B)+(r.turn||0);
+    L.push(mk(3,r.B,r.A,r.ifn!=null?r.ifn:r.fn+1,back,r.idur||r.dur));return L;}
+  const runsOn=(r,day)=>(r.dm>>mod(day+3,7))&1;      // 1 Jan 1970 was a Thursday
+  function legsAround(r,a,b){const out=[],d0=Math.floor(a/1440)-3,d1=Math.floor(b/1440)+1;
+    for(let d=d0;d<=d1;d++){if(!runsOn(r,d))continue;for(const l of legsOf(r,d))if(l.t<b&&l.t+l.dur>a)out.push(l);}return out;}
+  function legAt(ri,day,seq){const r=ROT[ri];return r?legsOf(r,day).find(l=>l.seq===seq)||null:null;}
+  /* climb, cruise and descent inside the block time, with taxiing at each end */
+  function phases(d){const tout=Math.min(10,d*.12),tin=Math.min(6,d*.08),air=Math.max(1,d-tout-tin);
+    const c=Math.min(22,air*.3),de=Math.min(28,air*.35),cr=Math.max(0,air-c-de),v=.3;return {tout,tin,air,c,d:de,cr,v,D:c*(1+v)/2+cr+de*(1+v)/2};}
+  function pathFrac(f,d){const b=phases(d),t=f*d-b.tout;if(t<=0)return 0;if(t>=b.air)return 1;let s;
+    if(t<b.c)s=b.v*t+(1-b.v)*t*t/(2*b.c);else if(t<b.c+b.cr)s=b.c*(1+b.v)/2+(t-b.c);
+    else{const u=t-b.c-b.cr;s=b.c*(1+b.v)/2+b.cr+u-(1-b.v)*u*u/(2*b.d);}return Math.min(1,s/b.D);}
+  const cruiseAlt=k=>k<350?21000:k<800?28000:k<2000?35000:k<5500?37000:39000;
+  function est(l,f){const d=l.dur,k=km(l.from,l.to),b=phases(d),t=f*d-b.tout,cr=cruiseAlt(k);
+    const kt=Math.round(Math.max(250,Math.min(505,k/Math.max(.25,b.D/60)/1.852)));
+    if(t<0||t>b.air)return {alt:0,spd:t<0?12:16,vs:0,ground:true};
+    let alt,spd,vs;
+    if(t<b.c){const p=t/b.c;alt=cr*(1-Math.pow(1-p,1.7));spd=150+(kt-150)*p;vs=1;}
+    else if(t>b.air-b.d){const p=Math.max(0,(b.air-t)/b.d);alt=cr*(1-Math.pow(1-p,1.4));spd=140+(kt-140)*p;vs=-1;}
+    else{alt=cr;spd=kt;vs=0;}
+    if(vs<0)alt=Math.min(alt,(1-pathFrac(f,d))*k*190);
+    return {alt:Math.max(0,Math.round(alt/100)*100),spd:Math.round(spd),vs,ground:false};}
+  const vec=(la,lo)=>[Math.cos(la*D2R)*Math.cos(lo*D2R),Math.cos(la*D2R)*Math.sin(lo*D2R),Math.sin(la*D2R)];
+  function gcSetup(a,b){const A=AP[a],B=AP[b],va=vec(A.la,A.lo),vb=vec(B.la,B.lo);
+    const dot=Math.max(-1,Math.min(1,va[0]*vb[0]+va[1]*vb[1]+va[2]*vb[2]));const w=Math.acos(dot);return {va,vb,w,s:Math.sin(w)||1};}
+  function gcAt(g,f){if(g.w<1e-9)return [Math.asin(g.va[2])*R2D,Math.atan2(g.va[1],g.va[0])*R2D];
+    const k1=Math.sin((1-f)*g.w)/g.s,k2=Math.sin(f*g.w)/g.s,x=k1*g.va[0]+k2*g.vb[0],y=k1*g.va[1]+k2*g.vb[1],z=k1*g.va[2]+k2*g.vb[2];
+    return [Math.atan2(z,Math.hypot(x,y))*R2D,Math.atan2(y,x)*R2D];}
+  function bearing(la1,lo1,la2,lo2){const p1=la1*D2R,p2=la2*D2R,dl=(lo2-lo1)*D2R;
+    return mod(Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))*R2D,360);}
+  return {AP,ROT,off,offAt,fromLocal,km,legsOf,legsAround,legAt,runsOn,phases,pathFrac,est,gcSetup,gcAt,bearing};
 }
 
-/* climb, cruise and descent over the block time; taxiing at either end */
-function phases(d){const tout=Math.min(10,d*.12),tin=Math.min(6,d*.08),air=Math.max(1,d-tout-tin);
-  const c=Math.min(22,air*.3),de=Math.min(28,air*.35),cr=Math.max(0,air-c-de),v=.3;return {tout,tin,air,c,d:de,cr,v,D:c*(1+v)/2+cr+de*(1+v)/2};}
-function pathFrac(f,d){const b=phases(d),t=f*d-b.tout;if(t<=0)return 0;if(t>=b.air)return 1;let s;
-  if(t<b.c)s=b.v*t+(1-b.v)*t*t/(2*b.c);else if(t<b.c+b.cr)s=b.c*(1+b.v)/2+(t-b.c);
-  else{const u=t-b.c-b.cr;s=b.c*(1+b.v)/2+b.cr+u-(1-b.v)*u*u/(2*b.d);}return Math.min(1,s/b.D);}
-const cruiseAlt=k=>k<350?21000:k<800?28000:k<2000?35000:k<5500?37000:39000;
-function est(l,f){
-  const d=l.dur,k=km(l.from,l.to),b=phases(d),t=f*d-b.tout,cr=cruiseAlt(k);
-  const kt=Math.round(Math.max(250,Math.min(505,k/Math.max(.25,b.D/60)/1.852)));
-  if(t<0||t>b.air)return {alt:0,spd:t<0?12:16,vs:0,ground:true};
-  let alt,spd,vs;
-  if(t<b.c){const p=t/b.c;alt=cr*(1-Math.pow(1-p,1.7));spd=150+(kt-150)*p;vs=1;}
-  else if(t>b.air-b.d){const p=Math.max(0,(b.air-t)/b.d);alt=cr*(1-Math.pow(1-p,1.4));spd=140+(kt-140)*p;vs=-1;}
-  else{alt=cr;spd=kt;vs=0;}
-  if(vs<0)alt=Math.min(alt,(1-pathFrac(f,d))*k*190);
-  return {alt:Math.max(0,Math.round(alt/100)*100),spd:Math.round(spd),vs,ground:false};
+/* ---------- the background worker ----------
+   Every 30 seconds it finds every leg in the air; every few seconds it moves
+   them along. The page only receives the finished positions. */
+function WORKER(){
+  let C=null,legs=[],G=new Map(),lastScan=0;
+  function scan(now){
+    const day=Math.floor(now/1440),out=[];
+    for(const r of C.ROT){for(let d=day-3;d<=day+1;d++){
+      if(!C.runsOn(r,d))continue;const t0=C.fromLocal(r.A,d,r.ts);if(t0>now||t0<now-4320)continue;
+      for(const l of C.legsOf(r,d))if(l.t<=now&&now<l.t+l.dur)out.push(l);}}
+    const keep=new Set(out.map(l=>l.key));for(const k of G.keys())if(!keep.has(k))G.delete(k);
+    legs=out;lastScan=now;}
+  function place(now){
+    if(now-lastScan>=.5||!legs.length)scan(now);
+    const n=legs.length,la=new Float32Array(n),lo=new Float32Array(n),brg=new Float32Array(n),f=new Float32Array(n),wx=new Float32Array(n),wy=new Float32Array(n),
+      alt=new Float32Array(n),ri=new Int32Array(n),day=new Int32Array(n),seq=new Int8Array(n),ai=new Uint16Array(n),gr=new Uint8Array(n);
+    legs.forEach((l,i)=>{
+      let g=G.get(l.key);if(!g){g=C.gcSetup(l.from,l.to);G.set(l.key,g);}
+      const fr=Math.min(1,Math.max(0,(now-l.t)/l.dur)),s=C.pathFrac(fr,l.dur),a=C.gcAt(g,s);
+      const b=s>=.998?C.gcAt(g,1):C.gcAt(g,Math.min(1,s+.002)),a2=s>=.998?C.gcAt(g,.99):a;
+      la[i]=a[0];lo[i]=a[1];brg[i]=C.bearing(a2[0],a2[1],b[0],b[1]);f[i]=fr;
+      wx[i]=(a[1]+180)/360*256;const sn=Math.sin(Math.max(-85.05,Math.min(85.05,a[0]))*Math.PI/180);wy[i]=(.5-Math.log((1+sn)/(1-sn))/(4*Math.PI))*256;
+      const e=C.est(l,fr);alt[i]=e.alt;gr[i]=e.ground?1:0;ri[i]=l.r.i;day[i]=l.day;seq[i]=l.seq;ai[i]=l.r.ai;});
+    postMessage({n,now,la,lo,brg,f,wx,wy,alt,ri,day,seq,ai,gr},[la.buffer,lo.buffer,brg.buffer,f.buffer,wx.buffer,wy.buffer,alt.buffer,ri.buffer,day.buffer,seq.buffer,ai.buffer,gr.buffer]);}
+  onmessage=e=>{const m=e.data;
+    if(m.data){C=CORE(m.data);lastScan=0;place(m.now);}
+    else if(m.now&&C){if(m.rescan)lastScan=0;place(m.now);}};
 }
 
-/* ---------- who is flying ---------- */
-const GC=new Map();
-function scan(){
-  const now=nowMin(), out=[], day=Math.floor(now/1440);
-  for(const r of ROT){
-    for(let d=day-3;d<=day+1;d++){
-      if(!((r.dm>>mod(d+3,7))&1))continue;
-      const t0=fromLocal(r.A,d,r.ts);
-      if(t0>now||t0<now-4320)continue;            // a rotation is over within three days
-      for(const l of legsOf(r,d))if(l.t<=now&&now<l.t+l.dur)out.push({l,ai:r.ai});
+/* ---------- loading the timetable ----------
+   The browser keeps a copy (IndexedDB). On each visit it asks Supabase for the
+   fingerprints of the parts and downloads only the ones that changed. If
+   Supabase can't be reached the saved copy is used, and failing that the
+   data.json beside this page. */
+const idb=(()=>{let p=null;const open=()=>p||(p=new Promise((res,rej)=>{try{const r=indexedDB.open("echo-live",1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("parts");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}}));
+  const tx=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction("parts",mode),s=t.objectStore("parts");const out=fn(s);t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out);t.onerror=()=>rej(t.error);}));
+  return {get:k=>tx("readonly",s=>s.get(k)),put:(k,v)=>tx("readwrite",s=>{s.put(v,k);}),del:k=>tx("readwrite",s=>{s.delete(k);})};})();
+async function rpc(fn,body,ms){
+  const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),ms||15000);
+  try{const r=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,{method:"POST",signal:ctl.signal,headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body||{})});
+    if(!r.ok)throw new Error(fn+": HTTP "+r.status);return await r.json();}finally{clearTimeout(t);}}
+function assemble(base,parts){
+  const keys=Object.keys(parts).filter(k=>k.startsWith("rot:")).sort();const rot=[];keys.forEach(k=>rot.push(...parts[k]));
+  return Object.assign({},base,{rot});}
+async function loadData(note){
+  let saved=null;try{saved=await idb.get("all");}catch(_){}
+  try{
+    const meta=await rpc("echo_meta",{},8000);
+    if(!meta||!meta.base)throw new Error("Supabase has no timetable yet");
+    const have=(saved&&saved.hash)||{},parts=Object.assign({},saved&&saved.parts);
+    const need=Object.keys(meta).filter(k=>have[k]!==meta[k]);
+    if(need.length){
+      note(saved?`Updating ${need.length} part${need.length===1?"":"s"} of the timetable…`:"Downloading the timetable…");
+      const groups=[];for(let i=0;i<need.length;i+=12)groups.push(need.slice(i,i+12));
+      const got=await Promise.all(groups.map(g=>rpc("echo_parts",{keys:g},60000)));
+      got.forEach(o=>Object.entries(o).forEach(([k,x])=>{parts[k]=x.v;have[k]=x.h;}));
     }
-  }
-  const keep=new Set(out.map(p=>p.l.key));for(const k of GC.keys())if(!keep.has(k))GC.delete(k);
-  S.planes=out;S.lastScan=now;
-  if(S.sel){const m=out.find(p=>p.l.key===S.sel.l.key);if(m)S.sel=m;}
-  place();
-}
-function place(){
-  const now=nowMin();
-  for(const p of S.planes){
-    const l=p.l;let g=GC.get(l.key);if(!g){g=gcSetup(l.from,l.to);GC.set(l.key,g);}
-    p.f=Math.min(1,Math.max(0,(now-l.t)/l.dur));
-    const s=pathFrac(p.f,l.dur),a=gcAt(g,s),b=gcAt(g,Math.min(1,s+.002));
-    p.la=a[0];p.lo=a[1];p.brg=s>=.998?bearing(...gcAt(g,.99),...gcAt(g,1)):bearing(a[0],a[1],b[0],b[1]);
-    const w=map.project([p.la,p.lo],0);p.wx=w.x;p.wy=w.y;
-    p.e=null;
+    for(const k of Object.keys(parts))if(!(k in meta)){delete parts[k];delete have[k];}
+    if(need.length)idb.put("all",{hash:have,parts}).catch(()=>{});
+    return {D:assemble(parts.base,parts),src:"Supabase"};
+  }catch(e){
+    console.info("[Echo Live] Supabase:",e&&e.message);
+    if(saved&&saved.parts&&saved.parts.base)return {D:assemble(saved.parts.base,saved.parts),src:"saved copy"};
+    note("Downloading the timetable…");
+    const r=await fetch("data.json",{cache:"no-cache"});if(!r.ok)throw new Error("data.json: HTTP "+r.status);
+    const d=await r.json();d.rot=d.rot.map((x,i)=>[x,i]).sort((a,b)=>a[0][0]-b[0][0]||a[1]-b[1]).map(x=>x[0]);   // same order as Supabase
+    return {D:d,src:"data.json"};
   }
 }
-const estOf=p=>p.e||(p.e=est(p.l,p.f));
-const inAir=p=>!estOf(p).ground;
+
+let D=null,C=null,AP={},AL=[],ROT=[],MODELS=[],ACL=[],SRC="";
+const S={n:0,P:null,sel:null,follow:false,filter:new Set(),col:"airline",view:"home",leg:null};
+const nowMin=()=>Date.now()/6e4;
+const hhmm=m=>{m=mod(Math.round(m),1440);return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");};
+const localMin=(c,min)=>min+C.offAt(c,min);
+const localTime=(c,min)=>hhmm(localMin(c,min));
+function dayTag(c,min,rc,rmin){const d=Math.floor(localMin(c,min)/1440)-Math.floor(localMin(rc,rmin)/1440);return d?(d>0?" +"+d:" "+d):"";}
+const dur=m=>{m=Math.max(0,Math.round(m));const h=Math.floor(m/60),mm=m%60;return h?`${h}h ${String(mm).padStart(2,"0")}m`:`${mm}m`;};
+const D2R=Math.PI/180;
 
 /* ---------- colours ---------- */
 function hexRgb(h){return [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));}
 function rgbHsl([r,g,b]){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;
   if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h/=6;}return [h,s,l];}
-function hsl(h,s,l){return `hsl(${Math.round(h*360)} ${Math.round(s*100)}% ${Math.round(l*100)}%)`;}
+const hsl=(h,s,l)=>`hsl(${Math.round(h*360)} ${Math.round(s*100)}% ${Math.round(l*100)}%)`;
 /* planes sit on a dark map, so every airline colour is brought up to a readable lightness */
 function mapColor(hex){const [h,s,l]=rgbHsl(hexRgb(hex));if(s<.12)return hsl(.72,.18,.86);return hsl(h,Math.max(.55,s),Math.min(.74,Math.max(.6,l)));}
 function altColor(a){const st=[[0,[63,208,201]],[14000,[155,225,93]],[26000,[245,197,66]],[40000,[255,111,168]]];
   let i=0;while(i<st.length-2&&a>st[i+1][0])i++;const [a0,c0]=st[i],[a1,c1]=st[i+1],t=Math.max(0,Math.min(1,(a-a0)/(a1-a0)));
   return `rgb(${c0.map((c,j)=>Math.round(c+(c1[j]-c)*t)).join(",")})`;}
+const ALTC=[];for(let a=0;a<=42000;a+=2000)ALTC.push(altColor(a));
+
+/* ---------- planes ---------- */
+const plane=i=>({i,ri:S.P.ri[i],day:S.P.day[i],seq:S.P.seq[i],ai:S.P.ai[i],la:S.P.la[i],lo:S.P.lo[i],brg:S.P.brg[i],f:S.P.f[i],alt:S.P.alt[i],ground:!!S.P.gr[i]});
+function findPlane(ri,day,seq){if(!S.P)return -1;const P=S.P;for(let i=0;i<S.n;i++)if(P.ri[i]===ri&&P.day[i]===day&&P.seq[i]===seq)return i;return -1;}
+const visible=ai=>!S.filter.size||S.filter.has(ai);
+function selIndex(){return S.sel?findPlane(S.sel.ri,S.sel.day,S.sel.seq):-1;}
 
 /* ---------- map ---------- */
-const map=L.map("map",{worldCopyJump:true,zoomControl:false,minZoom:2,maxZoom:10,attributionControl:true}).setView([28,40],innerWidth<=760?2:3);
+const map=L.map("map",{worldCopyJump:true,zoomControl:false,minZoom:2,maxZoom:10}).setView([28,40],innerWidth<=760?2:3);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:10,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
 L.control.zoom({position:"topright"}).addTo(map);
-/* The planes are drawn on one canvas that sits in the map's own pane, so a
-   drag moves the finished picture with the map and it is only redrawn when
-   the map settles (or the planes move on). It covers a margin beyond the
-   screen so a drag doesn't reveal empty edges. */
+/* One canvas in the map's own pane: a drag moves the finished picture with the
+   map, and it is redrawn only when the map settles or the planes move on. It
+   covers a margin beyond the screen so a drag doesn't reveal bare edges. */
 const cv=document.createElement("canvas");cv.id="cv";cv.className="leaflet-zoom-hide";map.getPanes().overlayPane.appendChild(cv);
 const cx=cv.getContext("2d");
-const PLANE=new Path2D("M0,-8 L1.3,-6.2 L1.3,-2.2 L8,2.3 L8,3.9 L1.3,2 L1.3,5.4 L3.6,7.3 L3.6,8.5 L0,7.6 L-3.6,8.5 L-3.6,7.3 L-1.3,5.4 L-1.3,2 L-8,3.9 L-8,2.3 L-1.3,-2.2 L-1.3,-6.2 Z");
+const PLANE_D="M0,-8 L1.3,-6.2 L1.3,-2.2 L8,2.3 L8,3.9 L1.3,2 L1.3,5.4 L3.6,7.3 L3.6,8.5 L0,7.6 L-3.6,8.5 L-3.6,7.3 L-1.3,5.4 L-1.3,2 L-8,3.9 L-8,2.3 L-1.3,-2.2 L-1.3,-6.2 Z";
+const PLANE=new Path2D(PLANE_D);
 const SPR=new Map();
 /* each colour is drawn once per 10° of heading and size, then stamped */
 function sprite(col,deg,sc,outline){
@@ -350,50 +384,47 @@ let W=0,H=0,PX=0,PY=0,DPR=1,HX=new Float32Array(0),HY=new Float32Array(0),HI=new
 function resize(){DPR=Math.min(2,window.devicePixelRatio||1);const s=map.getSize();W=s.x;H=s.y;PX=Math.round(W*PAD);PY=Math.round(H*PAD);
   cv.width=(W+2*PX)*DPR;cv.height=(H+2*PY)*DPR;cv.style.width=(W+2*PX)+"px";cv.style.height=(H+2*PY)+"px";draw();}
 function redraw(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;draw();});}
-const visible=p=>!S.filter.size||S.filter.has(p.ai);
-/* canvas coordinates: container point shifted by the margin */
 const cp=ll=>{const q=map.latLngToContainerPoint(ll);return {x:q.x+PX,y:q.y+PY};};
 function copies(x){const ww=256*Math.pow(2,map.getZoom()),xs=[];x-=Math.floor((x+30)/ww)*ww;for(;x<W+2*PX+30;x+=ww)xs.push(x);return xs;}
 function draw(){
   L.DomUtil.setPosition(cv,map.containerPointToLayerPoint([-PX,-PY]));
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W+2*PX,H+2*PY);
-  if(!D)return;
-  const BW=W+2*PX,BH=H+2*PY;
-  const z=map.getZoom(), sc=z<=2?.42:z===3?.5:z===4?.66:z===5?.85:1.05, out=z>=5;
+  cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W+2*PX,H+2*PY);HN=0;
+  if(!D||!S.P)return;
+  const P=S.P,n=S.n,BW=W+2*PX,BH=H+2*PY,z=map.getZoom(),sc=z<=2?.42:z===3?.5:z===4?.66:z===5?.85:1.05,out=z>=5;
   const zs=Math.pow(2,z),o0=map.project([0,0],z),c0=cp([0,0]),ox=c0.x-o0.x,oy=c0.y-o0.y,ww=256*zs;
-  if(HX.length<S.planes.length*4){const n=S.planes.length*4+300;HX=new Float32Array(n);HY=new Float32Array(n);HI=new Int32Array(n);}
-  HN=0;
-  if(S.sel)drawRoute(S.sel);
+  if(HX.length<n*4){const m=n*4+300;HX=new Float32Array(m);HY=new Float32Array(m);HI=new Int32Array(m);}
+  const si=selIndex();
+  if(si>=0)drawRoute(plane(si));
   if(z>=5)drawAirports(z);
-  const byCol=S.col==="alt",lab=z>=7;
+  const byAlt=S.col==="alt",lab=z>=7;
   cx.setTransform(DPR,0,0,DPR,0,0);cx.font="600 11px 'B612 Mono',monospace";
-  S.planes.forEach((p,i)=>{
-    if(!visible(p)||p===S.sel)return;
-    const y=p.wy*zs+oy;if(y<-20||y>BH+20)return;
-    let x0=p.wx*zs+ox;x0-=Math.floor((x0+30)/ww)*ww;
-    if(x0>BW+30)return;
-    const col=byCol?altColor(Math.round(estOf(p).alt/2000)*2000):AL[p.ai].mc, sp=sprite(col,p.brg,sc,out), h=sp.width/DPR/2;
-    for(let x=x0;x<BW+30;x+=ww){
+  for(let i=0;i<n;i++){
+    if(i===si||(S.filter.size&&!S.filter.has(P.ai[i])))continue;
+    const y=P.wy[i]*zs+oy;if(y<-20||y>BH+20)continue;
+    let x=P.wx[i]*zs+ox;x-=Math.floor((x+30)/ww)*ww;if(x>BW+30)continue;
+    const col=byAlt?ALTC[Math.min(21,Math.round(P.alt[i]/2000))]:AL[P.ai[i]].mc,sp=sprite(col,P.brg[i],sc,out),h=sp.width/DPR/2;
+    for(;x<BW+30;x+=ww){
       cx.drawImage(sp,(x-h)*DPR,(y-h)*DPR);
-      if(lab){cx.fillStyle="rgba(232,228,244,.9)";cx.fillText(AL[p.ai].code+p.l.fn,x+10,y+4);}
+      if(lab){const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(l){cx.fillStyle="rgba(232,228,244,.9)";cx.fillText(AL[P.ai[i]].code+l.fn,x+10,y+4);}}
       if(HN<HX.length){HX[HN]=x-PX;HY[HN]=y-PY;HI[HN]=i;HN++;}
     }
-  });
-  if(S.sel){
-    const p=S.sel,pt=cp([p.la,p.lo]),k=S.planes.indexOf(p);
+  }
+  if(si>=0){
+    const p=plane(si),pt=cp([p.la,p.lo]);
     for(const x of copies(pt.x)){
       cx.setTransform(DPR,0,0,DPR,0,0);cx.beginPath();cx.arc(x,pt.y,15,0,7);cx.fillStyle="rgba(125,52,255,.28)";cx.fill();
       cx.lineWidth=1.5;cx.strokeStyle="#fff";cx.stroke();
       cx.setTransform(DPR*1.35,0,0,DPR*1.35,x*DPR,pt.y*DPR);cx.rotate(p.brg*D2R);
       cx.fillStyle="#fff";cx.fill(PLANE);cx.lineWidth=1;cx.strokeStyle="#1d1730";cx.stroke(PLANE);
-      if(k>=0&&HN<HX.length){HX[HN]=x-PX;HY[HN]=pt.y-PY;HI[HN]=k;HN++;}
+      if(HN<HX.length){HX[HN]=x-PX;HY[HN]=pt.y-PY;HI[HN]=si;HN++;}
     }
     cx.setTransform(DPR,0,0,DPR,0,0);
   }
 }
 function drawRoute(p){
-  const l=p.l,g=GC.get(l.key)||gcSetup(l.from,l.to),N=96,s=pathFrac(p.f,l.dur);
-  const sp=[];for(let i=0;i<=N;i++)sp.push(cp(gcAt(g,i/N)));
+  const l=C.legAt(p.ri,p.day,p.seq);if(!l)return;
+  const g=C.gcSetup(l.from,l.to),N=96,s=C.pathFrac(p.f,l.dur);
+  const sp=[];for(let i=0;i<=N;i++)sp.push(cp(C.gcAt(g,i/N)));
   const ww=256*Math.pow(2,map.getZoom()),cut=Math.round(s*N);
   /* keep the line continuous across the date line, then repeat it for each world copy */
   for(let i=1;i<sp.length;i++){while(sp[i].x-sp[i-1].x>ww/2)sp[i].x-=ww;while(sp[i].x-sp[i-1].x<-ww/2)sp[i].x+=ww;}
@@ -420,65 +451,95 @@ function hit(x,y,r){let best=-1,bd=r*r;for(let i=0;i<HN;i++){const dx=HX[i]-x,dy
 function hitAirport(x,y){if(map.getZoom()<5)return null;let best=null,bd=64;
   for(const c of APLIST){const a=AP[c],q=map.latLngToContainerPoint([a.la,a.lo]),ww=256*Math.pow(2,map.getZoom());
     for(let k=-2;k<=2;k++){const d=(q.x+k*ww-x)**2+(q.y-y)**2;if(d<bd){bd=d;best=c;}}}return best;}
-map.on("moveend",redraw);map.on("zoomend",draw);
-map.on("resize",resize);
+map.on("moveend",redraw);map.on("zoomend",draw);map.on("resize",resize);
 map.on("dragstart",()=>{if(S.follow){S.follow=false;if(S.view==="flight")renderFlight();}});
 map.on("click",e=>{
   const i=hit(e.containerPoint.x,e.containerPoint.y,14);
-  if(i>=0){selectPlane(S.planes[i],false);return;}
+  if(i>=0){selectPlane(i,false);return;}
   const a=hitAirport(e.containerPoint.x,e.containerPoint.y);if(a){go("#/airport/"+a);return;}
   if(S.sel){S.sel=null;S.follow=false;if(S.view==="flight")go("#/");redraw();}
 });
 const tip=$("tip");
 map.on("mousemove",e=>{if(!D||matchMedia("(hover:none)").matches)return;const i=hit(e.containerPoint.x,e.containerPoint.y,10);
   if(i<0){tip.style.display="none";map.getContainer().style.cursor="";return;}
-  const p=S.planes[i];tip.textContent=`${AL[p.ai].code}${p.l.fn}  ${p.l.from}–${p.l.to}`;tip.style.left=e.containerPoint.x+"px";tip.style.top=e.containerPoint.y+"px";tip.style.display="block";map.getContainer().style.cursor="pointer";});
+  const l=C.legAt(S.P.ri[i],S.P.day[i],S.P.seq[i]);if(!l)return;
+  tip.textContent=`${AL[S.P.ai[i]].code}${l.fn}  ${l.from}–${l.to}`;tip.style.left=e.containerPoint.x+"px";tip.style.top=e.containerPoint.y+"px";tip.style.display="block";map.getContainer().style.cursor="pointer";});
 map.on("mouseout",()=>{tip.style.display="none";});
 
-/* ---------- panel views ---------- */
-const body=$("body"), panel=$("panel");
+/* ---------- the phone sheet: tap or drag its top to open and close ---------- */
+const body=$("body"),panel=$("panel"),head=panel.querySelector(".head"),handle=$("handle");
 const narrow=()=>innerWidth<=760;
-function sheet(state){if(!narrow())return;panel.classList.toggle("open",state==="open");panel.classList.toggle("full",state==="full");$("handle").setAttribute("aria-label",state?"Collapse panel":"Expand panel");}
-$("handle").onclick=()=>sheet(panel.classList.contains("open")||panel.classList.contains("full")?null:"open");
-function counts(){const c=new Array(AL.length).fill(0);let n=0;for(const p of S.planes)if(inAir(p)){c[p.ai]++;n++;}return {c,n};}
-function updateCount(){const {n}=counts(),f=S.filter.size;
-  $("count").innerHTML=f?`<strong>${fmtN(S.planes.filter(p=>visible(p)&&inAir(p)).length)}</strong> in the air from ${f===1?esc(AL[[...S.filter][0]].name):f+" airlines"} · <button class="link" id="clr">show all</button>`
-    :`<strong>${fmtN(n)}</strong> Kyra flights in the air now`;
-  const b=$("clr");if(b)b.onclick=()=>{S.filter.clear();updateCount();redraw();if(S.view==="home")renderHome();if(S.view==="airline")route();};}
-const swatch=ai=>`<span class="sw" style="background:${AL[ai].color}"></span>`;
+const SNAP=()=>[138,Math.round(innerHeight*.68),Math.round(innerHeight*.88)];
+function sheet(state){if(!narrow())return;panel.classList.toggle("open",state==="open");panel.classList.toggle("full",state==="full");
+  handle.setAttribute("aria-label",state?"Collapse panel":"Expand panel");handle.setAttribute("aria-expanded",String(!!state));}
+const sheetState=()=>panel.classList.contains("full")?"full":panel.classList.contains("open")?"open":null;
+let drag=null;
+function dragStart(e){
+  if(!narrow()||e.button>0)return;
+  if(e.target.closest("input,a,button:not(#handle)"))return;
+  drag={y:e.clientY,h:panel.getBoundingClientRect().height,t:performance.now(),moved:false,id:e.pointerId};
+  try{e.currentTarget.setPointerCapture(e.pointerId);}catch(_){}
+}
+function dragMove(e){
+  if(!drag||e.pointerId!==drag.id)return;const dy=drag.y-e.clientY;
+  if(!drag.moved&&Math.abs(dy)<6)return;
+  if(!drag.moved){drag.moved=true;panel.classList.add("drag");}
+  const s=SNAP();panel.style.height=Math.max(s[0]-20,Math.min(s[2],drag.h+dy))+"px";e.preventDefault();
+}
+function dragEnd(e){
+  if(!drag||e.pointerId!==drag.id)return;const d=drag;drag=null;
+  if(!d.moved){sheet(sheetState()?null:"open");return;}          // a tap toggles
+  const h=panel.getBoundingClientRect().height,v=(d.y-e.clientY)/Math.max(1,performance.now()-d.t),s=SNAP();
+  panel.classList.remove("drag");panel.style.height="";
+  let k=s.reduce((b,x,i)=>Math.abs(x-h)<Math.abs(s[b]-h)?i:b,0);
+  if(v>.5)k=Math.min(2,k+(h>s[k]?1:0)||1);else if(v<-.5)k=Math.max(0,h<s[k]?k-1:k);   // a flick goes on to the next stop
+  sheet([null,"open","full"][k]);
+}
+[handle,head].forEach(el=>{el.addEventListener("pointerdown",dragStart);el.addEventListener("pointermove",dragMove);
+  el.addEventListener("pointerup",dragEnd);el.addEventListener("pointercancel",e=>{if(drag&&e.pointerId===drag.id){drag=null;panel.classList.remove("drag");panel.style.height="";}});});
+handle.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();sheet(sheetState()?null:"open");}});
 
+/* ---------- panel views ---------- */
+function counts(){const c=new Array(AL.length).fill(0);let n=0;if(S.P)for(let i=0;i<S.n;i++)if(!S.P.gr[i]){c[S.P.ai[i]]++;n++;}return {c,n};}
+function updateCount(){
+  const {c,n}=counts(),f=S.filter.size;
+  $("count").innerHTML=f?`<strong>${fmtN([...S.filter].reduce((s,i)=>s+c[i],0))}</strong> in the air from ${f===1?esc(AL[[...S.filter][0]].name):f+" airlines"} · <button class="link" id="clr">show all</button>`
+    :`<strong>${fmtN(n)}</strong> Kyra flights in the air now`;
+  const b=$("clr");if(b)b.onclick=()=>{S.filter.clear();updateCount();redraw();if(S.view==="home")renderHome();else if(S.view==="airline")route();};}
+const swatch=ai=>`<span class="sw" style="background:${AL[ai].color}"></span>`;
 function renderHome(){
   S.view="home";const {c}=counts();
   const order=AL.map((a,i)=>i).sort((a,b)=>c[b]-c[a]||AL[a].name.localeCompare(AL[b].name));
-  body.innerHTML=`<div class="bar"><h2>Airlines in Echo Kyra</h2><span class="n" style="font:13px var(--mono);color:var(--muted)">${AL.length}</span></div>
+  body.innerHTML=`<div class="bar"><h2>Airlines in Echo Kyra</h2><span style="font:13px var(--mono);color:var(--muted)">${AL.length}</span></div>
   <ul class="rows">${order.map(i=>`<li><button type="button" class="row${S.filter.size&&!S.filter.has(i)?" off":""}" data-al="${i}">${swatch(i)}<span class="nm">${esc(AL[i].name)}<span>${esc(AL[i].code)}</span></span><span class="n">${c[i]?fmtN(c[i])+" up":"—"}</span></button></li>`).join("")}</ul>`;
   body.querySelectorAll("[data-al]").forEach(b=>b.onclick=()=>go("#/airline/"+b.dataset.al));
 }
-
-function legLine(l,ref){
+const acName=i=>i>=0&&ACL[i]?MODELS[ACL[i][0]]:"Aircraft not in the capture";
+const acReg=i=>i>=0&&ACL[i]?ACL[i][1]:"";
+const DAYN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const daysText=dm=>{const d=DAYN.filter((_,i)=>(dm>>i)&1);return d.length===7?"Every day":d.join(", ");};
+function legLine(l){
   const now=nowMin(),ai=l.r.ai;
-  const st=l.t<=now&&now<l.t+l.dur?`<span class="st air">flying</span>`:l.t>now?`<span class="st">${l.t-now<60*24?"in "+dur(l.t-now):""}</span>`:`<span class="st">landed</span>`;
+  const st=l.t<=now&&now<l.t+l.dur?`<span class="st air">flying</span>`:l.t>now?`<span class="st">${l.t-now<1440?"in "+dur(l.t-now):""}</span>`:`<span class="st">landed</span>`;
   return `<button type="button" class="row two" data-leg="${l.key}"><span class="fn">${esc(AL[ai].code)}${l.fn}</span><span><span class="rt">${l.from} ${localTime(l.from,l.t)} → ${l.to} ${localTime(l.to,l.t+l.dur)}${dayTag(l.to,l.t+l.dur,l.from,l.t)}</span><span class="sub">${esc(AL[ai].name)} · ${esc(acName(l.r.ac))}</span></span>${st}</button>`;
 }
-const acName=i=>i>=0&&ACL[i]?`${MODELS[ACL[i][0]]}`:"Aircraft not in the capture";
-const acReg=i=>i>=0&&ACL[i]?ACL[i][1]:"";
 const LEGS=new Map();
 function bindLegs(list){list.forEach(l=>LEGS.set(l.key,l));body.querySelectorAll("[data-leg]").forEach(b=>b.onclick=()=>openLeg(LEGS.get(b.dataset.leg)));}
 function openLeg(l){
-  const p=S.planes.find(x=>x.l.key===l.key);
-  if(p){selectPlane(p,true);return;}
-  S.sel=null;S.follow=false;S.leg=l;go(`#/flight/${encodeURIComponent(AL[l.r.ai].code+l.fn)}/${l.r.i}`,true);renderLeg(l);redraw();
+  const i=findPlane(l.r.i,l.day,l.seq);
+  if(i>=0){selectPlane(i,true);return;}
+  S.sel=null;S.follow=false;go(`#/flight/${encodeURIComponent(AL[l.r.ai].code+l.fn)}/${l.r.i}`,true);renderLeg(l);redraw();
 }
-
 /* on a phone the sheet covers the lower part of the map, so the point goes in the part still showing */
 function focusOn(ll,z){
   if(!narrow()){map.flyTo(ll,z,{duration:.8});return;}
   const cover=innerHeight*(panel.classList.contains("full")?.88:.68);
-  const pt=map.project(ll,z).add([0,cover/2]);map.flyTo(map.unproject(pt,z),z,{duration:.8});
+  map.flyTo(map.unproject(map.project(ll,z).add([0,cover/2]),z),z,{duration:.8});
 }
-function selectPlane(p,fly){
-  S.sel=p;S.leg=null;
-  const hash=`#/flight/${encodeURIComponent(AL[p.ai].code+p.l.fn)}/${p.l.r.i}`;
+function selectPlane(i,fly){
+  const p=plane(i);S.sel={ri:p.ri,day:p.day,seq:p.seq};
+  const l=C.legAt(p.ri,p.day,p.seq);
+  const hash=`#/flight/${encodeURIComponent(AL[p.ai].code+l.fn)}/${p.ri}`;
   if(location.hash!==hash)history.replaceState(null,"",hash);
   renderFlight();sheet("open");
   if(fly)focusOn([p.la,p.lo],Math.max(map.getZoom(),4));
@@ -492,15 +553,15 @@ function stripHtml(l,ai,f){
     <div><div class="cs">${esc(a.code)} ${l.fn}</div><div class="ty">${esc(acName(r.ac))}</div></div>
     <div><div class="rt">${l.from} → ${l.to}</div><div class="via">${esc(via)}</div></div>
     <div class="tm">Dep <b>${localTime(l.from,dep)}</b><br>Arr <b>${localTime(l.to,arr)}</b>${dayTag(l.to,arr,l.from,dep)}</div>
-    <div class="reg"><span>${esc(acReg(r.ac)||"—")}</span><span>${f==null?"":f<=0?"Scheduled":"Block "+dur(l.dur)}</span></div>
+    <div class="reg"><span>${esc(acReg(r.ac)||"—")}</span><span>${f==null?"Scheduled":"Block "+dur(l.dur)}</span></div>
   </div>`;
 }
 function renderFlight(){
-  const p=S.sel;if(!p){renderHome();return;}
-  S.view="flight";const l=p.l,r=l.r,a=AL[p.ai],e=estOf(p),now=nowMin();
+  const si=selIndex();if(si<0){S.sel=null;renderHome();return;}
+  S.view="flight";const p=plane(si),l=C.legAt(p.ri,p.day,p.seq),r=l.r,a=AL[p.ai],e=C.est(l,p.f),now=nowMin();
   const A=AP[l.from],B=AP[l.to],pct=Math.round(p.f*1000)/10;
   const cs=r.cs&&(l.seq===0||l.seq===3)?r.cs.map(x=>{const [n,ib]=x.split("/");return l.seq===0?n:n.replace(/\d+$/,"")+ib;}):[];
-  const nextLeg=legsAround(r,now,now+2880).filter(x=>x.t>l.t).sort((x,y)=>x.t-y.t)[0];
+  const nx=C.legsAround(r,now,now+2880).filter(x=>x.t>l.t).sort((x,y)=>x.t-y.t)[0];
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
    <div class="al-line">${swatch(p.ai)}<button type="button" id="aln">${esc(a.name)}</button></div>
    ${stripHtml(l,p.ai,p.f)}
@@ -514,10 +575,10 @@ function renderFlight(){
      <dt>Altitude</dt><dd><span class="m">${e.ground?"On the ground":fmtN(e.alt)+" ft"}</span><span class="est" title="Estimated from the schedule">est</span></dd>
      <dt>Speed</dt><dd><span class="m">${fmtN(e.spd)} kt</span><span class="est" title="Estimated from the schedule">est</span></dd>
      <dt>Heading</dt><dd><span class="m">${String(Math.round(p.brg)).padStart(3,"0")}°</span></dd>
-     <dt>Distance</dt><dd><span class="m">${fmtN(Math.round(km(l.from,l.to)))} km</span></dd>
+     <dt>Distance</dt><dd><span class="m">${fmtN(Math.round(C.km(l.from,l.to)))} km</span></dd>
      <dt>Aircraft</dt><dd>${esc(acName(r.ac))}${acReg(r.ac)?` · <button type="button" class="link" id="reg">${esc(acReg(r.ac))}</button>`:""}</dd>
      ${cs.length?`<dt>Also sold as</dt><dd class="m">${cs.map(esc).join(", ")}</dd>`:""}
-     ${nextLeg?`<dt>Next</dt><dd><span class="m">${AL[r.ai].code}${nextLeg.fn}</span> ${nextLeg.from}–${nextLeg.to} at ${localTime(nextLeg.from,nextLeg.t)}</dd>`:""}
+     ${nx?`<dt>Next</dt><dd><span class="m">${esc(AL[r.ai].code)}${nx.fn}</span> ${nx.from}–${nx.to} at ${localTime(nx.from,nx.t)}</dd>`:""}
    </dl>
    <div class="acts"><button type="button" class="btn" id="fol" aria-pressed="${S.follow}">${S.follow?"Following":"Follow"}</button><button type="button" class="btn" id="shr">Copy link</button></div>`;
   $("bk").onclick=()=>{S.sel=null;S.follow=false;go("#/");redraw();};
@@ -525,7 +586,7 @@ function renderFlight(){
   body.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>go("#/airport/"+b.dataset.ap));
   if($("reg"))$("reg").onclick=()=>go("#/reg/"+encodeURIComponent(acReg(r.ac)));
   $("fol").onclick=()=>{S.follow=!S.follow;if(S.follow)map.panTo([p.la,p.lo]);renderFlight();};
-  $("shr").onclick=()=>share();
+  $("shr").onclick=share;
 }
 function renderLeg(l){
   S.view="leg";const r=l.r,ai=r.ai,now=nowMin();
@@ -535,22 +596,19 @@ function renderLeg(l){
   ${stripHtml(l,ai,null)}
   <p class="note" style="padding-top:12px">${esc(when)}. Times are local at each airport.</p>
   <dl class="facts"><dt>Aircraft</dt><dd>${esc(acName(r.ac))}${acReg(r.ac)?` · <button type="button" class="link" id="reg">${esc(acReg(r.ac))}</button>`:""}</dd>
-  <dt>Distance</dt><dd><span class="m">${fmtN(Math.round(km(l.from,l.to)))} km</span></dd>
+  <dt>Distance</dt><dd><span class="m">${fmtN(Math.round(C.km(l.from,l.to)))} km</span></dd>
   <dt>Runs</dt><dd>${daysText(r.dm)}</dd></dl>
   <div class="acts"><button type="button" class="btn" data-ap="${l.from}">${l.from} board</button><button type="button" class="btn" data-ap="${l.to}">${l.to} board</button><button type="button" class="btn" id="shr">Copy link</button></div>`;
-  $("bk").onclick=()=>go("#/");$("aln").onclick=()=>go("#/airline/"+ai);$("shr").onclick=()=>share();
+  $("bk").onclick=()=>go("#/");$("aln").onclick=()=>go("#/airline/"+ai);$("shr").onclick=share;
   if($("reg"))$("reg").onclick=()=>go("#/reg/"+encodeURIComponent(acReg(r.ac)));
   body.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>go("#/airport/"+b.dataset.ap));
   sheet("open");
 }
-const DAYN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-function daysText(dm){const d=DAYN.filter((_,i)=>(dm>>i)&1);return d.length===7?"Every day":d.join(", ");}
-
 function renderAirline(ai){
   S.view="airline";const a=AL[ai],{c}=counts(),on=S.filter.has(ai);
-  const fl=a.fleet||[],tot=fl.reduce((s,x)=>s+x[1],0);
+  const fl=a.fleet||[];
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
-  <div class="bar"><h2>${swatch(ai).replace('class="sw"','class="sw" style="display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:8px;vertical-align:-1px;background:'+a.color+'"')}${esc(a.name)}${a.lead?'<span class="lead">Leads Kyra</span>':""}</h2></div>
+  <div class="bar"><h2><span class="sw" style="display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:8px;vertical-align:-1px;background:${a.color};box-shadow:inset 0 0 0 1px rgba(29,23,48,.25)"></span>${esc(a.name)}${a.lead?'<span class="lead">Leads Kyra</span>':""}</h2></div>
   <dl class="facts" style="border-top:0;margin-top:0">
     <dt>Code</dt><dd><span class="m">${esc(a.code)}</span></dd>
     <dt>Country</dt><dd>${esc(country(a.country))}</dd>
@@ -569,12 +627,12 @@ function renderAirline(ai){
   body.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>go("#/airport/"+b.dataset.ap));
   sheet("open");
 }
-
 let APROT={};
 function renderAirport(code){
-  const a=AP[code];if(!a){body.innerHTML=`<div class="empty">No Kyra airline flies to ${esc(code)}.</div>`;return;}
+  const a=AP[code];
+  if(!a){body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">No Kyra airline flies to ${esc(code)}.</div>`;$("bk").onclick=()=>go("#/");return;}
   S.view="airport";const now=nowMin(),rs=APROT[code]||[];
-  const legs=[];rs.forEach(i=>{if(S.filter.size&&!S.filter.has(ROT[i].ai))return;legsAround(ROT[i],now-90,now+480).forEach(l=>{if(l.from===code||l.to===code)legs.push(l);});});
+  const legs=[];rs.forEach(i=>{if(S.filter.size&&!S.filter.has(ROT[i].ai))return;C.legsAround(ROT[i],now-90,now+480).forEach(l=>{if(l.from===code||l.to===code)legs.push(l);});});
   const dep=legs.filter(l=>l.from===code&&l.t>=now-30).sort((x,y)=>x.t-y.t).slice(0,30);
   const arr=legs.filter(l=>l.to===code&&l.t+l.dur>=now-30).sort((x,y)=>(x.t+x.dur)-(y.t+y.dur)).slice(0,30);
   const al=new Set(rs.map(i=>ROT[i].ai));
@@ -583,8 +641,8 @@ function renderAirport(code){
   <p class="note">${esc(a.name)}, ${esc(country(a.cc))}. ${al.size} Kyra airline${al.size===1?"":"s"} fly here. Times are local.</p>
   <div class="acts" style="padding-bottom:6px"><div class="seg" role="tablist" style="box-shadow:none;background:var(--paper2)"><button type="button" data-t="dep" aria-pressed="true">Departures</button><button type="button" data-t="arr" aria-pressed="false">Arrivals</button></div></div>
   <ul class="rows" id="apl"></ul>`;
-  const show=t=>{const L=t==="dep"?dep:arr;
-    $("apl").innerHTML=L.length?L.map(l=>`<li>${legLine(l)}</li>`).join(""):`<li class="empty">Nothing ${t==="dep"?"leaving":"arriving"} in the next eight hours.</li>`;bindLegs(L);
+  const show=t=>{const Ls=t==="dep"?dep:arr;
+    $("apl").innerHTML=Ls.length?Ls.map(l=>`<li>${legLine(l)}</li>`).join(""):`<li class="empty">Nothing ${t==="dep"?"leaving":"arriving"} in the next eight hours.</li>`;bindLegs(Ls);
     body.querySelectorAll("[data-t]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.t===t)));};
   body.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>show(b.dataset.t));show("dep");
   $("bk").onclick=()=>go("#/");
@@ -596,8 +654,7 @@ function renderReg(reg){
   const ids=REG[reg.toUpperCase()]||[];S.view="reg";const now=nowMin();
   if(!ids.length){body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">No Kyra aircraft is registered ${esc(reg)}, or it has no routes.</div>`;$("bk").onclick=()=>go("#/");return;}
   const ac=ACL[ROT[ids[0]].ac];
-  const legs=[];ids.forEach(i=>legsAround(ROT[i],now-720,now+1440).forEach(l=>legs.push(l)));
-  legs.sort((x,y)=>x.t-y.t);
+  const legs=[];ids.forEach(i=>C.legsAround(ROT[i],now-720,now+1440).forEach(l=>legs.push(l)));legs.sort((x,y)=>x.t-y.t);
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
   <div class="bar"><h2><span style="font-family:var(--mono)">${esc(ac[1])}</span></h2></div>
   <p class="note">${esc(MODELS[ac[0]])} flown by ${esc(AL[ROT[ids[0]].ai].name)}${ac[2]?`, based at ${esc(ac[2])}`:""}. The last 12 hours and the next day.</p>
@@ -614,7 +671,7 @@ function results(q){
     const hits=[];
     for(const [key,list] of Object.entries(FN)){if(m[1]&&!key.startsWith(m[1]+"#"))continue;if(key.split("#")[1]!==m[2])continue;hits.push(...list);}
     const seen=new Set();
-    hits.slice(0,60).forEach(([ri,seq])=>{const r=ROT[ri];const ls=legsAround(r,now-60,now+2880).filter(l=>l.seq===seq);
+    hits.slice(0,60).forEach(([ri,seq])=>{const ls=C.legsAround(ROT[ri],now-60,now+2880).filter(l=>l.seq===seq);
       const l=ls.find(x=>x.t<=now&&now<x.t+x.dur)||ls.find(x=>x.t>now)||ls[0];if(l&&!seen.has(l.key)){seen.add(l.key);out.push({leg:l});}});
   }
   if(/^[A-Z]{3}$/.test(Q)&&AP[Q]&&APROT[Q])out.push({ap:Q});
@@ -626,16 +683,15 @@ function results(q){
 }
 function renderSearch(q){
   const res=results(q);if(!res){route();return;}
-  S.view="search";
-  const legs=res.filter(x=>x.leg).map(x=>x.leg);
+  S.view="search";const legs=res.filter(x=>x.leg).map(x=>x.leg);
   body.innerHTML=res.length?`<ul class="rows" style="padding-top:4px">${res.map(x=>{
     if(x.leg)return `<li>${legLine(x.leg)}</li>`;
     if(x.ap){const a=AP[x.ap];return `<li><button type="button" class="row two" data-go="#/airport/${x.ap}"><span class="fn">${x.ap}</span><span class="nm">${esc(a.city||a.name)}<span class="sub" style="display:inline;margin-left:6px">${esc(a.name)}</span></span><span class="st">airport</span></button></li>`;}
     if(x.al!=null)return `<li><button type="button" class="row" data-go="#/airline/${x.al}">${swatch(x.al)}<span class="nm">${esc(AL[x.al].name)}<span>${esc(AL[x.al].code)}</span></span><span class="st">airline</span></button></li>`;
-    const ac=ACL[ROT[REG[x.reg][0]].ac];return `<li><button type="button" class="row two" data-go="#/reg/${encodeURIComponent(x.reg)}"><span class="fn">${esc(x.reg)}</span><span class="sub">${esc(MODELS[ac[0]])} · ${esc(AL[ROT[REG[x.reg][0]].ai].name)}</span><span class="st">aircraft</span></button></li>`;
+    const r0=ROT[REG[x.reg][0]],ac=ACL[r0.ac];return `<li><button type="button" class="row two" data-go="#/reg/${encodeURIComponent(x.reg)}"><span class="fn">${esc(x.reg)}</span><span class="sub">${esc(MODELS[ac[0]])} · ${esc(AL[r0.ai].name)}</span><span class="st">aircraft</span></button></li>`;
   }).join("")}</ul>`:`<div class="empty">Nothing matches “${esc(q)}”. Try a flight number like CX731, a registration, an airport code or an airline name.</div>`;
   bindLegs(legs);body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{$("q").value="";go(b.dataset.go);});
-  sheet("open");
+  sheet("full");
 }
 let qt=0;$("q").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{if(D)renderSearch(e.target.value);},160);});
 $("q").addEventListener("keydown",e=>{if(e.key==="Enter"){const b=body.querySelector(".row");if(b)b.click();}if(e.key==="Escape"){e.target.value="";route();}});
@@ -645,17 +701,16 @@ $("q").addEventListener("focus",()=>sheet("full"));
 function go(h,silent){if(location.hash===h){if(!silent)route();return;}if(silent)history.replaceState(null,"",h);else location.hash=h;}
 function route(){
   if(!D)return;
-  const h=decodeURIComponent(location.hash.slice(1)),p=h.split("/").filter(Boolean);
+  const p=decodeURIComponent(location.hash.slice(1)).split("/").filter(Boolean);
   if(p[0]==="airline"&&AL[+p[1]]){renderAirline(+p[1]);return;}
   if(p[0]==="airport"){renderAirport((p[1]||"").toUpperCase());return;}
   if(p[0]==="reg"){renderReg(p[1]||"");return;}
   if(p[0]==="flight"){
-    const ri=+p[2],r=ROT[ri],now=nowMin();
-    let cand=[];
-    if(r){const fn=+(p[1].match(/\d+$/)||[])[0];cand=legsAround(r,now-60,now+2880).filter(l=>l.fn===fn);}
-    else{const res=results(p[1]||"")||[];cand=res.filter(x=>x.leg).map(x=>x.leg);}
-    const live=cand.map(l=>S.planes.find(x=>x.l.key===l.key)).find(Boolean);
-    if(live){if(S.sel!==live)selectPlane(live,true);else renderFlight();return;}
+    const r=ROT[+p[2]],now=nowMin(),fn=+((p[1]||"").match(/\d+$/)||[])[0];let cand=[];
+    if(r&&(r.fn===fn||r.ifn===fn||r.cfn===fn||r.cifn===fn))cand=C.legsAround(r,now-60,now+2880).filter(l=>l.fn===fn);
+    else cand=(results(p[1]||"")||[]).filter(x=>x.leg).map(x=>x.leg);
+    const live=cand.map(l=>findPlane(l.r.i,l.day,l.seq)).find(i=>i>=0);
+    if(live!=null){const q=plane(live);if(!S.sel||S.sel.ri!==q.ri||S.sel.day!==q.day||S.sel.seq!==q.seq)selectPlane(live,true);else renderFlight();return;}
     const l=cand.find(x=>x.t>now)||cand[0];
     if(l){S.sel=null;renderLeg(l);redraw();return;}
     body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">${esc(p[1])} isn't flying in the next two days.</div>`;$("bk").onclick=()=>go("#/");return;
@@ -663,23 +718,36 @@ function route(){
   S.sel=null;renderHome();sheet(null);redraw();
 }
 addEventListener("hashchange",route);
-async function share(){const url=location.href;try{if(navigator.share&&narrow()){await navigator.share({url,title:document.title});return;}await navigator.clipboard.writeText(url);toast("Link copied");}catch(_){toast("Couldn't copy — the link is in the address bar");}}
+async function share(){const url=location.href;try{if(navigator.share&&narrow()){await navigator.share({url,title:document.title});return;}await navigator.clipboard.writeText(url);toast("Link copied");}catch(_){toast("Couldn't copy. The link is in the address bar.");}}
 let tt=0;function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",2200);}
-
 document.querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{S.col=b.dataset.col;document.querySelectorAll("[data-col]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));$("legend").hidden=S.col!=="alt";redraw();});
-function clock(){const d=new Date();$("clock").textContent=d.toISOString().slice(11,16)+" UTC";}
+function clock(){$("clock").textContent=new Date().toISOString().slice(11,16)+" UTC";}
 
 /* ---------- start ---------- */
-const PLANE_D="M0,-8 L1.3,-6.2 L1.3,-2.2 L8,2.3 L8,3.9 L1.3,2 L1.3,5.4 L3.6,7.3 L3.6,8.5 L0,7.6 L-3.6,8.5 L-3.6,7.3 L-1.3,5.4 L-1.3,2 L-8,3.9 L-8,2.3 L-1.3,-2.2 L-1.3,-6.2 Z";
+let worker=null,lastFlightPaint=0,lastHome=0;
+function onPositions(m){
+  const first=!S.P;S.P=m;S.n=m.n;updateCount();
+  if(first){$("loading")&&$("loading").remove();route();}
+  else if(S.view==="home"&&performance.now()-lastHome>30000){lastHome=performance.now();renderHome();}
+  if(S.sel&&S.follow){const i=selIndex();if(i>=0)map.panTo([S.P.la[i],S.P.lo[i]],{animate:true});}
+  draw();
+  if(S.view==="flight"&&performance.now()-lastFlightPaint>3500){lastFlightPaint=performance.now();if(selIndex()<0){S.sel=null;renderHome();}else renderFlight();}
+}
+let tick=0;
+function pulse(){
+  tick++;const z=map.getZoom();
+  /* zoomed out, planes move about a pixel a minute, so they are moved on less often */
+  if(z<=3&&tick%3&&!S.sel)return;
+  worker.postMessage({now:nowMin()});
+}
 async function start(){
-  let res;
-  try{res=await fetch("data.json",{cache:"no-cache"});if(!res.ok)throw new Error("HTTP "+res.status);D=await res.json();}
-  catch(e){$("loading").textContent="The timetables didn't load. Check your connection and reload the page.";$("count").textContent="Timetables not loaded.";return;}
-  MODELS=D.models;ACL=D.ac;
+  const note=t=>{const l=$("loading");if(l)l.textContent=t;};
+  let got;
+  try{got=await loadData(note);}
+  catch(e){note("The timetables didn't load. Check your connection and reload the page.");$("count").textContent="Timetables not loaded.";return;}
+  D=got.D;SRC=got.src;C=CORE(D);AP=C.AP;ROT=C.ROT;MODELS=D.models;ACL=D.ac;
   AL=D.airlines.map(a=>Object.assign(a,{mc:mapColor(a.color)}));
-  for(const c in D.ap){const x=D.ap[c];AP[c]={la:x[0],lo:x[1],z:x[2],name:x[3],city:x[4],cc:x[5],hub:false};}
   AL.forEach(a=>a.hubs.forEach(h=>{if(AP[h])AP[h].hub=true;}));
-  ROT=D.rot.map(parseRot);
   const used=new Set();
   ROT.forEach(r=>{
     [r.A,r.B,r.C].forEach(c=>{if(c){(APROT[c]=APROT[c]||[]).push(r.i);used.add(c);}});
@@ -691,13 +759,19 @@ async function start(){
   });
   for(const k in APROT)APROT[k]=[...new Set(APROT[k])];
   APLIST=[...used].filter(c=>AP[c]).sort((a,b)=>(AP[a].hub?1:0)-(AP[b].hub?1:0));
-  scan();resize();updateCount();route();
-  $("loading").remove();
-  /* planes move about a pixel a minute when the whole world is on screen, so zoomed out they are redrawn less often */
-  let ticks=0;
-  setInterval(()=>{ticks++;const z=map.getZoom();if(z<=3&&ticks%3&&!S.sel)return;
-    place();if(S.sel&&S.follow)map.panTo([S.sel.la,S.sel.lo],{animate:true});draw();if(S.view==="flight")renderFlight();},4000);
-  setInterval(()=>{scan();updateCount();if(S.sel&&!S.planes.includes(S.sel)){S.sel=null;if(S.view==="flight")renderHome();}if(S.view==="home")renderHome();draw();},30000);
+  $("foot").textContent=`Echo Kyra only for now. Timetables captured from the game on ${new Date(D.captured+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}, loaded from ${SRC}; positions are worked out from the schedule.`;
+  resize();note("Placing the planes…");
+  try{
+    const src=`const mod=${mod.toString()};const CORE=${CORE.toString()};(${WORKER.toString()})();`;
+    worker=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
+    worker.onmessage=e=>onPositions(e.data);
+    worker.postMessage({data:D,now:nowMin()});
+  }catch(e){
+    /* no workers (very old browsers): do the same work here */
+    const ctx=new Function("postMessage","CORE","mod",`let onmessage;(${WORKER.toString().replace(/^function WORKER\(\)\{/,"").replace(/\}$/,"")});return m=>onmessage({data:m});`);
+    const send=ctx(m=>onPositions(m),CORE,mod);worker={postMessage:send};send({data:D,now:nowMin()});
+  }
+  setInterval(pulse,4000);
   clock();setInterval(clock,10000);
 }
 addEventListener("resize",()=>{map.invalidateSize();resize();});
