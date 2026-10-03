@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Echo Live</title>
+<meta name="description" content="Live map of Echo United Alliances flights, worked out from the game's timetables. Echo Kyra for now.">
+<meta name="theme-color" content="#141a2e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237D34FF'/%3E%3Cpath d='M16 5l2 7 7 2-7 2-2 11-2-11-7-2 7-2z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=B612+Mono:wght@400;700&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+:root{
+  --night:#141a2e;--paper:#e9e6f0;--paper2:#dcd8e6;--ink:#1d1730;--muted:#6b6580;--rule:#c9c3d6;
+  --kyra:#7d34ff;--kyra-ink:#5a1fd1;--strip:#f1e3ae;--strip-rule:#c9b46c;
+  --ui:"Barlow",system-ui,sans-serif;--cond:"Barlow Condensed","Barlow",sans-serif;--mono:"B612 Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--night);color:var(--ink);font:15px/1.45 var(--ui)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--kyra);outline-offset:2px}
+#map{position:fixed;inset:0;background:var(--night)}
+.leaflet-container{background:var(--night);font:12px/1.4 var(--ui)}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(205deg) saturate(.32) brightness(.82) contrast(.88)}
+.leaflet-control-attribution{background:rgba(20,26,46,.78)!important;color:#aab0c8!important}
+.leaflet-control-attribution a{color:#cfc2ff!important}
+.leaflet-control-zoom a{background:var(--paper)!important;color:var(--ink)!important;border-color:var(--rule)!important}
+#cv{position:absolute;left:0;top:0;pointer-events:none}
+#tip{position:absolute;z-index:460;pointer-events:none;background:var(--ink);color:#fff;font:12px/1.3 var(--mono);padding:4px 7px;border-radius:4px;white-space:nowrap;transform:translate(12px,-50%);display:none}
+
+/* panel */
+#panel{position:fixed;z-index:1000;left:14px;top:14px;bottom:14px;width:360px;display:flex;flex-direction:column;
+  background:var(--paper);border-radius:10px;box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 18px 40px rgba(5,8,20,.45);overflow:hidden}
+.head{padding:16px 18px 12px;border-bottom:1px solid var(--rule)}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{margin:0;font:700 30px/1 var(--cond);letter-spacing:-.01em;white-space:nowrap}
+.brand h1 b{color:var(--kyra);font-weight:700}
+.brand small{color:var(--muted);font-size:13px}
+.count{margin:6px 0 12px;color:var(--muted);font-size:13.5px}
+.count strong{color:var(--ink);font:700 15px var(--mono)}
+.search{position:relative}
+.search input{width:100%;border:1px solid var(--rule);background:#fff;border-radius:7px;padding:10px 12px 10px 36px;font-size:15px}
+.search input::placeholder{color:#8d87a0}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted)}
+#handle{display:none}
+#body{flex:1;overflow:auto;overscroll-behavior:contain}
+.foot{padding:9px 18px 11px;border-top:1px solid var(--rule);font-size:12px;color:var(--muted)}
+
+/* rows */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px 8px}
+.bar h2{margin:0;font:600 19px/1.15 var(--cond)}
+.link{background:none;border:0;padding:4px 0;color:var(--kyra-ink);font-weight:600;font-size:14px}
+.link:hover{text-decoration:underline}
+.rows{list-style:none;margin:0;padding:0 0 8px}
+.row{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--rule);padding:9px 18px}
+.rows li:first-child .row{border-top:0}
+.row:hover{background:var(--paper2)}
+.row .sw,.al-line .sw{width:12px;height:12px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(29,23,48,.25)}
+.row .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.row .nm span{color:var(--muted);font:12.5px var(--mono);margin-left:6px}
+.row .n{font:13px var(--mono);color:var(--muted)}
+.row.off{opacity:.45}
+.row.two{grid-template-columns:auto 1fr auto}
+.row .fn{font:700 14px var(--mono)}
+.row .rt{display:block;font:13px var(--mono);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.two>span:nth-child(2){min-width:0}
+.row .sub{display:block;font:12.5px var(--ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .st{font:12.5px var(--mono);color:var(--muted);text-align:right}
+.row .st.air{color:var(--kyra-ink);font-weight:700}
+.empty{padding:22px 18px;color:var(--muted)}
+.note{margin:0;padding:6px 18px 12px;color:var(--muted);font-size:13px}
+.back{display:flex;align-items:center;gap:6px;background:none;border:0;padding:12px 18px 4px;color:var(--kyra-ink);font-weight:600;font-size:14px}
+
+/* the flight strip */
+.strip{margin:10px 14px 4px;background:var(--strip);border:1px solid var(--strip-rule);border-left:9px solid var(--al,#7d34ff);border-radius:3px;
+  display:grid;grid-template-columns:1.15fr 1.25fr 1fr;color:#2a2210;box-shadow:0 2px 0 rgba(0,0,0,.06)}
+.strip>div{padding:8px 10px;border-left:1px solid var(--strip-rule)}
+.strip>div:first-child{border-left:0}
+.strip .cs{font:700 22px/1 var(--cond);letter-spacing:.01em}
+.strip .ty{font:11.5px/1.3 var(--mono);margin-top:6px}
+.strip .rt{font:700 17px/1.1 var(--mono);white-space:nowrap}
+.strip .via{font:11.5px var(--mono);margin-top:4px}
+.strip .tm{font:12.5px/1.6 var(--mono);white-space:nowrap}
+.strip .tm b{font-weight:700}
+.strip .reg{grid-column:1/-1;border-left:0;border-top:1px solid var(--strip-rule);display:flex;justify-content:space-between;font:11.5px var(--mono);padding:5px 10px}
+.al-line{display:flex;align-items:center;gap:8px;padding:2px 18px 0;font-weight:600}
+.al-line .sw{width:12px;height:12px;border-radius:3px}
+.al-line button{background:none;border:0;padding:0;font-weight:600;color:inherit;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px}
+.prog{padding:12px 18px 4px}
+.prog .ends{display:flex;justify-content:space-between;gap:10px}
+.prog .ends button{background:none;border:0;padding:0;text-align:left}
+.prog .ends button:last-child{text-align:right}
+.prog .code{display:block;font:700 26px/1 var(--mono)}
+.prog .city{display:block;font-size:13px;color:var(--muted);max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:3px;background:var(--rule);border-radius:2px;margin:14px 0 8px}
+.track i{position:absolute;left:0;top:0;bottom:0;background:var(--kyra);border-radius:2px}
+.track svg{position:absolute;top:50%;width:18px;height:18px;transform:translate(-50%,-50%) rotate(90deg);color:var(--kyra)}
+.prog .left{display:flex;justify-content:space-between;font-size:13.5px;color:var(--muted)}
+.prog .left b{color:var(--ink);font-weight:600}
+dl.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:8px 18px 4px;padding:10px 0 12px;border-top:1px solid var(--rule);font-size:14px}
+dl.facts dt{color:var(--muted)}
+dl.facts dd{margin:0;font-weight:500}
+dl.facts dd .m{font-family:var(--mono);font-size:13.5px}
+dl.facts .est{font:11px var(--mono);color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:0 4px;margin-left:6px;vertical-align:1px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;padding:4px 18px 14px}
+.btn{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:7px 12px;font-weight:600;font-size:14px}
+.btn[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.prim{background:var(--kyra);border-color:var(--kyra);color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{border:1px solid var(--rule);background:#fff;border-radius:4px;padding:1px 6px;font:12.5px var(--mono)}
+.chip:hover{border-color:var(--kyra)}
+h3{margin:14px 18px 4px;font:600 16px var(--cond)}
+.fleet{list-style:none;margin:0 18px 10px;padding:0;font-size:14px}
+.fleet li{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid var(--rule)}
+.fleet li:first-child{border-top:0}
+.fleet span{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.lead{display:inline-block;margin-left:8px;font:600 12px var(--ui);color:#fff;background:var(--kyra);border-radius:3px;padding:1px 6px;vertical-align:3px}
+
+/* map extras */
+#hud{position:fixed;z-index:900;right:14px;bottom:26px;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.seg{display:flex;background:rgba(233,230,240,.94);border-radius:7px;padding:3px;box-shadow:0 6px 18px rgba(5,8,20,.35)}
+.seg button{border:0;background:none;border-radius:5px;padding:5px 10px;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--ink)}
+#legend{background:rgba(233,230,240,.94);border-radius:7px;padding:7px 10px;font:11.5px var(--mono);box-shadow:0 6px 18px rgba(5,8,20,.35)}
+#legend .g{width:190px;height:8px;border-radius:4px;margin:3px 0 2px;background:linear-gradient(90deg,#3fd0c9,#9be15d 35%,#f5c542 65%,#ff6fa8)}
+#legend .s{display:flex;justify-content:space-between;color:var(--muted)}
+#clock{font:12.5px var(--mono);color:#c9c3e6;text-shadow:0 1px 2px #000}
+#loading{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;color:#d8d2f0;font:15px var(--ui);pointer-events:none}
+#toast{position:fixed;z-index:1300;left:50%;bottom:30px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:6px;font-weight:500;display:none}
+
+@media (max-width:760px){
+  #panel{left:0;right:0;top:auto;bottom:0;width:auto;height:calc(132px + env(safe-area-inset-bottom));border-radius:14px 14px 0 0;transition:height .25s ease;padding-bottom:env(safe-area-inset-bottom)}
+  #panel.open{height:68vh}
+  #panel.full{height:88vh}
+  #handle{display:block;width:100%;height:20px;border:0;background:none;position:relative;flex:none}
+  #handle::after{content:"";position:absolute;left:50%;top:8px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#b3acc4}
+  .head{padding:0 16px 10px}
+  .brand h1{font-size:25px}
+  .count{margin:2px 0 8px}
+  .foot{display:none}
+  #hud{bottom:calc(146px + env(safe-area-inset-bottom));right:10px}
+  #panel.open~#hud,#panel.full~#hud{display:none}
+  .leaflet-top.leaflet-right{margin-top:env(safe-area-inset-top)}
+  .leaflet-bottom.leaflet-right{bottom:calc(132px + env(safe-area-inset-bottom))}
+  #panel.open~#map .leaflet-bottom.leaflet-right{display:none}
+}
+@media (prefers-reduced-motion:reduce){#panel{transition:none}}
+</style>
+</head>
+<body>
+<div id="map" aria-label="Map of Kyra flights"></div>
+<aside id="panel" aria-label="Echo Live">
+  <button id="handle" type="button" aria-label="Expand panel"></button>
+  <div class="head">
+    <div class="brand"><h1>Echo <b>Live</b></h1><small>Echo Kyra for now</small></div>
+    <p class="count" id="count">Loading the timetables…</p>
+    <label class="search"><span class="sr" hidden>Search</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13l5 5"/></svg>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Flight, registration, airport or airline" aria-label="Search flights, registrations, airports and airlines">
+    </label>
+  </div>
+  <div id="body"></div>
+  <div class="foot" id="foot">Echo Kyra only for now. Timetables captured from the game on 3 October 2026; positions are worked out from the schedule.</div>
+</aside>
+<div id="hud">
+  <div id="clock"></div>
+  <div id="legend" hidden><div>Altitude</div><div class="g"></div><div class="s"><span>0</span><span>20,000</span><span>40,000 ft</span></div></div>
+  <div class="seg" role="group" aria-label="Colour planes by"><button type="button" data-col="airline" aria-pressed="true">Airline colours</button><button type="button" data-col="alt" aria-pressed="false">Altitude</button></div>
+</div>
+<div id="tip"></div>
+<div id="loading">Loading the timetables…</div>
+<div id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtN=n=>Number(n||0).toLocaleString("en-US");
+const mod=(x,n)=>((x%n)+n)%n;
+const REGION=(()=>{try{return new Intl.DisplayNames(["en"],{type:"region"});}catch(_){return null;}})();
+const country=cc=>{try{return REGION&&cc?REGION.of(cc):cc||"";}catch(_){return cc||"";}};
+
+let D=null, AP={}, AL=[], ROT=[], MODELS=[], ACL=[];
+const S={planes:[],sel:null,follow:false,filter:new Set(),col:"airline",view:"home",hover:null,lastScan:0,scanDay:null};
+
+/* ---------- time ----------
+   Every time in the game is local to its airport. Offsets come from each
+   airport's real time zone, read for the instant in question. */
+const TZF=[], OFF=new Map();
+function off(z,ms){
+  const h=Math.floor(ms/36e5), k=z*1e7+h;
+  let v=OFF.get(k); if(v!==undefined)return v;
+  try{
+    const f=TZF[z]||(TZF[z]=new Intl.DateTimeFormat("en-US",{timeZone:D.tz[z],hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
+    const p={};f.formatToParts(new Date(h*36e5)).forEach(x=>p[x.type]=x.value);
+    v=Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-h*36e5)/6e4);
+  }catch(_){v=0;}
+  OFF.set(k,v);return v;
+}
+const offAt=(code,min)=>off(AP[code].z,min*6e4);
+/* a local clock time on a local date → minutes since 1970 UTC */
+function fromLocal(code,day,m){const L=day*1440+m, z=AP[code].z, u=L-off(z,L*6e4);return L-off(z,u*6e4);}
+const localMin=(code,min)=>min+offAt(code,min);
+const hhmm=m=>{m=mod(Math.round(m),1440);return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");};
+function localTime(code,min){return hhmm(localMin(code,min));}
+function dayTag(code,min,refCode,refMin){const a=Math.floor(localMin(code,min)/1440),b=Math.floor(localMin(refCode,refMin)/1440);const d=a-b;return d?(d>0?" +"+d:" "+d):"";}
+const dur=m=>{m=Math.max(0,Math.round(m));const h=Math.floor(m/60),mm=m%60;return h?`${h}h ${String(mm).padStart(2,"0")}m`:`${mm}m`;};
+const nowMin=()=>Date.now()/6e4;
+
+/* ---------- geography ---------- */
+const R2D=180/Math.PI,D2R=Math.PI/180;
+function km(a,b){const A=AP[a],B=AP[b];if(!A||!B)return 0;const dla=(B.la-A.la)*D2R,dlo=(B.lo-A.lo)*D2R;
+  const h=Math.sin(dla/2)**2+Math.cos(A.la*D2R)*Math.cos(B.la*D2R)*Math.sin(dlo/2)**2;return 2*6371*Math.asin(Math.min(1,Math.sqrt(h)));}
+const vec=(la,lo)=>[Math.cos(la*D2R)*Math.cos(lo*D2R),Math.cos(la*D2R)*Math.sin(lo*D2R),Math.sin(la*D2R)];
+function gcSetup(a,b){const A=AP[a],B=AP[b],va=vec(A.la,A.lo),vb=vec(B.la,B.lo);
+  const dot=Math.max(-1,Math.min(1,va[0]*vb[0]+va[1]*vb[1]+va[2]*vb[2]));const w=Math.acos(dot);return {va,vb,w,s:Math.sin(w)||1};}
+function gcAt(g,f){if(g.w<1e-9)return [Math.asin(g.va[2])*R2D,Math.atan2(g.va[1],g.va[0])*R2D];
+  const k1=Math.sin((1-f)*g.w)/g.s,k2=Math.sin(f*g.w)/g.s;
+  const x=k1*g.va[0]+k2*g.vb[0],y=k1*g.va[1]+k2*g.vb[1],z=k1*g.va[2]+k2*g.vb[2];
+  return [Math.atan2(z,Math.hypot(x,y))*R2D,Math.atan2(y,x)*R2D];}
+function bearing(la1,lo1,la2,lo2){const p1=la1*D2R,p2=la2*D2R,dl=(lo2-lo1)*D2R;
+  return mod(Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl))*R2D,360);}
+
+/* ---------- the schedule ----------
+   The game stores one row per route. The way back is worked out the way the
+   game does it: after landing the aircraft waits a ground time set by the
+   route's length (60 min up to 1,500 km, 90 to 4,000, 120 to 10,000, 150
+   beyond) plus the airline's extra turnaround, then flies home on the route's
+   own inbound time. A stopover route continues from the stop at its own listed
+   time; on the way home it turns at the far end and waits 60 minutes at the
+   stop. Days of the week count Monday as 0 and belong to the first departure. */
+const groundMin=(a,b)=>{const k=km(a,b);return k<=1500?60:k<=4000?90:k<=10000?120:150;};
+function parseRot(r,i){
+  const o={i,ai:r[0],A:r[1],B:r[2],fn:r[3],ifn:r[4],ts:r[5],dur:r[6],idur:r[7],turn:r[8],ac:r[9],dm:r[10],C:null,cs:null};
+  let k=11;
+  if(typeof r[11]==="string"){Object.assign(o,{C:r[11],cfn:r[12],cifn:r[13],cts:r[14],cdur:r[15],cidur:r[16],cturn:r[17]});k=18;}
+  if(Array.isArray(r[k]))o.cs=r[k];
+  return o;
+}
+/* the legs of one rotation that starts on local date `day` at its origin */
+function legsOf(r,day){
+  const t0=fromLocal(r.A,day,r.ts), L=[];
+  const mk=(seq,from,to,fn,t,d)=>({r,day,seq,from,to,fn,t,dur:d,key:r.i+":"+day+":"+seq});
+  L.push(mk(0,r.A,r.B,r.fn,t0,r.dur));
+  let back;
+  if(r.C){
+    const c0=fromLocal(r.B,day,r.cts),c1=c0+r.cdur;
+    L.push(mk(1,r.B,r.C,r.cfn,c0,r.cdur));
+    const k0=c1+groundMin(r.B,r.C)+(r.turn||0)+(r.cturn||0);
+    L.push(mk(2,r.C,r.B,r.cifn!=null?r.cifn:r.cfn+1,k0,r.cidur||r.cdur));
+    back=k0+(r.cidur||r.cdur)+60;
+  }else back=t0+r.dur+groundMin(r.A,r.B)+(r.turn||0);
+  L.push(mk(3,r.B,r.A,r.ifn!=null?r.ifn:r.fn+1,back,r.idur||r.dur));
+  return L;
+}
+const runsOn=(r,day)=>(r.dm>>mod(day+3,7))&1;      // 1 Jan 1970 was a Thursday
+function legsAround(r,fromMin,toMin){
+  const out=[], d0=Math.floor(fromMin/1440)-3, d1=Math.floor(toMin/1440)+1;
+  for(let d=d0;d<=d1;d++){if(!runsOn(r,d))continue;
+    for(const l of legsOf(r,d))if(l.t<toMin&&l.t+l.dur>fromMin)out.push(l);}
+  return out;
+}
+
+/* climb, cruise and descent over the block time; taxiing at either end */
+function phases(d){const tout=Math.min(10,d*.12),tin=Math.min(6,d*.08),air=Math.max(1,d-tout-tin);
+  const c=Math.min(22,air*.3),de=Math.min(28,air*.35),cr=Math.max(0,air-c-de),v=.3;return {tout,tin,air,c,d:de,cr,v,D:c*(1+v)/2+cr+de*(1+v)/2};}
+function pathFrac(f,d){const b=phases(d),t=f*d-b.tout;if(t<=0)return 0;if(t>=b.air)return 1;let s;
+  if(t<b.c)s=b.v*t+(1-b.v)*t*t/(2*b.c);else if(t<b.c+b.cr)s=b.c*(1+b.v)/2+(t-b.c);
+  else{const u=t-b.c-b.cr;s=b.c*(1+b.v)/2+b.cr+u-(1-b.v)*u*u/(2*b.d);}return Math.min(1,s/b.D);}
+const cruiseAlt=k=>k<350?21000:k<800?28000:k<2000?35000:k<5500?37000:39000;
+function est(l,f){
+  const d=l.dur,k=km(l.from,l.to),b=phases(d),t=f*d-b.tout,cr=cruiseAlt(k);
+  const kt=Math.round(Math.max(250,Math.min(505,k/Math.max(.25,b.D/60)/1.852)));
+  if(t<0||t>b.air)return {alt:0,spd:t<0?12:16,vs:0,ground:true};
+  let alt,spd,vs;
+  if(t<b.c){const p=t/b.c;alt=cr*(1-Math.pow(1-p,1.7));spd=150+(kt-150)*p;vs=1;}
+  else if(t>b.air-b.d){const p=Math.max(0,(b.air-t)/b.d);alt=cr*(1-Math.pow(1-p,1.4));spd=140+(kt-140)*p;vs=-1;}
+  else{alt=cr;spd=kt;vs=0;}
+  if(vs<0)alt=Math.min(alt,(1-pathFrac(f,d))*k*190);
+  return {alt:Math.max(0,Math.round(alt/100)*100),spd:Math.round(spd),vs,ground:false};
+}
+
+/* ---------- who is flying ---------- */
+const GC=new Map();
+function scan(){
+  const now=nowMin(), out=[], day=Math.floor(now/1440);
+  for(const r of ROT){
+    for(let d=day-3;d<=day+1;d++){
+      if(!((r.dm>>mod(d+3,7))&1))continue;
+      const t0=fromLocal(r.A,d,r.ts);
+      if(t0>now||t0<now-4320)continue;            // a rotation is over within three days
+      for(const l of legsOf(r,d))if(l.t<=now&&now<l.t+l.dur)out.push({l,ai:r.ai});
+    }
+  }
+  const keep=new Set(out.map(p=>p.l.key));for(const k of GC.keys())if(!keep.has(k))GC.delete(k);
+  S.planes=out;S.lastScan=now;
+  if(S.sel){const m=out.find(p=>p.l.key===S.sel.l.key);if(m)S.sel=m;}
+  place();
+}
+function place(){
+  const now=nowMin();
+  for(const p of S.planes){
+    const l=p.l;let g=GC.get(l.key);if(!g){g=gcSetup(l.from,l.to);GC.set(l.key,g);}
+    p.f=Math.min(1,Math.max(0,(now-l.t)/l.dur));
+    const s=pathFrac(p.f,l.dur),a=gcAt(g,s),b=gcAt(g,Math.min(1,s+.002));
+    p.la=a[0];p.lo=a[1];p.brg=s>=.998?bearing(...gcAt(g,.99),...gcAt(g,1)):bearing(a[0],a[1],b[0],b[1]);
+    const w=map.project([p.la,p.lo],0);p.wx=w.x;p.wy=w.y;
+    p.e=null;
+  }
+}
+const estOf=p=>p.e||(p.e=est(p.l,p.f));
+const inAir=p=>!estOf(p).ground;
+
+/* ---------- colours ---------- */
+function hexRgb(h){return [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));}
+function rgbHsl([r,g,b]){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;
+  if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h/=6;}return [h,s,l];}
+function hsl(h,s,l){return `hsl(${Math.round(h*360)} ${Math.round(s*100)}% ${Math.round(l*100)}%)`;}
+/* planes sit on a dark map, so every airline colour is brought up to a readable lightness */
+function mapColor(hex){const [h,s,l]=rgbHsl(hexRgb(hex));if(s<.12)return hsl(.72,.18,.86);return hsl(h,Math.max(.55,s),Math.min(.74,Math.max(.6,l)));}
+function altColor(a){const st=[[0,[63,208,201]],[14000,[155,225,93]],[26000,[245,197,66]],[40000,[255,111,168]]];
+  let i=0;while(i<st.length-2&&a>st[i+1][0])i++;const [a0,c0]=st[i],[a1,c1]=st[i+1],t=Math.max(0,Math.min(1,(a-a0)/(a1-a0)));
+  return `rgb(${c0.map((c,j)=>Math.round(c+(c1[j]-c)*t)).join(",")})`;}
+
+/* ---------- map ---------- */
+const map=L.map("map",{worldCopyJump:true,zoomControl:false,minZoom:2,maxZoom:10,attributionControl:true}).setView([28,40],innerWidth<=760?2:3);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:10,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+L.control.zoom({position:"topright"}).addTo(map);
+/* The planes are drawn on one canvas that sits in the map's own pane, so a
+   drag moves the finished picture with the map and it is only redrawn when
+   the map settles (or the planes move on). It covers a margin beyond the
+   screen so a drag doesn't reveal empty edges. */
+const cv=document.createElement("canvas");cv.id="cv";cv.className="leaflet-zoom-hide";map.getPanes().overlayPane.appendChild(cv);
+const cx=cv.getContext("2d");
+const PLANE=new Path2D("M0,-8 L1.3,-6.2 L1.3,-2.2 L8,2.3 L8,3.9 L1.3,2 L1.3,5.4 L3.6,7.3 L3.6,8.5 L0,7.6 L-3.6,8.5 L-3.6,7.3 L-1.3,5.4 L-1.3,2 L-8,3.9 L-8,2.3 L-1.3,-2.2 L-1.3,-6.2 Z");
+const SPR=new Map();
+/* each colour is drawn once per 10° of heading and size, then stamped */
+function sprite(col,deg,sc,outline){
+  const b=Math.round(mod(deg,360)/10)%36,k=col+"|"+b+"|"+sc+"|"+outline+"|"+DPR;let c=SPR.get(k);if(c)return c;
+  const n=Math.ceil(20*sc*DPR)+2;c=document.createElement("canvas");c.width=c.height=n;const g=c.getContext("2d");
+  g.translate(n/2,n/2);g.scale(sc*DPR,sc*DPR);g.rotate(b*10*D2R);g.fillStyle=col;g.fill(PLANE);
+  if(outline){g.lineWidth=.9;g.strokeStyle="rgba(10,12,28,.75)";g.stroke(PLANE);}
+  if(SPR.size>6000)SPR.clear();SPR.set(k,c);return c;}
+const PAD=.3;
+let W=0,H=0,PX=0,PY=0,DPR=1,HX=new Float32Array(0),HY=new Float32Array(0),HI=new Int32Array(0),HN=0,raf=0;
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);const s=map.getSize();W=s.x;H=s.y;PX=Math.round(W*PAD);PY=Math.round(H*PAD);
+  cv.width=(W+2*PX)*DPR;cv.height=(H+2*PY)*DPR;cv.style.width=(W+2*PX)+"px";cv.style.height=(H+2*PY)+"px";draw();}
+function redraw(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;draw();});}
+const visible=p=>!S.filter.size||S.filter.has(p.ai);
+/* canvas coordinates: container point shifted by the margin */
+const cp=ll=>{const q=map.latLngToContainerPoint(ll);return {x:q.x+PX,y:q.y+PY};};
+function copies(x){const ww=256*Math.pow(2,map.getZoom()),xs=[];x-=Math.floor((x+30)/ww)*ww;for(;x<W+2*PX+30;x+=ww)xs.push(x);return xs;}
+function draw(){
+  L.DomUtil.setPosition(cv,map.containerPointToLayerPoint([-PX,-PY]));
+  cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W+2*PX,H+2*PY);
+  if(!D)return;
+  const BW=W+2*PX,BH=H+2*PY;
+  const z=map.getZoom(), sc=z<=2?.42:z===3?.5:z===4?.66:z===5?.85:1.05, out=z>=5;
+  const zs=Math.pow(2,z),o0=map.project([0,0],z),c0=cp([0,0]),ox=c0.x-o0.x,oy=c0.y-o0.y,ww=256*zs;
+  if(HX.length<S.planes.length*4){const n=S.planes.length*4+300;HX=new Float32Array(n);HY=new Float32Array(n);HI=new Int32Array(n);}
+  HN=0;
+  if(S.sel)drawRoute(S.sel);
+  if(z>=5)drawAirports(z);
+  const byCol=S.col==="alt",lab=z>=7;
+  cx.setTransform(DPR,0,0,DPR,0,0);cx.font="600 11px 'B612 Mono',monospace";
+  S.planes.forEach((p,i)=>{
+    if(!visible(p)||p===S.sel)return;
+    const y=p.wy*zs+oy;if(y<-20||y>BH+20)return;
+    let x0=p.wx*zs+ox;x0-=Math.floor((x0+30)/ww)*ww;
+    if(x0>BW+30)return;
+    const col=byCol?altColor(Math.round(estOf(p).alt/2000)*2000):AL[p.ai].mc, sp=sprite(col,p.brg,sc,out), h=sp.width/DPR/2;
+    for(let x=x0;x<BW+30;x+=ww){
+      cx.drawImage(sp,(x-h)*DPR,(y-h)*DPR);
+      if(lab){cx.fillStyle="rgba(232,228,244,.9)";cx.fillText(AL[p.ai].code+p.l.fn,x+10,y+4);}
+      if(HN<HX.length){HX[HN]=x-PX;HY[HN]=y-PY;HI[HN]=i;HN++;}
+    }
+  });
+  if(S.sel){
+    const p=S.sel,pt=cp([p.la,p.lo]),k=S.planes.indexOf(p);
+    for(const x of copies(pt.x)){
+      cx.setTransform(DPR,0,0,DPR,0,0);cx.beginPath();cx.arc(x,pt.y,15,0,7);cx.fillStyle="rgba(125,52,255,.28)";cx.fill();
+      cx.lineWidth=1.5;cx.strokeStyle="#fff";cx.stroke();
+      cx.setTransform(DPR*1.35,0,0,DPR*1.35,x*DPR,pt.y*DPR);cx.rotate(p.brg*D2R);
+      cx.fillStyle="#fff";cx.fill(PLANE);cx.lineWidth=1;cx.strokeStyle="#1d1730";cx.stroke(PLANE);
+      if(k>=0&&HN<HX.length){HX[HN]=x-PX;HY[HN]=pt.y-PY;HI[HN]=k;HN++;}
+    }
+    cx.setTransform(DPR,0,0,DPR,0,0);
+  }
+}
+function drawRoute(p){
+  const l=p.l,g=GC.get(l.key)||gcSetup(l.from,l.to),N=96,s=pathFrac(p.f,l.dur);
+  const sp=[];for(let i=0;i<=N;i++)sp.push(cp(gcAt(g,i/N)));
+  const ww=256*Math.pow(2,map.getZoom()),cut=Math.round(s*N);
+  /* keep the line continuous across the date line, then repeat it for each world copy */
+  for(let i=1;i<sp.length;i++){while(sp[i].x-sp[i-1].x>ww/2)sp[i].x-=ww;while(sp[i].x-sp[i-1].x<-ww/2)sp[i].x+=ww;}
+  const col=AL[p.ai].mc,mn=Math.min(...sp.map(q=>q.x)),mx=Math.max(...sp.map(q=>q.x)),BW=W+2*PX;
+  for(let k=-3;k<=3;k++){
+    const dx=k*ww;if(mx+dx<0||mn+dx>BW)continue;
+    cx.setTransform(DPR,0,0,DPR,0,0);
+    cx.lineWidth=2.2;cx.strokeStyle=col;cx.setLineDash([]);cx.beginPath();
+    for(let i=0;i<=cut;i++){const q=sp[i];i?cx.lineTo(q.x+dx,q.y):cx.moveTo(q.x+dx,q.y);}cx.stroke();
+    cx.setLineDash([5,6]);cx.lineWidth=1.6;cx.beginPath();
+    for(let i=cut;i<sp.length;i++){const q=sp[i];i===cut?cx.moveTo(q.x+dx,q.y):cx.lineTo(q.x+dx,q.y);}cx.stroke();cx.setLineDash([]);
+    [[l.from,sp[0]],[l.to,sp[sp.length-1]]].forEach(([c,q])=>{cx.beginPath();cx.arc(q.x+dx,q.y,4.5,0,7);cx.fillStyle="#fff";cx.fill();cx.lineWidth=2;cx.strokeStyle=col;cx.stroke();
+      cx.font="700 13px 'B612 Mono',monospace";cx.fillStyle="#fff";cx.strokeStyle="rgba(20,26,46,.9)";cx.lineWidth=3;cx.strokeText(c,q.x+dx+8,q.y-8);cx.fillText(c,q.x+dx+8,q.y-8);});
+  }
+}
+let APLIST=[];
+function drawAirports(z){
+  cx.setTransform(DPR,0,0,DPR,0,0);cx.font="600 11px 'B612 Mono',monospace";const BH=H+2*PY;
+  for(const c of APLIST){const a=AP[c],pt=cp([a.la,a.lo]);if(pt.y<-10||pt.y>BH+10)continue;
+    for(const x of copies(pt.x)){cx.beginPath();cx.arc(x,pt.y,a.hub?3.2:2.2,0,7);cx.fillStyle=a.hub?"#cdbbff":"rgba(205,200,230,.55)";cx.fill();
+      if(z>=6&&(a.hub||z>=7)){cx.fillStyle="rgba(205,200,230,.8)";cx.fillText(c,x+5,pt.y-5);}}}
+}
+function hit(x,y,r){let best=-1,bd=r*r;for(let i=0;i<HN;i++){const dx=HX[i]-x,dy=HY[i]-y,d=dx*dx+dy*dy;if(d<bd){bd=d;best=HI[i];}}return best;}
+function hitAirport(x,y){if(map.getZoom()<5)return null;let best=null,bd=64;
+  for(const c of APLIST){const a=AP[c],q=map.latLngToContainerPoint([a.la,a.lo]),ww=256*Math.pow(2,map.getZoom());
+    for(let k=-2;k<=2;k++){const d=(q.x+k*ww-x)**2+(q.y-y)**2;if(d<bd){bd=d;best=c;}}}return best;}
+map.on("moveend",redraw);map.on("zoomend",draw);
+map.on("resize",resize);
+map.on("dragstart",()=>{if(S.follow){S.follow=false;if(S.view==="flight")renderFlight();}});
+map.on("click",e=>{
+  const i=hit(e.containerPoint.x,e.containerPoint.y,14);
+  if(i>=0){selectPlane(S.planes[i],false);return;}
+  const a=hitAirport(e.containerPoint.x,e.containerPoint.y);if(a){go("#/airport/"+a);return;}
+  if(S.sel){S.sel=null;S.follow=false;if(S.view==="flight")go("#/");redraw();}
+});
+const tip=$("tip");
+map.on("mousemove",e=>{if(!D||matchMedia("(hover:none)").matches)return;const i=hit(e.containerPoint.x,e.containerPoint.y,10);
+  if(i<0){tip.style.display="none";map.getContainer().style.cursor="";return;}
+  const p=S.planes[i];tip.textContent=`${AL[p.ai].code}${p.l.fn}  ${p.l.from}–${p.l.to}`;tip.style.left=e.containerPoint.x+"px";tip.style.top=e.containerPoint.y+"px";tip.style.display="block";map.getContainer().style.cursor="pointer";});
+map.on("mouseout",()=>{tip.style.display="none";});
+
+/* ---------- panel views ---------- */
+const body=$("body"), panel=$("panel");
+const narrow=()=>innerWidth<=760;
+function sheet(state){if(!narrow())return;panel.classList.toggle("open",state==="open");panel.classList.toggle("full",state==="full");$("handle").setAttribute("aria-label",state?"Collapse panel":"Expand panel");}
+$("handle").onclick=()=>sheet(panel.classList.contains("open")||panel.classList.contains("full")?null:"open");
+function counts(){const c=new Array(AL.length).fill(0);let n=0;for(const p of S.planes)if(inAir(p)){c[p.ai]++;n++;}return {c,n};}
+function updateCount(){const {n}=counts(),f=S.filter.size;
+  $("count").innerHTML=f?`<strong>${fmtN(S.planes.filter(p=>visible(p)&&inAir(p)).length)}</strong> in the air from ${f===1?esc(AL[[...S.filter][0]].name):f+" airlines"} · <button class="link" id="clr">show all</button>`
+    :`<strong>${fmtN(n)}</strong> Kyra flights in the air now`;
+  const b=$("clr");if(b)b.onclick=()=>{S.filter.clear();updateCount();redraw();if(S.view==="home")renderHome();if(S.view==="airline")route();};}
+const swatch=ai=>`<span class="sw" style="background:${AL[ai].color}"></span>`;
+
+function renderHome(){
+  S.view="home";const {c}=counts();
+  const order=AL.map((a,i)=>i).sort((a,b)=>c[b]-c[a]||AL[a].name.localeCompare(AL[b].name));
+  body.innerHTML=`<div class="bar"><h2>Airlines in Echo Kyra</h2><span class="n" style="font:13px var(--mono);color:var(--muted)">${AL.length}</span></div>
+  <ul class="rows">${order.map(i=>`<li><button type="button" class="row${S.filter.size&&!S.filter.has(i)?" off":""}" data-al="${i}">${swatch(i)}<span class="nm">${esc(AL[i].name)}<span>${esc(AL[i].code)}</span></span><span class="n">${c[i]?fmtN(c[i])+" up":"—"}</span></button></li>`).join("")}</ul>`;
+  body.querySelectorAll("[data-al]").forEach(b=>b.onclick=()=>go("#/airline/"+b.dataset.al));
+}
+
+function legLine(l,ref){
+  const now=nowMin(),ai=l.r.ai;
+  const st=l.t<=now&&now<l.t+l.dur?`<span class="st air">flying</span>`:l.t>now?`<span class="st">${l.t-now<60*24?"in "+dur(l.t-now):""}</span>`:`<span class="st">landed</span>`;
+  return `<button type="button" class="row two" data-leg="${l.key}"><span class="fn">${esc(AL[ai].code)}${l.fn}</span><span><span class="rt">${l.from} ${localTime(l.from,l.t)} → ${l.to} ${localTime(l.to,l.t+l.dur)}${dayTag(l.to,l.t+l.dur,l.from,l.t)}</span><span class="sub">${esc(AL[ai].name)} · ${esc(acName(l.r.ac))}</span></span>${st}</button>`;
+}
+const acName=i=>i>=0&&ACL[i]?`${MODELS[ACL[i][0]]}`:"Aircraft not in the capture";
+const acReg=i=>i>=0&&ACL[i]?ACL[i][1]:"";
+const LEGS=new Map();
+function bindLegs(list){list.forEach(l=>LEGS.set(l.key,l));body.querySelectorAll("[data-leg]").forEach(b=>b.onclick=()=>openLeg(LEGS.get(b.dataset.leg)));}
+function openLeg(l){
+  const p=S.planes.find(x=>x.l.key===l.key);
+  if(p){selectPlane(p,true);return;}
+  S.sel=null;S.follow=false;S.leg=l;go(`#/flight/${encodeURIComponent(AL[l.r.ai].code+l.fn)}/${l.r.i}`,true);renderLeg(l);redraw();
+}
+
+/* on a phone the sheet covers the lower part of the map, so the point goes in the part still showing */
+function focusOn(ll,z){
+  if(!narrow()){map.flyTo(ll,z,{duration:.8});return;}
+  const cover=innerHeight*(panel.classList.contains("full")?.88:.68);
+  const pt=map.project(ll,z).add([0,cover/2]);map.flyTo(map.unproject(pt,z),z,{duration:.8});
+}
+function selectPlane(p,fly){
+  S.sel=p;S.leg=null;
+  const hash=`#/flight/${encodeURIComponent(AL[p.ai].code+p.l.fn)}/${p.l.r.i}`;
+  if(location.hash!==hash)history.replaceState(null,"",hash);
+  renderFlight();sheet("open");
+  if(fly)focusOn([p.la,p.lo],Math.max(map.getZoom(),4));
+  else if(narrow()){const q=map.latLngToContainerPoint([p.la,p.lo]);if(q.y>innerHeight*.32-20)focusOn([p.la,p.lo],map.getZoom());}
+  redraw();
+}
+function stripHtml(l,ai,f){
+  const r=l.r,a=AL[ai],dep=l.t,arr=l.t+l.dur;
+  const via=r.C?(l.seq===0?`continues to ${r.C}`:l.seq===1?`from ${r.A} via ${r.B}`:l.seq===2?`continues to ${r.A}`:`from ${r.C} via ${r.B}`):"nonstop";
+  return `<div class="strip" style="--al:${a.color}">
+    <div><div class="cs">${esc(a.code)} ${l.fn}</div><div class="ty">${esc(acName(r.ac))}</div></div>
+    <div><div class="rt">${l.from} → ${l.to}</div><div class="via">${esc(via)}</div></div>
+    <div class="tm">Dep <b>${localTime(l.from,dep)}</b><br>Arr <b>${localTime(l.to,arr)}</b>${dayTag(l.to,arr,l.from,dep)}</div>
+    <div class="reg"><span>${esc(acReg(r.ac)||"—")}</span><span>${f==null?"":f<=0?"Scheduled":"Block "+dur(l.dur)}</span></div>
+  </div>`;
+}
+function renderFlight(){
+  const p=S.sel;if(!p){renderHome();return;}
+  S.view="flight";const l=p.l,r=l.r,a=AL[p.ai],e=estOf(p),now=nowMin();
+  const A=AP[l.from],B=AP[l.to],pct=Math.round(p.f*1000)/10;
+  const cs=r.cs&&(l.seq===0||l.seq===3)?r.cs.map(x=>{const [n,ib]=x.split("/");return l.seq===0?n:n.replace(/\d+$/,"")+ib;}):[];
+  const nextLeg=legsAround(r,now,now+2880).filter(x=>x.t>l.t).sort((x,y)=>x.t-y.t)[0];
+  body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
+   <div class="al-line">${swatch(p.ai)}<button type="button" id="aln">${esc(a.name)}</button></div>
+   ${stripHtml(l,p.ai,p.f)}
+   <div class="prog">
+     <div class="ends"><button type="button" data-ap="${l.from}"><span class="code">${l.from}</span><span class="city">${esc(A.city||A.name)}</span></button>
+       <button type="button" data-ap="${l.to}"><span class="code">${l.to}</span><span class="city">${esc(B.city||B.name)}</span></button></div>
+     <div class="track"><i style="width:${pct}%"></i><svg viewBox="-9 -9 18 18" style="left:${pct}%"><path d="${PLANE_D}" fill="currentColor"/></svg></div>
+     <div class="left"><span>${e.ground?(p.f<.5?"Taxiing out":"Taxiing in"):"Flown <b>"+dur(now-l.t)+"</b>"}</span><span><b>${dur(l.t+l.dur-now)}</b> to go</span></div>
+   </div>
+   <dl class="facts">
+     <dt>Altitude</dt><dd><span class="m">${e.ground?"On the ground":fmtN(e.alt)+" ft"}</span><span class="est" title="Estimated from the schedule">est</span></dd>
+     <dt>Speed</dt><dd><span class="m">${fmtN(e.spd)} kt</span><span class="est" title="Estimated from the schedule">est</span></dd>
+     <dt>Heading</dt><dd><span class="m">${String(Math.round(p.brg)).padStart(3,"0")}°</span></dd>
+     <dt>Distance</dt><dd><span class="m">${fmtN(Math.round(km(l.from,l.to)))} km</span></dd>
+     <dt>Aircraft</dt><dd>${esc(acName(r.ac))}${acReg(r.ac)?` · <button type="button" class="link" id="reg">${esc(acReg(r.ac))}</button>`:""}</dd>
+     ${cs.length?`<dt>Also sold as</dt><dd class="m">${cs.map(esc).join(", ")}</dd>`:""}
+     ${nextLeg?`<dt>Next</dt><dd><span class="m">${AL[r.ai].code}${nextLeg.fn}</span> ${nextLeg.from}–${nextLeg.to} at ${localTime(nextLeg.from,nextLeg.t)}</dd>`:""}
+   </dl>
+   <div class="acts"><button type="button" class="btn" id="fol" aria-pressed="${S.follow}">${S.follow?"Following":"Follow"}</button><button type="button" class="btn" id="shr">Copy link</button></div>`;
+  $("bk").onclick=()=>{S.sel=null;S.follow=false;go("#/");redraw();};
+  $("aln").onclick=()=>go("#/airline/"+p.ai);
+  body.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>go("#/airport/"+b.dataset.ap));
+  if($("reg"))$("reg").onclick=()=>go("#/reg/"+encodeURIComponent(acReg(r.ac)));
+  $("fol").onclick=()=>{S.follow=!S.follow;if(S.follow)map.panTo([p.la,p.lo]);renderFlight();};
+  $("shr").onclick=()=>share();
+}
+function renderLeg(l){
+  S.view="leg";const r=l.r,ai=r.ai,now=nowMin();
+  const when=l.t>now?`Leaves ${l.from} in ${dur(l.t-now)}`:`Landed ${dur(now-l.t-l.dur)} ago`;
+  body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
+  <div class="al-line">${swatch(ai)}<button type="button" id="aln">${esc(AL[ai].name)}</button></div>
+  ${stripHtml(l,ai,null)}
+  <p class="note" style="padding-top:12px">${esc(when)}. Times are local at each airport.</p>
+  <dl class="facts"><dt>Aircraft</dt><dd>${esc(acName(r.ac))}${acReg(r.ac)?` · <button type="button" class="link" id="reg">${esc(acReg(r.ac))}</button>`:""}</dd>
+  <dt>Distance</dt><dd><span class="m">${fmtN(Math.round(km(l.from,l.to)))} km</span></dd>
+  <dt>Runs</dt><dd>${daysText(r.dm)}</dd></dl>
+  <div class="acts"><button type="button" class="btn" data-ap="${l.from}">${l.from} board</button><button type="button" class="btn" data-ap="${l.to}">${l.to} board</button><button type="button" class="btn" id="shr">Copy link</button></div>`;
+  $("bk").onclick=()=>go("#/");$("aln").onclick=()=>go("#/airline/"+ai);$("shr").onclick=()=>share();
+  if($("reg"))$("reg").onclick=()=>go("#/reg/"+encodeURIComponent(acReg(r.ac)));
+  body.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>go("#/airport/"+b.dataset.ap));
+  sheet("open");
+}
+const DAYN=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+function daysText(dm){const d=DAYN.filter((_,i)=>(dm>>i)&1);return d.length===7?"Every day":d.join(", ");}
+
+function renderAirline(ai){
+  S.view="airline";const a=AL[ai],{c}=counts(),on=S.filter.has(ai);
+  const fl=a.fleet||[],tot=fl.reduce((s,x)=>s+x[1],0);
+  body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
+  <div class="bar"><h2>${swatch(ai).replace('class="sw"','class="sw" style="display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:8px;vertical-align:-1px;background:'+a.color+'"')}${esc(a.name)}${a.lead?'<span class="lead">Leads Kyra</span>':""}</h2></div>
+  <dl class="facts" style="border-top:0;margin-top:0">
+    <dt>Code</dt><dd><span class="m">${esc(a.code)}</span></dd>
+    <dt>Country</dt><dd>${esc(country(a.country))}</dd>
+    <dt>In the air</dt><dd><span class="m">${fmtN(c[ai])}</span></dd>
+    <dt>Fleet</dt><dd><span class="m">${fmtN(a.aircraft)}</span> aircraft</dd>
+    <dt>Routes</dt><dd><span class="m">${fmtN(a.routes)}</span></dd>
+    ${a.joined?`<dt>Joined</dt><dd>${new Date(a.joined+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</dd>`:""}
+    <dt>Hubs</dt><dd><div class="chips">${a.hubs.filter(h=>AP[h]).map(h=>`<button type="button" class="chip" data-ap="${h}">${h}</button>`).join("")||"—"}</div></dd>
+  </dl>
+  <div class="acts"><button type="button" class="btn${on?"":" prim"}" id="flt" aria-pressed="${on}">${on?"Showing only this airline":"Show only this airline"}</button>${S.filter.size&&!on?`<button type="button" class="btn" id="add">Add to map filter</button>`:""}</div>
+  ${fl.length?`<h3>Fleet by type</h3><ul class="fleet">${fl.slice(0,12).map(([m,n])=>`<li>${esc(MODELS[m])}<span>${fmtN(n)}</span></li>`).join("")}${fl.length>12?`<li>${fl.length-12} more types<span>${fmtN(fl.slice(12).reduce((s,x)=>s+x[1],0))}</span></li>`:""}</ul>`:""}
+  ${a.routes===0?`<p class="note">${esc(a.name)} has no flights in the game yet.</p>`:""}`;
+  $("bk").onclick=()=>go("#/");
+  $("flt").onclick=()=>{if(on)S.filter.delete(ai);else{S.filter.clear();S.filter.add(ai);}updateCount();redraw();renderAirline(ai);};
+  if($("add"))$("add").onclick=()=>{S.filter.add(ai);updateCount();redraw();renderAirline(ai);};
+  body.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>go("#/airport/"+b.dataset.ap));
+  sheet("open");
+}
+
+let APROT={};
+function renderAirport(code){
+  const a=AP[code];if(!a){body.innerHTML=`<div class="empty">No Kyra airline flies to ${esc(code)}.</div>`;return;}
+  S.view="airport";const now=nowMin(),rs=APROT[code]||[];
+  const legs=[];rs.forEach(i=>{if(S.filter.size&&!S.filter.has(ROT[i].ai))return;legsAround(ROT[i],now-90,now+480).forEach(l=>{if(l.from===code||l.to===code)legs.push(l);});});
+  const dep=legs.filter(l=>l.from===code&&l.t>=now-30).sort((x,y)=>x.t-y.t).slice(0,30);
+  const arr=legs.filter(l=>l.to===code&&l.t+l.dur>=now-30).sort((x,y)=>(x.t+x.dur)-(y.t+y.dur)).slice(0,30);
+  const al=new Set(rs.map(i=>ROT[i].ai));
+  body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
+  <div class="bar"><h2><span style="font-family:var(--mono)">${code}</span> ${esc(a.city||a.name)}</h2><span style="font:13px var(--mono);color:var(--muted)">${localTime(code,now)}</span></div>
+  <p class="note">${esc(a.name)}, ${esc(country(a.cc))}. ${al.size} Kyra airline${al.size===1?"":"s"} fly here. Times are local.</p>
+  <div class="acts" style="padding-bottom:6px"><div class="seg" role="tablist" style="box-shadow:none;background:var(--paper2)"><button type="button" data-t="dep" aria-pressed="true">Departures</button><button type="button" data-t="arr" aria-pressed="false">Arrivals</button></div></div>
+  <ul class="rows" id="apl"></ul>`;
+  const show=t=>{const L=t==="dep"?dep:arr;
+    $("apl").innerHTML=L.length?L.map(l=>`<li>${legLine(l)}</li>`).join(""):`<li class="empty">Nothing ${t==="dep"?"leaving":"arriving"} in the next eight hours.</li>`;bindLegs(L);
+    body.querySelectorAll("[data-t]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.t===t)));};
+  body.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>show(b.dataset.t));show("dep");
+  $("bk").onclick=()=>go("#/");
+  sheet("open");
+  if(!S.sel)focusOn([a.la,a.lo],Math.max(map.getZoom(),6));
+}
+let REG={};
+function renderReg(reg){
+  const ids=REG[reg.toUpperCase()]||[];S.view="reg";const now=nowMin();
+  if(!ids.length){body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">No Kyra aircraft is registered ${esc(reg)}, or it has no routes.</div>`;$("bk").onclick=()=>go("#/");return;}
+  const ac=ACL[ROT[ids[0]].ac];
+  const legs=[];ids.forEach(i=>legsAround(ROT[i],now-720,now+1440).forEach(l=>legs.push(l)));
+  legs.sort((x,y)=>x.t-y.t);
+  body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
+  <div class="bar"><h2><span style="font-family:var(--mono)">${esc(ac[1])}</span></h2></div>
+  <p class="note">${esc(MODELS[ac[0]])} flown by ${esc(AL[ROT[ids[0]].ai].name)}${ac[2]?`, based at ${esc(ac[2])}`:""}. The last 12 hours and the next day.</p>
+  <ul class="rows">${legs.map(l=>`<li>${legLine(l)}</li>`).join("")||`<li class="empty">No flights in this window.</li>`}</ul>`;
+  bindLegs(legs);$("bk").onclick=()=>go("#/");sheet("open");
+}
+
+/* ---------- search ---------- */
+let FN={};
+function results(q){
+  q=q.trim();if(!q)return null;const Q=q.toUpperCase().replace(/\s+/g,""),out=[],now=nowMin();
+  const m=Q.match(/^([A-Z0-9]{2})(\d{1,5})$/)||Q.match(/^()(\d{1,5})$/);
+  if(m){
+    const hits=[];
+    for(const [key,list] of Object.entries(FN)){if(m[1]&&!key.startsWith(m[1]+"#"))continue;if(key.split("#")[1]!==m[2])continue;hits.push(...list);}
+    const seen=new Set();
+    hits.slice(0,60).forEach(([ri,seq])=>{const r=ROT[ri];const ls=legsAround(r,now-60,now+2880).filter(l=>l.seq===seq);
+      const l=ls.find(x=>x.t<=now&&now<x.t+x.dur)||ls.find(x=>x.t>now)||ls[0];if(l&&!seen.has(l.key)){seen.add(l.key);out.push({leg:l});}});
+  }
+  if(/^[A-Z]{3}$/.test(Q)&&AP[Q]&&APROT[Q])out.push({ap:Q});
+  const ql=q.toLowerCase();
+  AL.forEach((a,i)=>{if(a.code.toUpperCase()===Q||a.name.toLowerCase().includes(ql))out.push({al:i});});
+  if(Q.length>=3)for(const reg in REG){if(reg.replace(/-/g,"").includes(Q.replace(/-/g,""))){out.push({reg});if(out.length>40)break;}}
+  if(ql.length>=3)for(const c of APLIST){const a=AP[c];if(c!==Q&&((a.city||"").toLowerCase().startsWith(ql)||a.name.toLowerCase().includes(ql)))out.push({ap:c});if(out.length>50)break;}
+  return out.slice(0,40);
+}
+function renderSearch(q){
+  const res=results(q);if(!res){route();return;}
+  S.view="search";
+  const legs=res.filter(x=>x.leg).map(x=>x.leg);
+  body.innerHTML=res.length?`<ul class="rows" style="padding-top:4px">${res.map(x=>{
+    if(x.leg)return `<li>${legLine(x.leg)}</li>`;
+    if(x.ap){const a=AP[x.ap];return `<li><button type="button" class="row two" data-go="#/airport/${x.ap}"><span class="fn">${x.ap}</span><span class="nm">${esc(a.city||a.name)}<span class="sub" style="display:inline;margin-left:6px">${esc(a.name)}</span></span><span class="st">airport</span></button></li>`;}
+    if(x.al!=null)return `<li><button type="button" class="row" data-go="#/airline/${x.al}">${swatch(x.al)}<span class="nm">${esc(AL[x.al].name)}<span>${esc(AL[x.al].code)}</span></span><span class="st">airline</span></button></li>`;
+    const ac=ACL[ROT[REG[x.reg][0]].ac];return `<li><button type="button" class="row two" data-go="#/reg/${encodeURIComponent(x.reg)}"><span class="fn">${esc(x.reg)}</span><span class="sub">${esc(MODELS[ac[0]])} · ${esc(AL[ROT[REG[x.reg][0]].ai].name)}</span><span class="st">aircraft</span></button></li>`;
+  }).join("")}</ul>`:`<div class="empty">Nothing matches “${esc(q)}”. Try a flight number like CX731, a registration, an airport code or an airline name.</div>`;
+  bindLegs(legs);body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{$("q").value="";go(b.dataset.go);});
+  sheet("open");
+}
+let qt=0;$("q").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{if(D)renderSearch(e.target.value);},160);});
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter"){const b=body.querySelector(".row");if(b)b.click();}if(e.key==="Escape"){e.target.value="";route();}});
+$("q").addEventListener("focus",()=>sheet("full"));
+
+/* ---------- links ---------- */
+function go(h,silent){if(location.hash===h){if(!silent)route();return;}if(silent)history.replaceState(null,"",h);else location.hash=h;}
+function route(){
+  if(!D)return;
+  const h=decodeURIComponent(location.hash.slice(1)),p=h.split("/").filter(Boolean);
+  if(p[0]==="airline"&&AL[+p[1]]){renderAirline(+p[1]);return;}
+  if(p[0]==="airport"){renderAirport((p[1]||"").toUpperCase());return;}
+  if(p[0]==="reg"){renderReg(p[1]||"");return;}
+  if(p[0]==="flight"){
+    const ri=+p[2],r=ROT[ri],now=nowMin();
+    let cand=[];
+    if(r){const fn=+(p[1].match(/\d+$/)||[])[0];cand=legsAround(r,now-60,now+2880).filter(l=>l.fn===fn);}
+    else{const res=results(p[1]||"")||[];cand=res.filter(x=>x.leg).map(x=>x.leg);}
+    const live=cand.map(l=>S.planes.find(x=>x.l.key===l.key)).find(Boolean);
+    if(live){if(S.sel!==live)selectPlane(live,true);else renderFlight();return;}
+    const l=cand.find(x=>x.t>now)||cand[0];
+    if(l){S.sel=null;renderLeg(l);redraw();return;}
+    body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">${esc(p[1])} isn't flying in the next two days.</div>`;$("bk").onclick=()=>go("#/");return;
+  }
+  S.sel=null;renderHome();sheet(null);redraw();
+}
+addEventListener("hashchange",route);
+async function share(){const url=location.href;try{if(navigator.share&&narrow()){await navigator.share({url,title:document.title});return;}await navigator.clipboard.writeText(url);toast("Link copied");}catch(_){toast("Couldn't copy — the link is in the address bar");}}
+let tt=0;function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",2200);}
+
+document.querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{S.col=b.dataset.col;document.querySelectorAll("[data-col]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));$("legend").hidden=S.col!=="alt";redraw();});
+function clock(){const d=new Date();$("clock").textContent=d.toISOString().slice(11,16)+" UTC";}
+
+/* ---------- start ---------- */
+const PLANE_D="M0,-8 L1.3,-6.2 L1.3,-2.2 L8,2.3 L8,3.9 L1.3,2 L1.3,5.4 L3.6,7.3 L3.6,8.5 L0,7.6 L-3.6,8.5 L-3.6,7.3 L-1.3,5.4 L-1.3,2 L-8,3.9 L-8,2.3 L-1.3,-2.2 L-1.3,-6.2 Z";
+async function start(){
+  let res;
+  try{res=await fetch("data.json",{cache:"no-cache"});if(!res.ok)throw new Error("HTTP "+res.status);D=await res.json();}
+  catch(e){$("loading").textContent="The timetables didn't load. Check your connection and reload the page.";$("count").textContent="Timetables not loaded.";return;}
+  MODELS=D.models;ACL=D.ac;
+  AL=D.airlines.map(a=>Object.assign(a,{mc:mapColor(a.color)}));
+  for(const c in D.ap){const x=D.ap[c];AP[c]={la:x[0],lo:x[1],z:x[2],name:x[3],city:x[4],cc:x[5],hub:false};}
+  AL.forEach(a=>a.hubs.forEach(h=>{if(AP[h])AP[h].hub=true;}));
+  ROT=D.rot.map(parseRot);
+  const used=new Set();
+  ROT.forEach(r=>{
+    [r.A,r.B,r.C].forEach(c=>{if(c){(APROT[c]=APROT[c]||[]).push(r.i);used.add(c);}});
+    const code=AL[r.ai].code,add=(fn,seq)=>{if(fn==null)return;const k=code+"#"+fn;(FN[k]=FN[k]||[]).push([r.i,seq]);};
+    add(r.fn,0);add(r.ifn!=null?r.ifn:r.fn+1,3);if(r.C){add(r.cfn,1);add(r.cifn!=null?r.cifn:r.cfn+1,2);}
+    (r.cs||[]).forEach(x=>{const m=x.match(/^([A-Z0-9]{2})(\d+)\/(\d+)$/);if(!m)return;
+      (FN[m[1]+"#"+m[2]]=FN[m[1]+"#"+m[2]]||[]).push([r.i,0]);(FN[m[1]+"#"+m[3]]=FN[m[1]+"#"+m[3]]||[]).push([r.i,3]);});
+    const reg=acReg(r.ac);if(reg){const k=reg.toUpperCase();(REG[k]=REG[k]||[]).push(r.i);}
+  });
+  for(const k in APROT)APROT[k]=[...new Set(APROT[k])];
+  APLIST=[...used].filter(c=>AP[c]).sort((a,b)=>(AP[a].hub?1:0)-(AP[b].hub?1:0));
+  scan();resize();updateCount();route();
+  $("loading").remove();
+  /* planes move about a pixel a minute when the whole world is on screen, so zoomed out they are redrawn less often */
+  let ticks=0;
+  setInterval(()=>{ticks++;const z=map.getZoom();if(z<=3&&ticks%3&&!S.sel)return;
+    place();if(S.sel&&S.follow)map.panTo([S.sel.la,S.sel.lo],{animate:true});draw();if(S.view==="flight")renderFlight();},4000);
+  setInterval(()=>{scan();updateCount();if(S.sel&&!S.planes.includes(S.sel)){S.sel=null;if(S.view==="flight")renderHome();}if(S.view==="home")renderHome();draw();},30000);
+  clock();setInterval(clock,10000);
+}
+addEventListener("resize",()=>{map.invalidateSize();resize();});
+start();
+</script>
+</body>
+</html>
