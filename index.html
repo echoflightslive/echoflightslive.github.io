@@ -153,7 +153,7 @@ button{cursor:pointer}
 .strip .cs{font:400 28px/1 var(--display)}
 .strip .ty{font:11.5px/1.3 var(--mono);margin-top:6px}
 .strip .rt{font:700 17px/1.1 var(--mono);white-space:nowrap}
-.strip .via{font:11.5px var(--mono);margin-top:4px}
+
 .strip .tm{font:12.5px/1.6 var(--mono);white-space:nowrap}
 .strip .tm b{font-weight:700}
 .strip .reg{grid-column:1/-1;border-left:0;border-top:1px solid var(--strip-rule);display:flex;justify-content:space-between;font:11.5px var(--mono);padding:5px 10px}
@@ -863,10 +863,9 @@ function selectPlane(i,fly){
 }
 function stripHtml(l,ai,f){
   const r=l.r,a=AL[ai],dep=l.t,arr=l.t+l.dur;
-  const via=r.C?(l.seq===0?`continues to ${r.C}`:l.seq===1?`from ${r.A} via ${r.B}`:l.seq===2?`continues to ${r.A}`:`from ${r.C} via ${r.B}`):"nonstop";
   return `<div class="strip" style="--al:${a.color}">
     <div><div class="cs">${esc(a.code)} ${l.fn}</div><div class="ty">${esc(acName(r.ac))}</div></div>
-    <div><div class="rt">${l.from} → ${l.to}</div><div class="via">${esc(via)}</div></div>
+    <div><div class="rt">${l.from} → ${l.to}</div></div>
     <div class="tm">Dep <b>${localTime(l.from,dep)}</b><br>Arr <b>${localTime(l.to,arr)}</b>${dayTag(l.to,arr,l.from,dep)}</div>
     <div class="reg"><span>${esc(acReg(r.ac)||"—")}</span><span>${f==null?"Scheduled":"Block "+dur(l.dur)}</span></div>
   </div>`;
@@ -900,7 +899,6 @@ function renderFlight(){
   const A=AP[l.from],B=AP[l.to],pct=Math.max(0,Math.min(100,Math.round((now-l.t)/l.dur*1000)/10)),dv=divOf(p.ai),model=acName(r.ac),reg=acReg(r.ac);
   const cs=r.cs&&(l.seq===0||l.seq===3)?r.cs.map(x=>{const [n,ib]=x.split("/");return l.seq===0?n:n.replace(/\d+$/,"")+ib;}):[];
   const nx=C.legsAround(r,now,now+2880).filter(x=>x.t>l.t).sort((x,y)=>x.t-y.t)[0];
-  const via=r.C?(l.seq===0?`continues to ${r.C}`:l.seq===1?`from ${r.A} via ${r.B}`:l.seq===2?`continues to ${r.A}`:`from ${r.C} via ${r.B}`):"nonstop";
   const v=a.liv||{t:a.color,f:"#ffffff"};
   const left=e.ground?(p.f<.5?`Taxiing out · departs ${localTime(l.from,l.t)}`:"Landed · taxiing in"):`Departed ${hm(now-l.t)} ago`;
   const right=e.ground&&p.f>=.5?`Arrived ${localTime(l.to,l.t+l.dur)}`:`Arriving in ${hm(l.t+l.dur-now)}`;
@@ -941,7 +939,7 @@ function renderFlight(){
    ${S.fmore?`<dl class="facts fc-more">
      <dt>Departs</dt><dd><span class="m">${localTime(l.from,l.t)}</span> local, ${esc(A.city||l.from)}</dd>
      <dt>Arrives</dt><dd><span class="m">${localTime(l.to,l.t+l.dur)}</span> local, ${esc(B.city||l.to)}${dayTag(l.to,l.t+l.dur,l.from,l.t)}</dd>
-     <dt>Block time</dt><dd><span class="m">${dur(l.dur)}</span> · ${esc(via)}</dd>
+     <dt>Block time</dt><dd><span class="m">${dur(l.dur)}</span></dd>
      <dt>Heading</dt><dd><span class="m" id="fc-hdg">${hdg}</span></dd>
      <dt>Distance</dt><dd><span class="m">${fmtN(Math.round(C.km(l.from,l.to)))} km</span></dd>
      <dt>Airline</dt><dd>${esc(a.name)} · ${esc(dv.name)}</dd>
@@ -1445,14 +1443,12 @@ function renderBetween(a,b){
       const rows=[];
       (APROT[a]||[]).forEach(ri=>{const r=ROT[ri];
         const legs=[[0,r.A,r.B],[3,r.B,r.A]];if(r.C)legs.push([1,r.B,r.C],[2,r.C,r.B]);
-        for(const [seq,f,t] of legs)if(f===a&&t===b)rows.push({ri,seq,via:null});
-        if(r.C&&r.A===a&&r.C===b)rows.push({ri,seq:0,via:r.B,to:1});
-        if(r.C&&r.C===a&&r.A===b)rows.push({ri,seq:2,via:r.B,to:3});});
+        for(const [seq,f,t] of legs)if(f===a&&t===b)rows.push({ri,seq});});
       const now=nowMin(),out=rows.map(x=>{const r=ROT[x.ri],ls=C.legsAround(r,now-60,now+10080).filter(l=>l.seq===x.seq).sort((p,q)=>p.t-q.t);
-        const nx=ls.find(l=>l.t>=now-10)||ls[0];if(!nx)return null;const end=x.via?C.legsOf(r,nx.day).find(l=>l.seq===x.to):nx;
+        const nx=ls.find(l=>l.t>=now-10)||ls[0];if(!nx)return null;const end=nx;
         return {x,l:nx,end,lm:mod(localMin(a,nx.t),1440)};}).filter(Boolean).sort((p,q)=>p.lm-q.lm);
       res=out.length?`<p class="note">${out.length} Echo flight${out.length===1?"":"s"} from ${esc(AP[a].city||a)} to ${esc(AP[b].city||b)}${out.length>150?", the first 150 by departure time":""}. Times are local.</p><ul class="rows">${out.slice(0,150).map(o=>{const l=o.l,e=o.end,r=ROT[o.x.ri];
-        return `<li><button type="button" class="row two" data-leg="${l.key}">${tailSVG(r.ai)}<span><span class="rt">${esc(AL[r.ai].code)}${l.fn} · ${localTime(a,l.t)} → ${localTime(b,e.t+e.dur)}${dayTag(b,e.t+e.dur,a,l.t)}</span><span class="sub">${esc(AL[r.ai].name)} · ${esc(acName(r.ac))}${o.x.via?` · stops in ${o.x.via}`:""} · ${weekdaysOf(r,o.x.seq)}</span></span><span class="st">${dur(e.t+e.dur-l.t)}</span></button></li>`;}).join("")}</ul>`
+        return `<li><button type="button" class="row two" data-leg="${l.key}">${tailSVG(r.ai)}<span><span class="rt">${esc(AL[r.ai].code)}${l.fn} · ${localTime(a,l.t)} → ${localTime(b,e.t+e.dur)}${dayTag(b,e.t+e.dur,a,l.t)}</span><span class="sub">${esc(AL[r.ai].name)} · ${esc(acName(r.ac))} · ${weekdaysOf(r,o.x.seq)}</span></span><span class="st">${dur(e.t+e.dur-l.t)}</span></button></li>`;}).join("")}</ul>`
         :`<p class="note">No Echo airline flies nonstop from ${esc(a)} to ${esc(b)}.</p>`;
       out.forEach(o=>LEGS.set(o.l.key,o.l));
     }
