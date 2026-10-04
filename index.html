@@ -4,9 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Echo Live</title>
-<meta name="description" content="Live map of Echo United Alliances flights, worked out from the game's timetables. Echo Kyra for now.">
+<meta name="description" content="Live map of Echo United Alliances flights, worked out from the game's timetables. Echo Kyra and Echo Aegis so far.">
 <meta name="theme-color" content="#141a2e">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237D34FF'/%3E%3Cpath d='M16 5l2 7 7 2-7 2-2 11-2-11-7-2 7-2z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Echo Live">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -36,9 +42,28 @@ button{cursor:pointer}
   background:var(--paper);border-radius:10px;box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 18px 40px rgba(5,8,20,.45);overflow:hidden}
 .head{padding:16px 18px 12px;border-bottom:1px solid var(--rule)}
 .brand{display:flex;align-items:baseline;gap:10px}
+.brand .mark{width:30px;height:24px;align-self:center;color:var(--ink);flex:none;margin-right:-2px}
 .brand h1{margin:0;font:400 36px/1 var(--display);letter-spacing:-.005em;white-space:nowrap}
 .brand h1 b{color:var(--kyra);font-weight:400}
 .brand small{color:var(--muted);font-size:13px}
+.acct{margin-left:auto;align-self:center;flex:none;background:none;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;font:600 13px var(--ui);color:var(--kyra-ink);white-space:nowrap}
+.acct:hover{border-color:var(--kyra)}
+.acct.in{padding:0;width:30px;height:30px;border:0;background:var(--kyra);color:#fff;font:600 14px/30px var(--ui);text-align:center}
+#auth{position:fixed;inset:0;z-index:2500;background:rgba(10,12,24,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+#auth[hidden]{display:none}
+.authbox{position:relative;width:100%;max-width:380px;max-height:calc(100% - 8px);overflow:auto;background:var(--paper);color:var(--ink);border-radius:10px;padding:22px 22px 18px;box-shadow:0 18px 40px rgba(5,8,20,.45)}
+.authbox h2{margin:0 0 4px;font:400 30px/1.1 var(--display)}
+.authbox p{margin:0 0 14px;color:var(--muted);font-size:14px}
+.authbox .x{position:absolute;top:10px;right:12px;background:none;border:0;font-size:24px;line-height:1;color:var(--muted);padding:4px}
+.authbox .wide{display:block;width:100%;margin:0 0 8px;padding:10px 12px;text-align:center}
+.authbox .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:10px 0}
+.authbox .or::before,.authbox .or::after{content:"";flex:1;border-top:1px solid var(--rule)}
+.authbox label{display:block;font-size:13px;color:var(--muted);margin:0 0 3px}
+.authbox input{width:100%;border:1px solid var(--rule);background:#fff;border-radius:7px;padding:9px 11px;font-size:15px;margin:0 0 10px}
+.authbox .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.authbox .msg{font-size:13.5px;margin:10px 0 0;min-height:1em}
+.authbox .msg.err{color:#a3203a}
+.authbox .small{display:block;margin:8px auto 0;font-size:13px}
 .count{margin:6px 0 12px;color:var(--muted);font-size:13.5px}
 .count strong{color:var(--ink);font:700 15px var(--mono)}
 .search{position:relative}
@@ -137,6 +162,9 @@ h3{margin:16px 18px 4px;font:400 21px/1.15 var(--display)}
 #globe{position:fixed;inset:0;display:none;background:#0d1222}
 body.globe #globe{display:block}body.globe #map{visibility:hidden}
 .hud-btns{display:flex;gap:8px}
+.tb-r{display:flex;gap:12px}
+#tshow{border:0;background:rgba(233,230,240,.94);border-radius:8px;padding:8px 14px;font-weight:600;font-size:14px;box-shadow:0 6px 18px rgba(5,8,20,.35)}
+#tshow.away{background:#fff3c9}
 #globebtn{border:0;background:rgba(233,230,240,.94);border-radius:8px;padding:8px 14px;font-weight:600;font-size:14px;box-shadow:0 6px 18px rgba(5,8,20,.35)}
 #globebtn[aria-pressed="true"]{background:#fff}
 .tb-play{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11.5px;color:var(--muted)}
@@ -173,6 +201,14 @@ figure.hourc .hb:hover path{opacity:1}
 .ly input{width:17px;height:17px;accent-color:var(--kyra);margin:0}
 .ly small{color:var(--muted);font-size:12px;margin-left:auto}
 .home-acts{display:flex;gap:8px;flex-wrap:wrap;padding:12px 18px 2px}
+.dvs{display:flex;gap:5px;flex-wrap:wrap;padding:12px 18px 0}
+.dv{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:#fff;color:var(--ink);border-radius:999px;padding:4px 9px 4px 8px;font:13.5px var(--ui);cursor:pointer}
+.dv span{font:11.5px var(--mono);color:var(--muted)}
+.dv[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.dv[aria-pressed="true"] span{color:#c9c3d6}
+.dvdot{display:inline-block;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1px rgba(29,23,48,.25);flex:none}
+.dvh{display:flex;align-items:center;gap:8px;font:600 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 18px 6px;border-top:1px solid var(--rule)}
+.dvh span{margin-left:auto;font:12px var(--mono);letter-spacing:0;text-transform:none}
 .watch{margin:6px 18px 0;padding:8px 12px;background:#fff;border:1px solid var(--rule);border-radius:7px;font-size:14px}
 .watch b{font-weight:600}
 ol.board{list-style:none;margin:0;padding:0 0 4px;counter-reset:rk}
@@ -204,7 +240,7 @@ a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
 @keyframes flap{0%{transform:rotateX(90deg);opacity:.2}100%{transform:none;opacity:1}}
 .tv-note{margin:1.4vh 0 0;font:13px var(--ui);color:#6f7286}
 @media (prefers-reduced-motion:reduce){.tv-g i.flip{animation:none}}
-#loading{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;color:#d8d2f0;font:15px var(--ui);pointer-events:none}
+#loading{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;text-align:center;color:#d8d2f0;font:15px var(--ui);pointer-events:none}
 #toast{position:fixed;z-index:1300;left:50%;bottom:30px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:6px;font-weight:500;display:none}
 
 @media (max-width:760px){
@@ -221,6 +257,7 @@ a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
   .foot{display:none}
   #hud{bottom:calc(146px + env(safe-area-inset-bottom));right:10px;left:10px;align-items:stretch}
   #timebar,#layers{width:auto}
+  #loading{align-items:flex-start;padding-top:22vh}
   #lybtn{align-self:flex-end}
   .tv-cols,.tv-row{grid-template-columns:5fr 7fr 12fr 8fr}
   #panel.open~#hud,#panel.full~#hud{display:none}
@@ -232,12 +269,12 @@ a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
 </style>
 </head>
 <body>
-<div id="map" aria-label="Map of Kyra flights"></div>
-<div id="globe" aria-label="Globe of Kyra flights"></div>
+<div id="map" aria-label="Map of Echo flights"></div>
+<div id="globe" aria-label="Globe of Echo flights"></div>
 <aside id="panel" aria-label="Echo Live">
   <button id="handle" type="button" aria-label="Expand panel"></button>
   <div class="head">
-    <div class="brand"><h1>Echo <b>Live</b></h1><small>Echo Kyra for now</small></div>
+    <div class="brand"><svg class="mark" viewBox="12.5 10.5 26.9 21.8" aria-hidden="true"><path d="M28.3 11h10.6L22.5 25H13zM22.5 25.9h10.8l5.6 5.9H28.3z" fill="currentColor"/></svg><h1>Echo <b>Live</b></h1><button type="button" id="acct" class="acct" aria-haspopup="dialog">Sign in</button></div>
     <p class="count" id="count">Loading the timetables…</p>
     <label class="search"><span class="sr" hidden>Search</span>
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13l5 5"/></svg>
@@ -245,13 +282,13 @@ a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
     </label>
   </div>
   <div id="body"></div>
-  <div class="foot" id="foot">Echo Kyra only for now. Timetables captured from the game on 3 October 2026; positions are worked out from the schedule.</div>
+  <div class="foot" id="foot">Echo Kyra and Echo Aegis so far. Positions are worked out from the game's timetables.</div>
 </aside>
 <div id="hud">
   <div id="thin" hidden></div>
   <div id="legend" hidden><div>Altitude</div><div class="g"></div><div class="s"><span>0</span><span>20,000</span><span>40,000 ft</span></div></div>
   <div id="timebar">
-    <div class="tb-top"><span id="tlabel">Live</span><button type="button" id="tlive" class="link" hidden>Back to live</button></div>
+    <div class="tb-top"><span id="tlabel">Live</span><span class="tb-r"><button type="button" id="tlive" class="link" hidden>Back to live</button><button type="button" id="thide" class="link" aria-label="Hide the time controls">Hide</button></span></div>
     <div class="tb-play"><button type="button" id="tplay" class="btn" aria-pressed="false">Play</button><button type="button" id="tspeed" class="btn" aria-label="Playback speed">×60</button><span>Play runs the day forward fast.</span></div>
     <input id="trange" type="range" min="-720" max="720" step="5" value="0" aria-label="Move the map up to 12 hours back or ahead">
     <div class="tb-ends"><span>12 h ago</span><span>now</span><span>in 12 h</span></div>
@@ -265,13 +302,42 @@ a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
     <label class="ly"><input type="checkbox" data-ly="ground"> Planes on the ground</label>
     <p class="ly-note">Shading, radar, heatmap and parked planes show on the flat map.</p>
   </div>
-  <div class="hud-btns"><button type="button" id="globebtn" aria-pressed="false">Globe</button><button type="button" id="lybtn" aria-expanded="false" aria-controls="layers">Map layers</button></div>
+  <div class="hud-btns"><button type="button" id="tshow" hidden aria-label="Show the time controls">Time</button><button type="button" id="globebtn" aria-pressed="false">Globe</button><button type="button" id="lybtn" aria-expanded="false" aria-controls="layers">Map layers</button></div>
 </div>
 <div id="tip"></div>
-<div id="loading">Loading the timetables…</div>
+<div id="loading"><div><svg class="mark" style="width:54px;height:44px;display:block;margin:0 auto 14px;color:#efeafc" viewBox="12.5 10.5 26.9 21.8" aria-hidden="true"><path d="M28.3 11h10.6L22.5 25H13zM22.5 25.9h10.8l5.6 5.9H28.3z" fill="currentColor"/></svg><span id="loadtxt">Loading the timetables…</span></div></div>
 <div id="toast" role="status"></div>
+<div id="auth" hidden><div class="authbox" role="dialog" aria-modal="true" aria-labelledby="auth-h">
+  <button type="button" class="x" id="auth-x" aria-label="Close">×</button>
+  <div id="auth-out">
+    <h2 id="auth-h">Sign in</h2>
+    <p>Your favourite airlines and airports and your map layers then follow you to every device.</p>
+    <button type="button" class="btn wide" id="auth-g">Continue with Google</button>
+    <button type="button" class="btn wide" id="auth-d">Continue with Discord</button>
+    <div class="or">or with email</div>
+    <form id="auth-f" novalidate>
+      <label for="auth-e">Email</label><input id="auth-e" type="email" autocomplete="email" required>
+      <label for="auth-p">Password</label><input id="auth-p" type="password" autocomplete="current-password" minlength="6" required>
+      <div class="two"><button type="submit" class="btn prim">Sign in</button><button type="button" class="btn" id="auth-up">Create account</button></div>
+      <button type="button" class="link small" id="auth-reset">Forgot your password?</button>
+    </form>
+  </div>
+  <div id="auth-in" hidden>
+    <h2>Your account</h2>
+    <p id="auth-who"></p>
+    <button type="button" class="btn wide" id="auth-so">Sign out</button>
+  </div>
+  <div id="auth-new" hidden>
+    <h2>New password</h2>
+    <p>Choose a new password for your account.</p>
+    <label for="auth-np">New password</label><input id="auth-np" type="password" autocomplete="new-password" minlength="6">
+    <button type="button" class="btn prim wide" id="auth-npb">Save the new password</button>
+  </div>
+  <p class="msg" id="auth-m" role="status"></p>
+</div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 "use strict";
 /* Where the timetable lives. The publishable key only lets a visitor call
@@ -436,6 +502,14 @@ async function loadData(note){
 }
 
 let D=null,C=null,AP={},AL=[],ROT=[],MODELS=[],ACL=[],SRC="";
+/* Echo divisions: airlines are numbered division by division (Kyra first) */
+const DIVS=()=>(D&&D.divs)||[{code:"kyra",name:"Echo Kyra",color:"#7D34FF",first:0,count:AL.length,captured:D&&D.captured,missing:[]}];
+const divOf=ai=>{const ds=DIVS();for(const d of ds)if(ai>=d.first&&ai<d.first+d.count)return d;return ds[0];};
+const divShort=d=>d.name.replace(/^Echo /,"");
+const divDot=d=>`<i class="dvdot" style="background:${d.color}"></i>`;
+function curDiv(){if(!S.filter.size)return null;for(const d of DIVS())if(S.filter.size===d.count&&[...S.filter].every(i=>i>=d.first&&i<d.first+d.count))return d;return null;}
+function setDiv(code){S.filter.clear();const d=DIVS().find(x=>x.code===code);if(d)for(let i=d.first;i<d.first+d.count;i++)S.filter.add(i);
+  updateCount();redraw();if(GL.on)glFeed();}
 const S={type:null,n:0,P:null,sel:null,follow:false,filter:new Set(),col:"airline",view:"home",leg:null,off:0,ground:{},net:null,me:null,ly:{night:true,rain:false,heat:false,ground:false}};
 /* S.off moves the whole map in time (the time slider); 0 is now */
 const nowMin=()=>Date.now()/6e4+S.off, realNow=()=>Date.now()/6e4;
@@ -578,7 +652,10 @@ function hit(x,y,r){let best=-1,bd=r*r;for(let i=0;i<HN;i++){const dx=HX[i]-x,dy
 function hitAirport(x,y,r){if(map.getZoom()<5)return null;let best=null,bd=(r||8)**2;
   for(const c of APLIST){const a=AP[c],q=map.latLngToContainerPoint([a.la,a.lo]),ww=256*Math.pow(2,map.getZoom());
     for(let k=-2;k<=2;k++){const d=(q.x+k*ww-x)**2+(q.y-y)**2;if(d<bd){bd=d;best=c;}}}return best;}
-map.on("move moveend",redraw);
+/* Redraw inside the map's own move event, in the same frame it moves the map
+   images, so on phones the planes can't lag a frame behind and seem to float. */
+map.on("move",()=>{if(raf){cancelAnimationFrame(raf);raf=0;}draw();});
+map.on("moveend",redraw);
 /* while a zoom animates the old picture would be at the wrong scale, so it is hidden until the zoom lands */
 map.on("zoomstart",()=>{cv.style.visibility="hidden";});
 map.on("zoomend viewreset",()=>{cv.style.visibility="";draw();});
@@ -649,17 +726,20 @@ function updateCount(){
   if(S.type!=null){let k=0;if(S.P)for(let i=0;i<S.n;i++)if(!S.P.gr[i]&&shown(i))k++;
     $("count").innerHTML=`<strong>${fmtN(k)}</strong> ${esc(MODELS[S.type])} in the air${f?" from your selection":""} · <button class="link" id="clr">show all</button>`;
     $("clr").onclick=()=>{S.filter.clear();setType(null);if(S.view==="home")renderHome();else route();};return;}
-  $("count").innerHTML=f?`<strong>${fmtN([...S.filter].reduce((s,i)=>s+c[i],0))}</strong> in the air from ${f===1?esc(AL[[...S.filter][0]].name):f+" airlines"} · <button class="link" id="clr">show all</button>`
-    :`<strong>${fmtN(n)}</strong> Kyra flights in the air now`;
-  const b=$("clr");if(b)b.onclick=()=>{S.filter.clear();updateCount();redraw();if(S.view==="home")renderHome();else if(S.view==="airline")route();};}
+  const cd=curDiv();
+  $("count").innerHTML=f?`<strong>${fmtN([...S.filter].reduce((s,i)=>s+c[i],0))}</strong> ${cd?esc(divShort(cd))+" flights in the air":"in the air from "+(f===1?esc(AL[[...S.filter][0]].name):f+" airlines")} · <button class="link" id="clr">show all</button>`
+    :`<strong>${fmtN(n)}</strong> Echo flights in the air now`;
+  const b=$("clr");if(b)b.onclick=()=>{S.filter.clear();updateCount();redraw();if(GL.on)glFeed();if(S.view==="home")renderHome();else if(S.view==="airline")route();};}
 const swatch=ai=>tailSVG(ai);
 function renderHome(){
-  S.view="home";const {c}=counts();
+  S.view="home";const {c}=counts(),ds=DIVS(),cd=curDiv(),upOf=d=>{let n=0;for(let i=d.first;i<d.first+d.count;i++)n+=c[i];return n;};
   const order=AL.map((a,i)=>i).sort((a,b)=>c[b]-c[a]||AL[a].name.localeCompare(AL[b].name));
   const w=WATCH.length?WATCH.map(x=>`<div class="watch">Watching <b>${esc(x.label)}</b> · ${x.st===1?"in the air":"waiting for take-off"}</div>`).join(""):"";
   body.innerHTML=`<div class="home-acts"><button type="button" class="btn" data-go="#/between">A to B</button><button type="button" class="btn" data-go="#/fleet">Fleet</button><button type="button" class="btn" data-go="#/top">Leaderboards</button><button type="button" class="btn" data-go="#/vs">Compare</button><button type="button" class="btn" data-go="#/near">Near me</button></div>${w}${favHtml(c)}
-  <div class="bar"><h2>Airlines in Echo Kyra</h2><span style="font-size:13px;color:var(--muted)">${AL.length}</span></div>
-  <ul class="rows">${order.map(i=>`<li><button type="button" class="row${S.filter.size&&!S.filter.has(i)?" off":""}" data-al="${i}">${swatch(i)}<span class="nm">${esc(AL[i].name)}<span>${esc(AL[i].code)}</span></span><span class="n">${c[i]?fmtN(c[i])+" up":"—"}</span></button></li>`).join("")}</ul>`;
+  <div class="dvs" role="group" aria-label="Echo divisions"><button type="button" class="dv" data-dv="" aria-pressed="${!cd&&!S.filter.size}">All <span>${fmtN(c.reduce((s,x)=>s+x,0))}</span></button>${ds.map(d=>`<button type="button" class="dv" data-dv="${d.code}" aria-pressed="${cd===d}">${divDot(d)}${esc(divShort(d))} <span>${fmtN(upOf(d))}</span></button>`).join("")}</div>
+  <div class="bar"><h2>${cd?"Airlines in "+esc(cd.name):"Airlines"}</h2><span style="font-size:13px;color:var(--muted)">${cd?cd.count:AL.length}</span></div>
+  ${(cd?[cd]:ds).map(d=>`${cd||ds.length<2?"":`<div class="dvh">${divDot(d)}${esc(d.name)}<span>${d.count} airlines</span></div>`}<ul class="rows">${order.filter(i=>i>=d.first&&i<d.first+d.count).map(i=>`<li><button type="button" class="row${S.filter.size&&!S.filter.has(i)?" off":""}" data-al="${i}">${swatch(i)}<span class="nm">${esc(AL[i].name)}<span>${esc(AL[i].code)}</span></span><span class="n">${c[i]?fmtN(c[i])+" up":"—"}</span></button></li>`).join("")}</ul>`).join("")}`;
+  body.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{setDiv(b.dataset.dv);renderHome();});
   body.querySelectorAll("[data-al]").forEach(b=>b.onclick=()=>go("#/airline/"+b.dataset.al));
   body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
 }
@@ -761,8 +841,9 @@ function renderAirline(ai){
   S.view="airline";const a=AL[ai],{c}=counts(),on=S.filter.has(ai);
   const fl=a.fleet||[];
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
-  <div class="bar"><h2>${tailSVG(ai,"big")}${esc(a.name)}${a.lead?'<span class="lead">Leads Kyra</span>':""}</h2><button type="button" class="link" id="fav" aria-pressed="${isFavAl(ai)}">${star(isFavAl(ai))}${isFavAl(ai)?"Favourite":"Add to favourites"}</button></div>
+  <div class="bar"><h2>${tailSVG(ai,"big")}${esc(a.name)}${a.lead?`<span class="lead">Leads ${esc(divShort(divOf(ai)))}</span>`:""}</h2><button type="button" class="link" id="fav" aria-pressed="${isFavAl(ai)}">${star(isFavAl(ai))}${isFavAl(ai)?"Favourite":"Add to favourites"}</button></div>
   <dl class="facts" style="border-top:0;margin-top:0">
+    <dt>Alliance</dt><dd>${divDot(divOf(ai))} ${esc(divOf(ai).name)}</dd>
     <dt>Code</dt><dd><span class="m">${esc(a.code)}</span></dd>
     <dt>Country</dt><dd>${esc(country(a.country))}</dd>
     <dt>In the air</dt><dd><span class="m">${fmtN(c[ai])}</span></dd>
@@ -786,7 +867,7 @@ function renderAirline(ai){
 let APROT={};
 function renderAirport(code){
   const a=AP[code];
-  if(!a){body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">No Kyra airline flies to ${esc(code)}.</div>`;$("bk").onclick=()=>go("#/");return;}
+  if(!a){body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">No Echo airline flies to ${esc(code)}.</div>`;$("bk").onclick=()=>go("#/");return;}
   S.view="airport";const now=nowMin(),rs=APROT[code]||[];
   const legs=[];rs.forEach(i=>{if(S.filter.size&&!S.filter.has(ROT[i].ai))return;C.legsAround(ROT[i],now-90,now+480).forEach(l=>{if(l.from===code||l.to===code)legs.push(l);});});
   const dep=legs.filter(l=>l.from===code&&l.t>=now-30).sort((x,y)=>x.t-y.t).slice(0,30);
@@ -794,7 +875,7 @@ function renderAirport(code){
   const al=new Set(rs.map(i=>ROT[i].ai));
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
   <div class="bar"><h2>${code} ${esc(a.city||a.name)}</h2><span style="font-size:13px;color:var(--muted)">${localTime(code,now)}</span></div>
-  <p class="note">${esc(a.name)}, ${esc(country(a.cc))}. ${al.size} Kyra airline${al.size===1?"":"s"} fly here. Times are local. <button type="button" class="link" id="fav">${star(isFavAp(code))}${isFavAp(code)?"Favourite":"Add to favourites"}</button></p>
+  <p class="note">${esc(a.name)}, ${esc(country(a.cc))}. ${al.size} Echo airline${al.size===1?" flies":"s fly"} here. Times are local. <button type="button" class="link" id="fav">${star(isFavAp(code))}${isFavAp(code)?"Favourite":"Add to favourites"}</button></p>
   <div id="hourc"></div>
   <div class="acts" style="padding-bottom:6px"><div class="seg" role="tablist" style="box-shadow:none;background:var(--paper2)"><button type="button" data-t="dep" aria-pressed="true">Departures</button><button type="button" data-t="arr" aria-pressed="false">Arrivals</button></div></div>
   <ul class="rows" id="apl"></ul>
@@ -814,7 +895,7 @@ function renderAirport(code){
 let REG={};
 function renderReg(reg){
   const ids=REG[reg.toUpperCase()]||[];S.view="reg";const now=nowMin();
-  if(!ids.length){body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">No Kyra aircraft is registered ${esc(reg)}, or it has no routes.</div>`;$("bk").onclick=()=>go("#/");return;}
+  if(!ids.length){body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="empty">No Echo aircraft is registered ${esc(reg)}, or it has no routes.</div>`;$("bk").onclick=()=>go("#/");return;}
   const ac=ACL[ROT[ids[0]].ac];
   const legs=[];ids.forEach(i=>C.legsAround(ROT[i],now-720,now+1440).forEach(l=>legs.push(l)));legs.sort((x,y)=>x.t-y.t);
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button>
@@ -1000,6 +1081,7 @@ async function setRain(on){
 function syncLayers(){
   document.querySelectorAll("[data-ly]").forEach(b=>b.checked=!!S.ly[b.dataset.ly]);
   try{localStorage.setItem("echo_layers",JSON.stringify(S.ly));}catch(_){}
+  pushAcct();
 }
 (()=>{try{const v=JSON.parse(localStorage.getItem("echo_layers")||"null");if(v)Object.assign(S.ly,v);}catch(_){}})();
 document.querySelectorAll("[data-ly]").forEach(b=>b.onchange=()=>{S.ly[b.dataset.ly]=b.checked;syncLayers();if(b.dataset.ly==="rain")setRain(b.checked);if(b.dataset.ly==="ground"&&S.view==="airport")route();redraw();});
@@ -1008,10 +1090,16 @@ document.addEventListener("pointerdown",e=>{const p=$("layers");if(!p.hidden&&!e
 
 /* ---------- the time slider ---------- */
 let tSend=0;
+/* the time controls fold away to a small Time button; phones start with them folded */
+let PLAYING=false;
+let tbOpen=(()=>{try{const v=localStorage.getItem("echo_timebar");return v==null?innerWidth>760:v==="1";}catch(_){return innerWidth>760;}})();
+function setTimebar(open){tbOpen=open;$("timebar").hidden=!open;$("tshow").hidden=open;try{localStorage.setItem("echo_timebar",open?"1":"0");}catch(_){}timeLabel();}
+$("thide").onclick=()=>setTimebar(false);$("tshow").onclick=()=>setTimebar(true);
 function timeLabel(){
   const t=new Date(nowMin()*6e4),hm=t.toISOString().slice(11,16),o=Math.round(S.off);
   $("tlabel").innerHTML=o?`<b>${hm} UTC</b> · ${o>0?"in "+dur(o):dur(-o)+" ago"}`:`<b>${hm} UTC</b> · live`;
   $("tlive").hidden=!o;$("timebar").classList.toggle("away",!!o);
+  const ts=$("tshow");ts.textContent=o?`Time · ${o>0?"+":"−"}${dur(Math.abs(o))}`:(PLAYING?"Time · playing":"Time");ts.classList.toggle("away",!!o);
 }
 function setOff(v,final){
   S.off=v;$("trange").value=String(v);timeLabel();
@@ -1041,7 +1129,7 @@ function renderTop(scope){
   const alRank=(arr,val)=>ol(arr.map(i=>li("#/airline/"+i,`${swatch(i)} ${esc(AL[i].name)}`,"",val(i))));
   let html=`<button type="button" class="back" id="bk">‹ All airlines</button>
   <div class="bar"><h2>Leaderboards</h2></div>
-  <div class="acts" style="padding-top:0"><label class="pick">Ranking <select id="tsc"><option value="">All of Echo Kyra</option>${AL.map((a,i)=>[a.name,i]).sort((x,y)=>x[0].localeCompare(y[0])).map(([n,i])=>`<option value="${i}"${i===one?" selected":""}>${esc(n)}</option>`).join("")}</select></label></div>`;
+  <div class="acts" style="padding-top:0"><label class="pick">Ranking <select id="tsc"><option value="">All of Echo</option>${DIVS().map(d=>`<optgroup label="${esc(d.name)}">${AL.map((a,i)=>[a.name,i]).filter(([,i])=>i>=d.first&&i<d.first+d.count).sort((x,y)=>x[0].localeCompare(y[0])).map(([n,i])=>`<option value="${i}"${i===one?" selected":""}>${esc(n)}</option>`).join("")}</optgroup>`).join("")}</select></label></div>`;
   if(one==null){
     const order=AL.map((a,i)=>i);
     html+=`<h3>Biggest fleets</h3>${alRank([...order].sort((x,y)=>(AL[y].aircraft||0)-(AL[x].aircraft||0)).slice(0,10),i=>fmtN(AL[i].aircraft)+" aircraft")}
@@ -1063,7 +1151,7 @@ function renderNear(){
   S.view="near";
   if(!S.me){
     body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Planes near me</h2></div>
-    <p class="note">See which Kyra flights are over you right now. Your location stays in this browser and is never sent anywhere.</p>
+    <p class="note">See which Echo flights are over you right now. Your location stays in this browser and is never sent anywhere.</p>
     <div class="acts"><button type="button" class="btn prim" id="loc">Use my location</button></div>`;
     $("bk").onclick=()=>go("#/");
     $("loc").onclick=()=>{if(!navigator.geolocation){toast("This browser can't share its location.");return;}
@@ -1078,7 +1166,7 @@ function renderNear(){
   list.sort((x,y)=>x[0]-y[0]);
   const dirs=["north","north-east","east","south-east","south","south-west","west","north-west"];
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Planes near me</h2><button type="button" class="link" id="forget">Forget my location</button></div>
-  <p class="note">${list.length?`${list.length} Kyra flight${list.length===1?"":"s"} within 400 km.`:"No Kyra flights within 400 km right now."}</p>
+  <p class="note">${list.length?`${list.length} Echo flight${list.length===1?"":"s"} within 400 km.`:"No Echo flights within 400 km right now."}</p>
   <ul class="rows">${list.slice(0,40).map(([k,i])=>{const l=C.legAt(S.P.ri[i],S.P.day[i],S.P.seq[i]);if(!l)return "";const b=C.bearing(S.me.la,S.me.lo,S.P.la[i],S.P.lo[i]);
     return `<li><button type="button" class="row two" data-pi="${i}"><span class="fn">${esc(AL[S.P.ai[i]].code)}${l.fn}</span><span><span class="rt">${l.from} → ${l.to}</span><span class="sub">${esc(AL[S.P.ai[i]].name)} · ${fmtN(S.P.alt[i])} ft</span></span><span class="st">${fmtN(Math.round(k))} km ${dirs[Math.round(b/45)%8]}</span></button></li>`;}).join("")}</ul>`;
   $("bk").onclick=()=>go("#/");$("forget").onclick=()=>{S.me=null;renderNear();redraw();};
@@ -1115,7 +1203,7 @@ let TV=null;
 function openTV(code){
   closeTV();const a=AP[code];if(!a)return;
   const el=document.createElement("div");el.id="tv";el.innerHTML=`<div class="tv-h"><div><span class="tv-code">${code}</span> <span class="tv-city">${esc(a.city||a.name)}</span></div><div class="tv-right"><span id="tv-mode">Departures</span><span id="tv-clock"></span><button type="button" id="tv-x" aria-label="Close the board">×</button></div></div>
-  <div class="tv-cols"><span>Time</span><span>Flight</span><span id="tv-dest">To</span><span>Status</span></div><div id="tv-rows"></div><p class="tv-note">Echo Live · Kyra flights from the game's timetable</p>`;
+  <div class="tv-cols"><span>Time</span><span>Flight</span><span id="tv-dest">To</span><span>Status</span></div><div id="tv-rows"></div><p class="tv-note"><svg class="mark" style="width:22px;height:18px;vertical-align:-4px;margin-right:6px;color:#8d90a3" viewBox="12.5 10.5 26.9 21.8" aria-hidden="true"><path d="M28.3 11h10.6L22.5 25H13zM22.5 25.9h10.8l5.6 5.9H28.3z" fill="currentColor"/></svg>Echo Live · Echo flights from the game's timetable</p>`;
   document.body.appendChild(el);TV={code,mode:"dep",prev:[],timer:0,swap:0};
   $("tv-x").onclick=()=>history.back();
   try{el.requestFullscreen&&matchMedia("(min-width:900px)").matches&&el.requestFullscreen().catch(()=>{});}catch(_){}
@@ -1147,7 +1235,8 @@ async function shareCard(i){
   g.fillStyle="#141a2e";g.fillRect(0,0,W2,H2);
   const gr=g.createRadialGradient(980,120,20,980,120,620);gr.addColorStop(0,"rgba(125,52,255,.35)");gr.addColorStop(1,"rgba(125,52,255,0)");g.fillStyle=gr;g.fillRect(0,0,W2,H2);
   g.fillStyle=a.color;g.fillRect(0,0,18,H2);tailOnCanvas(g,p.ai,W2-170,40,110);
-  g.fillStyle="#cdbbff";g.font="400 34px 'Instrument Serif',serif";g.fillText("Echo Live",64,72);
+  g.save();g.translate(64,44);g.scale(1.45,1.45);g.translate(-12.5,-10.5);g.fillStyle="#efeafc";g.fill(new Path2D("M28.3 11h10.6L22.5 25H13zM22.5 25.9h10.8l5.6 5.9H28.3z"));g.restore();
+  g.fillStyle="#cdbbff";g.font="400 34px 'Instrument Serif',serif";g.fillText("Echo Live",112,72);
   g.fillStyle="#aab0c8";g.font="500 26px 'Public Sans',sans-serif";g.fillText(a.name,64,128);
   g.fillStyle="#fff";g.font="400 112px 'Instrument Serif',serif";g.fillText(`${a.code} ${l.fn}`,60,240);
   g.font="700 92px 'Public Sans',sans-serif";g.fillText(l.from,64,380);const wF=g.measureText(l.from).width;
@@ -1205,7 +1294,7 @@ function setType(mi){S.type=mi;updateCount();redraw();if(GL.on)glFeed();}
 /* ---------- play the day ---------- */
 const SPEEDS=[60,300,900];let playing=false,spd=0,lastT=0,lastSend=0;
 function setPlaying(on){
-  playing=on;$("tplay").textContent=on?"Pause":"Play";$("tplay").setAttribute("aria-pressed",String(on));
+  playing=on;PLAYING=on;$("tplay").textContent=on?"Pause":"Play";$("tplay").setAttribute("aria-pressed",String(on));
   if(on){if(S.off>=715)S.off=-720;lastT=performance.now();requestAnimationFrame(playStep);}
   else{sendNow();if(D&&!["search","card","near"].includes(S.view)){renderAirport.keep=true;try{route();}finally{renderAirport.keep=false;}}}
 }
@@ -1241,7 +1330,7 @@ function drawTrails(G,list){
 let FAV={al:[],ap:[]};try{FAV=Object.assign(FAV,JSON.parse(localStorage.getItem("echo_favs")||"{}"));}catch(_){}
 const alKey=i=>AL[i].code+"|"+AL[i].name;
 const isFavAl=i=>FAV.al.includes(alKey(i)),isFavAp=c=>FAV.ap.includes(c);
-function toggleFav(kind,v){const L=FAV[kind],k=kind==="al"?alKey(v):v,j=L.indexOf(k);if(j>=0)L.splice(j,1);else L.push(k);try{localStorage.setItem("echo_favs",JSON.stringify(FAV));}catch(_){}}
+function toggleFav(kind,v){const L=FAV[kind],k=kind==="al"?alKey(v):v,j=L.indexOf(k);if(j>=0)L.splice(j,1);else L.push(k);try{localStorage.setItem("echo_favs",JSON.stringify(FAV));}catch(_){}pushAcct();}
 const star=on=>`<span class="star" aria-hidden="true">${on?"★":"☆"}</span>`;
 function favHtml(c){
   const als=FAV.al.map(k=>AL.findIndex((a,i)=>alKey(i)===k)).filter(i=>i>=0),aps=FAV.ap.filter(x=>AP[x]);
@@ -1262,7 +1351,7 @@ function renderBetween(a,b){
   <form class="ab" id="abf"><input id="aba" maxlength="3" placeholder="From" value="${esc(a)}" aria-label="From airport code" autocapitalize="characters"><button type="button" class="link" id="abs" aria-label="Swap the airports">⇄</button><input id="abb" maxlength="3" placeholder="To" value="${esc(b)}" aria-label="To airport code" autocapitalize="characters"><button class="btn prim">Find flights</button></form>`;
   let res="";
   if(a&&b){
-    if(!AP[a]||!AP[b])res=`<p class="note">${!AP[a]?esc(a):esc(b)} isn't an airport any Kyra airline flies to. Use the three-letter code, like LHR.</p>`;
+    if(!AP[a]||!AP[b])res=`<p class="note">${!AP[a]?esc(a):esc(b)} isn't an airport any Echo airline flies to. Use the three-letter code, like LHR.</p>`;
     else{
       const rows=[];
       (APROT[a]||[]).forEach(ri=>{const r=ROT[ri];
@@ -1273,9 +1362,9 @@ function renderBetween(a,b){
       const now=nowMin(),out=rows.map(x=>{const r=ROT[x.ri],ls=C.legsAround(r,now-60,now+10080).filter(l=>l.seq===x.seq).sort((p,q)=>p.t-q.t);
         const nx=ls.find(l=>l.t>=now-10)||ls[0];if(!nx)return null;const end=x.via?C.legsOf(r,nx.day).find(l=>l.seq===x.to):nx;
         return {x,l:nx,end,lm:mod(localMin(a,nx.t),1440)};}).filter(Boolean).sort((p,q)=>p.lm-q.lm);
-      res=out.length?`<p class="note">${out.length} Kyra flight${out.length===1?"":"s"} from ${esc(AP[a].city||a)} to ${esc(AP[b].city||b)}${out.length>150?", the first 150 by departure time":""}. Times are local.</p><ul class="rows">${out.slice(0,150).map(o=>{const l=o.l,e=o.end,r=ROT[o.x.ri];
+      res=out.length?`<p class="note">${out.length} Echo flight${out.length===1?"":"s"} from ${esc(AP[a].city||a)} to ${esc(AP[b].city||b)}${out.length>150?", the first 150 by departure time":""}. Times are local.</p><ul class="rows">${out.slice(0,150).map(o=>{const l=o.l,e=o.end,r=ROT[o.x.ri];
         return `<li><button type="button" class="row two" data-leg="${l.key}">${tailSVG(r.ai)}<span><span class="rt">${esc(AL[r.ai].code)}${l.fn} · ${localTime(a,l.t)} → ${localTime(b,e.t+e.dur)}${dayTag(b,e.t+e.dur,a,l.t)}</span><span class="sub">${esc(AL[r.ai].name)} · ${esc(acName(r.ac))}${o.x.via?` · stops in ${o.x.via}`:""} · ${weekdaysOf(r,o.x.seq)}</span></span><span class="st">${dur(e.t+e.dur-l.t)}</span></button></li>`;}).join("")}</ul>`
-        :`<p class="note">No Kyra airline flies nonstop from ${esc(a)} to ${esc(b)}.</p>`;
+        :`<p class="note">No Echo airline flies nonstop from ${esc(a)} to ${esc(b)}.</p>`;
       out.forEach(o=>LEGS.set(o.l.key,o.l));
     }
   }
@@ -1296,16 +1385,16 @@ function fleetTotals(){
 function renderFleet(){
   S.view="fleet";const {tot,up}=fleetTotals(),list=[...tot.values()].sort((x,y)=>y.n-x.n);
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Fleet explorer</h2><span style="font-size:13px;color:var(--muted)">${list.length} types</span></div>
-  <p class="note">Every aircraft type in Echo Kyra, with how many are in the air now.</p>
+  <p class="note">Every aircraft type flown in Echo, with how many are in the air now.</p>
   <ul class="rows">${list.map(t=>`<li><button type="button" class="row two" data-go="#/type/${t.m}"><span class="fn">${fmtN(t.n)}</span><span><span class="nm" style="display:block">${esc(MODELS[t.m])}</span><span class="sub">${t.al.length} airline${t.al.length===1?"":"s"}</span></span><span class="st">${fmtN(up.get(t.m)||0)} up</span></button></li>`).join("")}</ul>`;
   $("bk").onclick=()=>go("#/");body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));sheet("open");
 }
 function renderType(m){
   S.view="type";const {tot,up}=fleetTotals(),t=tot.get(m);
-  if(!t){body.innerHTML=`<button type="button" class="back" id="bk">‹ Fleet explorer</button><div class="empty">No Kyra airline flies that type.</div>`;$("bk").onclick=()=>go("#/fleet");return;}
+  if(!t){body.innerHTML=`<button type="button" class="back" id="bk">‹ Fleet explorer</button><div class="empty">No Echo airline flies that type.</div>`;$("bk").onclick=()=>go("#/fleet");return;}
   const on=S.type===m,ups=new Array(AL.length).fill(0);if(S.P)for(let i=0;i<S.n;i++)if(!S.P.gr[i]&&RMOD[S.P.ri[i]]===m)ups[S.P.ai[i]]++;
   body.innerHTML=`<button type="button" class="back" id="bk">‹ Fleet explorer</button><div class="bar"><h2>${esc(MODELS[m])}</h2></div>
-  <p class="note">${fmtN(t.n)} in Echo Kyra across ${t.al.length} airline${t.al.length===1?"":"s"}, ${fmtN(up.get(m)||0)} in the air now.</p>
+  <p class="note">${fmtN(t.n)} in Echo across ${t.al.length} airline${t.al.length===1?"":"s"}, ${fmtN(up.get(m)||0)} in the air now.</p>
   <div class="acts"><button type="button" class="btn${on?"":" prim"}" id="tf" aria-pressed="${on}">${on?"Showing only this type":"Show these on the map"}</button></div>
   <h3>Who flies it</h3><ul class="rows">${t.al.sort((x,y)=>y[1]-x[1]).map(([ai,n])=>`<li><button type="button" class="row" data-go="#/airline/${ai}">${tailSVG(ai)}<span class="nm">${esc(AL[ai].name)}<span>${esc(AL[ai].code)}</span></span><span class="n">${fmtN(n)} · ${fmtN(ups[ai])} up</span></button></li>`).join("")}</ul>`;
   $("bk").onclick=()=>go("#/fleet");$("tf").onclick=()=>{setType(on?null:m);renderType(m);};
@@ -1438,7 +1527,7 @@ function pulse(){
 }
 function sendNow(){if(worker)worker.postMessage({now:nowMin()});}
 async function start(){
-  const note=t=>{const l=$("loading");if(l)l.textContent=t;};
+  const note=t=>{const l=$("loadtxt");if(l)l.textContent=t;};
   let got;
   try{got=await loadData(note);}
   catch(e){note("The timetables didn't load. Check your connection and reload the page.");$("count").textContent="Timetables not loaded.";return;}
@@ -1458,7 +1547,9 @@ async function start(){
   ROT.forEach(r=>{if(r.ac>=0)ACAI[r.ac]=r.ai;});
   RMOD=new Int16Array(ROT.length);ROT.forEach((r,i)=>{RMOD[i]=r.ac>=0&&ACL[r.ac]?ACL[r.ac][0]:-1;});
   APLIST=[...used].filter(c=>AP[c]).sort((a,b)=>(AP[a].hub?1:0)-(AP[b].hub?1:0));
-  $("foot").textContent=`Echo Kyra only for now. Timetables captured from the game on ${new Date(D.captured+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}, loaded from ${SRC}; positions are worked out from the schedule.`;
+  {const fd=x=>new Date(x+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long"}),ds=DIVS(),miss=ds.flatMap(d=>d.missing||[]);
+   $("foot").textContent=`${ds.map(d=>`${d.name} captured ${fd(d.captured||D.captured)}`).join(", ")}; loaded from ${SRC}. Positions are worked out from the schedule.${miss.length?` Not captured yet: ${miss.join(", ")}.`:""}`;
+  }
   resize();note("Placing the planes…");
   try{
     const src=`const mod=${mod.toString()};const CORE=${CORE.toString()};(${WORKER.toString()})();`;
@@ -1471,11 +1562,109 @@ async function start(){
     const send=ctx(m=>onPositions(m),CORE,mod);worker={postMessage:send};send({data:D,now:nowMin()});
   }
   setInterval(pulse,4000);
-  timeLabel();setInterval(timeLabel,10000);
+  setTimebar(tbOpen);setInterval(timeLabel,10000);
   setInterval(checkWatch,15000);checkWatch();
   syncLayers();if(S.ly.rain)setRain(true);
 }
 addEventListener("resize",()=>{map.invalidateSize();resize();});
+/* ---------- signing in ----------
+   Optional. Google, Discord or email and password, through Supabase Auth on
+   the Echo Live project. A signed-in visitor's favourites and map layers are
+   kept in echo_profiles (their own row only; no names or addresses), so they
+   follow them between devices. Everything works the same signed out. */
+var ACC={c:null,u:null,t:0,pulled:false};   /* var: pushAcct may run before this line */
+const accName=u=>{const m=(u&&u.user_metadata)||{};return m.full_name||m.name||m.global_name||m.user_name||m.preferred_username||"";};
+const accMsg=(t,err)=>{const e=$("auth-m");e.textContent=t||"";e.className="msg"+(err?" err":"");};
+function accErr(e,who){
+  const m=String((e&&e.message)||e||"");
+  if(/provider is not enabled|Unsupported provider/i.test(m))return `${who} sign-in isn't switched on for Echo Live yet.`;
+  if(/Invalid login credentials/i.test(m))return "That email and password don't match an account.";
+  if(/Email not confirmed/i.test(m))return "Confirm your email first. The link is in your inbox.";
+  if(/already registered|already been registered/i.test(m))return "There's already an account with that email. Sign in instead.";
+  if(/Password should be/i.test(m))return "The password needs at least 6 characters.";
+  if(/rate limit|too many/i.test(m))return "Too many tries just now. Wait a minute and try again.";
+  if(/fetch|network/i.test(m))return "Couldn't reach the sign-in service. Check your connection.";
+  return m||"Something went wrong. Try again.";
+}
+function paintAcct(){
+  const b=$("acct"),u=ACC.u;
+  if(u){const n=accName(u);b.textContent=(n||"✓").trim().charAt(0).toUpperCase();b.classList.add("in");b.setAttribute("aria-label","Your account"+(n?": "+n:""));}
+  else{b.textContent="Sign in";b.classList.remove("in");b.removeAttribute("aria-label");}
+  $("auth-out").hidden=!!u;$("auth-in").hidden=!u;
+  if(u){const n=accName(u),p=(u.app_metadata&&u.app_metadata.provider)||"email";
+    $("auth-who").textContent=`${n?`Signed in as ${n}`:"Signed in"} with ${p==="google"?"Google":p==="discord"?"Discord":"email"}. ${FAV.al.length} favourite airline${FAV.al.length===1?"":"s"} and ${FAV.ap.length} airport${FAV.ap.length===1?"":"s"} saved to your account.`;}
+}
+const openAuth=()=>{accMsg("");$("auth-new").hidden=true;paintAcct();$("auth").hidden=false;};
+const closeAuth=()=>{$("auth").hidden=true;};
+function pushAcct(){
+  if(!ACC||!ACC.c||!ACC.u||!ACC.pulled)return;clearTimeout(ACC.t);
+  ACC.t=setTimeout(()=>ACC.c.from("echo_profiles").upsert({user_id:ACC.u.id,favs:{al:FAV.al.slice(0,300),ap:FAV.ap.slice(0,300)},layers:S.ly,updated_at:new Date().toISOString()})
+    .then(({error})=>{if(error)console.info("[Echo Live] saving to your account:",error.message);}),700);
+}
+async function pullAcct(){
+  ACC.pulled=false;
+  const {data,error}=await ACC.c.from("echo_profiles").select("favs,layers").eq("user_id",ACC.u.id).maybeSingle();
+  if(error){console.info("[Echo Live] reading your account:",error.message);return;}
+  if(data){
+    const f=data.favs||{},un=(a,b)=>[...new Set([...(a||[]),...(b||[])])];
+    FAV.al=un(f.al,FAV.al);FAV.ap=un(f.ap,FAV.ap);
+    try{localStorage.setItem("echo_favs",JSON.stringify(FAV));}catch(_){}
+    if(data.layers&&typeof data.layers==="object"){const was=S.ly.rain;Object.assign(S.ly,data.layers);
+      try{localStorage.setItem("echo_layers",JSON.stringify(S.ly));}catch(_){}
+      document.querySelectorAll("[data-ly]").forEach(b=>b.checked=!!S.ly[b.dataset.ly]);if(S.ly.rain!==was)setRain(S.ly.rain);if(C)redraw();}
+  }
+  ACC.pulled=true;pushAcct();
+  if(D&&S.view==="home")renderHome();
+}
+async function setAcct(u){
+  const was=ACC.u&&ACC.u.id;ACC.u=u||null;paintAcct();
+  if(ACC.u&&ACC.u.id!==was)await pullAcct();
+  if(!ACC.u)ACC.pulled=false;
+  paintAcct();
+}
+function initAcct(){
+  $("acct").onclick=openAuth;$("auth-x").onclick=closeAuth;
+  $("auth").addEventListener("click",e=>{if(e.target.id==="auth")closeAuth();});
+  addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("auth").hidden)closeAuth();});
+  if(!window.supabase||!supabase.createClient){
+    $("acct").onclick=()=>toast("Sign-in couldn't load. Everything else still works.");return;}
+  ACC.c=supabase.createClient(SB_URL,SB_KEY,{auth:{flowType:"pkce",persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:"echo_live_auth"}});
+  ACC.c.auth.onAuthStateChange((ev,sess)=>{
+    if(ev==="PASSWORD_RECOVERY"){openAuth();$("auth-out").hidden=true;$("auth-in").hidden=true;$("auth-new").hidden=false;}
+    setTimeout(()=>setAcct(sess?sess.user:null),0);
+    /* back from Google or Discord: tidy the sign-in code out of the address */
+    if(/[?&]code=/.test(location.search)){let h=location.hash;try{h=sessionStorage.getItem("echo_after_signin")||h;sessionStorage.removeItem("echo_after_signin");}catch(_){}
+      history.replaceState(null,"",location.pathname+h);if(D&&h)route();}
+  });
+  const oauth=(provider,who)=>async()=>{
+    accMsg("Opening "+who+"…");
+    /* the provider sends you back to the page itself; remember the view you were on */
+    try{if(location.hash&&location.hash!=="#/")sessionStorage.setItem("echo_after_signin",location.hash);}catch(_){}
+    try{const {error}=await ACC.c.auth.signInWithOAuth({provider,options:{redirectTo:location.origin+location.pathname}});if(error)throw error;}
+    catch(e){accMsg(accErr(e,who),true);}
+  };
+  $("auth-g").onclick=oauth("google","Google");$("auth-d").onclick=oauth("discord","Discord");
+  const creds=()=>{const email=$("auth-e").value.trim(),password=$("auth-p").value;
+    if(!email||!password){accMsg("Enter your email and a password.",true);return null;}return {email,password};};
+  $("auth-f").onsubmit=async e=>{e.preventDefault();const c=creds();if(!c)return;accMsg("Signing in…");
+    try{const {data,error}=await ACC.c.auth.signInWithPassword(c);if(error)throw error;$("auth-p").value="";accMsg("");await setAcct(data.user);closeAuth();toast("Signed in.");}
+    catch(err){accMsg(accErr(err,"Email"),true);}};
+  $("auth-up").onclick=async()=>{const c=creds();if(!c)return;accMsg("Creating your account…");
+    try{const {data,error}=await ACC.c.auth.signUp({...c,options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;
+      $("auth-p").value="";
+      if(data.session){await setAcct(data.user);closeAuth();toast("Account created. You're signed in.");}
+      else accMsg("Almost done: open the link we've emailed you to confirm the account, then sign in here.");}
+    catch(err){accMsg(accErr(err,"Email"),true);}};
+  $("auth-reset").onclick=async()=>{const email=$("auth-e").value.trim();if(!email){accMsg("Type your email above first.",true);return;}
+    try{const {error}=await ACC.c.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;
+      accMsg("If there's an account for that email, a link to choose a new password is on its way.");}
+    catch(err){accMsg(accErr(err,"Email"),true);}};
+  $("auth-npb").onclick=async()=>{const password=$("auth-np").value;if(password.length<6){accMsg("The password needs at least 6 characters.",true);return;}
+    try{const {error}=await ACC.c.auth.updateUser({password});if(error)throw error;$("auth-np").value="";$("auth-new").hidden=true;paintAcct();accMsg("Password changed.");}
+    catch(err){accMsg(accErr(err,"Email"),true);}};
+  $("auth-so").onclick=async()=>{try{await ACC.c.auth.signOut();}catch(_){}ACC.u=null;ACC.pulled=false;paintAcct();closeAuth();toast("Signed out. Your favourites stay on this device.");};
+}
+initAcct();
 start();
 </script>
 </body>
