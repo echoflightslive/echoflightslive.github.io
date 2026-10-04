@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css">
 <style>
 :root{
   --night:#141a2e;--paper:#e9e6f0;--paper2:#dcd8e6;--ink:#1d1730;--muted:#6b6580;--rule:#c9c3d6;
@@ -28,13 +28,13 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);font:15p
 button,input{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--kyra);outline-offset:2px}
-#map{position:fixed;inset:0;background:var(--night)}
-.leaflet-container{background:var(--night);font:12px/1.4 var(--ui)}
-.leaflet-tile-pane{filter:invert(1) hue-rotate(205deg) saturate(.32) brightness(.82) contrast(.88)}
-.leaflet-control-attribution{background:rgba(20,26,46,.78)!important;color:#aab0c8!important}
-.leaflet-control-attribution a{color:#cfc2ff!important}
-.leaflet-control-zoom a{background:var(--paper)!important;color:var(--ink)!important;border-color:var(--rule)!important}
-#cv{position:absolute;left:0;top:0;z-index:450;pointer-events:none}
+#map{position:fixed;inset:0;background:#0d1222}
+.maplibregl-map{font:12px/1.4 var(--ui)}
+.maplibregl-ctrl-attrib{background:rgba(20,26,46,.78)!important;color:#aab0c8!important}
+.maplibregl-ctrl-attrib a{color:#cfc2ff!important}
+.maplibregl-ctrl-attrib-button{filter:invert(1)}
+.maplibregl-ctrl-group{background:var(--paper)!important;border-radius:6px!important}
+.maplibregl-ctrl-group button+button{border-top-color:var(--rule)!important}
 #tip{position:absolute;z-index:460;pointer-events:none;background:var(--ink);color:#fff;font:12px/1.3 var(--mono);padding:4px 7px;border-radius:4px;white-space:nowrap;transform:translate(12px,-50%);display:none}
 
 /* panel */
@@ -159,14 +159,10 @@ h3{margin:16px 18px 4px;font:400 21px/1.15 var(--display)}
 .tb-top b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
 #trange{width:100%;margin:6px 0 2px;accent-color:var(--kyra)}
 .tb-ends{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
-#globe{position:fixed;inset:0;display:none;background:#0d1222}
-body.globe #globe{display:block}body.globe #map{visibility:hidden}
 .hud-btns{display:flex;gap:8px}
 .tb-r{display:flex;gap:12px}
 #tshow{border:0;background:rgba(233,230,240,.94);border-radius:8px;padding:8px 14px;font-weight:600;font-size:14px;box-shadow:0 6px 18px rgba(5,8,20,.35)}
 #tshow.away{background:#fff3c9}
-#globebtn{border:0;background:rgba(233,230,240,.94);border-radius:8px;padding:8px 14px;font-weight:600;font-size:14px;box-shadow:0 6px 18px rgba(5,8,20,.35)}
-#globebtn[aria-pressed="true"]{background:#fff}
 .tb-play{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11.5px;color:var(--muted)}
 .tb-play .btn{padding:3px 10px;font-size:13px}
 .ly-note{margin:6px 0 2px;font-size:12px;color:var(--muted)}
@@ -261,16 +257,15 @@ a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
   #lybtn{align-self:flex-end}
   .tv-cols,.tv-row{grid-template-columns:5fr 7fr 12fr 8fr}
   #panel.open~#hud,#panel.full~#hud{display:none}
-  .leaflet-top.leaflet-right{margin-top:env(safe-area-inset-top)}
-  .leaflet-bottom.leaflet-right{bottom:calc(132px + env(safe-area-inset-bottom))}
-  #panel.open~#map .leaflet-bottom.leaflet-right{display:none}
+  .maplibregl-ctrl-top-right{margin-top:env(safe-area-inset-top)}
+  .maplibregl-ctrl-bottom-right{bottom:calc(132px + env(safe-area-inset-bottom))}
+  #panel.open~#map .maplibregl-ctrl-bottom-right,#panel.full~#map .maplibregl-ctrl-bottom-right{display:none}
 }
 @media (prefers-reduced-motion:reduce){#panel{transition:none}}
 </style>
 </head>
 <body>
 <div id="map" aria-label="Map of Echo flights"></div>
-<div id="globe" aria-label="Globe of Echo flights"></div>
 <aside id="panel" aria-label="Echo Live">
   <button id="handle" type="button" aria-label="Expand panel"></button>
   <div class="head">
@@ -302,7 +297,7 @@ a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
     <label class="ly"><input type="checkbox" data-ly="ground"> Planes on the ground</label>
     <p class="ly-note">Shading, radar, heatmap and parked planes show on the flat map.</p>
   </div>
-  <div class="hud-btns"><button type="button" id="tshow" hidden aria-label="Show the time controls">Time</button><button type="button" id="globebtn" aria-pressed="false">Globe</button><button type="button" id="lybtn" aria-expanded="false" aria-controls="layers">Map layers</button></div>
+  <div class="hud-btns"><button type="button" id="tshow" hidden aria-label="Show the time controls">Time</button><button type="button" id="lybtn" aria-expanded="false" aria-controls="layers">Map layers</button></div>
 </div>
 <div id="tip"></div>
 <div id="loading"><div><svg class="mark" style="width:54px;height:44px;display:block;margin:0 auto 14px;color:#efeafc" viewBox="12.5 10.5 26.9 21.8" aria-hidden="true"><path d="M28.3 11h10.6L22.5 25H13zM22.5 25.9h10.8l5.6 5.9H28.3z" fill="currentColor"/></svg><span id="loadtxt">Loading the timetables…</span></div></div>
@@ -336,7 +331,7 @@ a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
   <p class="msg" id="auth-m" role="status"></p>
 </div></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 "use strict";
@@ -509,7 +504,7 @@ const divShort=d=>d.name.replace(/^Echo /,"");
 const divDot=d=>`<i class="dvdot" style="background:${d.color}"></i>`;
 function curDiv(){if(!S.filter.size)return null;for(const d of DIVS())if(S.filter.size===d.count&&[...S.filter].every(i=>i>=d.first&&i<d.first+d.count))return d;return null;}
 function setDiv(code){S.filter.clear();const d=DIVS().find(x=>x.code===code);if(d)for(let i=d.first;i<d.first+d.count;i++)S.filter.add(i);
-  updateCount();redraw();if(GL.on)glFeed();}
+  updateCount();redraw();}
 const S={type:null,n:0,P:null,sel:null,follow:false,filter:new Set(),col:"airline",view:"home",leg:null,off:0,ground:{},net:null,me:null,ly:{night:true,rain:false,heat:false,ground:false}};
 /* S.off moves the whole map in time (the time slider); 0 is now */
 const nowMin=()=>Date.now()/6e4+S.off, realNow=()=>Date.now()/6e4;
@@ -538,141 +533,170 @@ function findPlane(ri,day,seq){if(!S.P)return -1;const P=S.P;for(let i=0;i<S.n;i
 const visible=ai=>!S.filter.size||S.filter.has(ai);
 function selIndex(){return S.sel?findPlane(S.sel.ri,S.sel.day,S.sel.seq):-1;}
 
-/* ---------- map ---------- */
-const map=L.map("map",{worldCopyJump:true,zoomControl:false,minZoom:2,maxZoom:10}).setView([28,40],innerWidth<=760?2:3);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:10,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
-L.control.zoom({position:"topright"}).addTo(map);
-/* One canvas fixed over the map, redrawn on every frame the map moves. (It
-   used to ride inside the map's moving layer, but iPhone browsers don't always
-   move it in step with the tiles, so planes drifted away from the map.) */
-const cv=document.createElement("canvas");cv.id="cv";map.getContainer().appendChild(cv);
-const cx=cv.getContext("2d");
+/* ---------- map ----------
+   One map: a MapLibre globe. Everything on it is a map layer drawn by the
+   graphics card, so every plane is drawn at once and moving the map costs the
+   page nothing, however many planes are up. Zoom levels elsewhere in the page
+   are on the old flat map's scale: ZL() is the globe's zoom plus one. */
+const ZOFF=1,ZL=()=>M.getZoom()+ZOFF;
 const PLANE_D="M0,-8 L1.3,-6.2 L1.3,-2.2 L8,2.3 L8,3.9 L1.3,2 L1.3,5.4 L3.6,7.3 L3.6,8.5 L0,7.6 L-3.6,8.5 L-3.6,7.3 L-1.3,5.4 L-1.3,2 L-8,3.9 L-8,2.3 L-1.3,-2.2 L-1.3,-6.2 Z";
 const PLANE=new Path2D(PLANE_D);
-const SPR=new Map();
-/* each colour is drawn once per 10° of heading and size, then stamped */
-function sprite(col,deg,sc,outline){
-  const b=Math.round(mod(deg,360)/10)%36,k=col+"|"+b+"|"+sc+"|"+outline+"|"+DPR;let c=SPR.get(k);if(c)return c;
-  const n=Math.ceil(20*sc*DPR)+2;c=document.createElement("canvas");c.width=c.height=n;const g=c.getContext("2d");
-  g.translate(n/2,n/2);g.scale(sc*DPR,sc*DPR);g.rotate(b*10*D2R);g.fillStyle=col;g.fill(PLANE);
-  if(outline){g.lineWidth=.9;g.strokeStyle="rgba(10,12,28,.75)";g.stroke(PLANE);}
-  if(SPR.size>6000)SPR.clear();SPR.set(k,c);return c;}
-const PAD=0;
-/* plane size and how many may be drawn, by zoom level */
-const SIZE={2:.36,3:.42,4:.5,5:.64,6:.8,7:.95,8:1.08,9:1.15,10:1.2};
-const CAP={2:1800,3:2600,4:3600,5:5000,6:1e9,7:1e9,8:1e9,9:1e9,10:1e9};
-let W=0,H=0,PX=0,PY=0,DPR=1,HX=new Float32Array(0),HY=new Float32Array(0),HI=new Int32Array(0),HN=0,raf=0;
-function resize(){DPR=Math.min(2,window.devicePixelRatio||1);const s=map.getSize();W=s.x;H=s.y;PX=Math.round(W*PAD);PY=Math.round(H*PAD);
-  cv.width=(W+2*PX)*DPR;cv.height=(H+2*PY)*DPR;cv.style.width=(W+2*PX)+"px";cv.style.height=(H+2*PY)+"px";draw();}
+const FC=fs=>({type:"FeatureCollection",features:fs});
+const PT=(lo,la,p)=>({type:"Feature",properties:p||{},geometry:{type:"Point",coordinates:[lo,la]}});
+const LN=(co,p)=>({type:"Feature",properties:p||{},geometry:{type:"LineString",coordinates:co}});
+if(!window.maplibregl){const t=$("loadtxt");if(t)t.textContent="The map couldn't load. Check your connection, then reload the page.";throw new Error("MapLibre didn't load");}
+let M;
+try{
+  M=new maplibregl.Map({container:"map",attributionControl:{compact:true},center:[40,28],zoom:innerWidth<=760?.6:1.6,minZoom:0,maxZoom:9,
+    dragRotate:false,pitchWithRotate:false,touchPitch:false,
+    style:{version:8,projection:{type:"globe"},
+      sources:{osm:{type:"raster",tiles:["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],tileSize:256,maxzoom:9,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}},
+      layers:[{id:"bg",type:"background",paint:{"background-color":"#0d1222"}},
+        {id:"osm",type:"raster",source:"osm",paint:{"raster-brightness-min":.82,"raster-brightness-max":.08,"raster-saturation":-.75,"raster-hue-rotate":200,"raster-contrast":.1}}],
+      sky:{"atmosphere-blend":["interpolate",["linear"],["zoom"],0,.8,5,0]}}});
+}catch(e){const t=$("loadtxt");if(t)t.textContent="This browser can't draw the map (it needs WebGL). Try another browser or device.";throw e;}
+M.touchZoomRotate.disableRotation();
+M.addControl(new maplibregl.NavigationControl({showCompass:false}),"top-right");
+let MREADY=false;
+/* text on the map is drawn into small images on demand, so no font server is needed:
+   t:p:<text> flight number, t:a:<code> airport, t:b:<code> bold route end, t:c:<n> parked count */
+function labelImage(id){
+  const m=/^t:([pabc]):(.*)$/.exec(id);if(!m)return;const st=m[1],txt=m[2],dpr=Math.min(2,devicePixelRatio||1);
+  const font=`${st==="b"?700:600} ${st==="b"?13:11}px 'Public Sans',system-ui,sans-serif`;
+  const c=document.createElement("canvas"),g=c.getContext("2d");g.font=font;
+  const tw=Math.ceil(g.measureText(txt).width),w=st==="c"?Math.max(18,tw+10):tw+6,h=st==="b"?18:15;
+  c.width=w*dpr;c.height=h*dpr;g.scale(dpr,dpr);g.font=font;g.textBaseline="middle";g.lineJoin="round";
+  if(st==="c"){g.fillStyle="rgba(233,230,240,.92)";g.beginPath();g.roundRect?g.roundRect(0,0,w,h,4):g.rect(0,0,w,h);g.fill();g.fillStyle="#1d1730";g.textAlign="center";g.fillText(txt,w/2,h/2+.5);}
+  else{g.strokeStyle="rgba(20,26,46,.9)";g.lineWidth=st==="b"?3:2.4;g.strokeText(txt,3,h/2+.5);
+    g.fillStyle=st==="b"?"#fff":st==="a"?"rgba(205,200,230,.9)":"rgba(232,228,244,.95)";g.fillText(txt,3,h/2+.5);}
+  if(!M.hasImage(id))M.addImage(id,g.getImageData(0,0,c.width,c.height),{pixelRatio:dpr});
+}
+M.on("styleimagemissing",e=>{if(e.id&&e.id.startsWith("t:"))labelImage(e.id);});
+const PL=["p0","p1","p2","p3"],PLS=[...PL,"sel"];
+const HEAT_ON=["interpolate",["linear"],["zoom"],2.4,0,3.2,1];
+M.on("load",()=>{
+  const g=document.createElement("canvas");g.width=g.height=48;const x=g.getContext("2d");x.translate(24,24);x.scale(2.6,2.6);x.fillStyle="#fff";x.fill(PLANE);
+  M.addImage("plane",x.getImageData(0,0,48,48),{sdf:true});
+  for(const s of ["night","net","netap","trail","route","routeend","aps","ground","me","heatpts","p0","p1","p2","p3","labels","sel"])M.addSource(s,{type:"geojson",data:FC([])});
+  const L=(o,before)=>M.addLayer(o,before);
+  L({id:"night",type:"fill",source:"night",paint:{"fill-color":"#020410","fill-opacity":.42}});
+  L({id:"net",type:"line",source:"net",paint:{"line-color":["get","c"],"line-opacity":.5,"line-width":1.1}});
+  L({id:"trail",type:"line",source:"trail",layout:{"line-cap":"round"},paint:{"line-color":["get","c"],"line-opacity":["get","o"],"line-width":["get","w"]}});
+  L({id:"route-done",type:"line",source:"route",filter:["==",["get","k"],"done"],paint:{"line-color":["get","c"],"line-width":2.2}});
+  L({id:"route-ahead",type:"line",source:"route",filter:["==",["get","k"],"ahead"],paint:{"line-color":["get","c"],"line-width":1.6,"line-dasharray":[3,3.5]}});
+  L({id:"aps",type:"circle",source:"aps",minzoom:5-ZOFF,paint:{"circle-radius":["case",["get","hub"],3.2,2.2],"circle-color":["case",["get","hub"],"#cdbbff","rgba(205,200,230,.55)"]}});
+  L({id:"aps-hub",type:"symbol",source:"aps",minzoom:6-ZOFF,filter:["get","hub"],layout:{"icon-image":["concat","t:a:",["get","c"]],"icon-anchor":"bottom-left","icon-offset":[3,-2]}});
+  L({id:"aps-all",type:"symbol",source:"aps",minzoom:7-ZOFF,filter:["!",["get","hub"]],layout:{"icon-image":["concat","t:a:",["get","c"]],"icon-anchor":"bottom-left","icon-offset":[3,-2]}});
+  L({id:"netap",type:"circle",source:"netap",paint:{"circle-radius":["case",["get","hub"],4.5,2],"circle-color":["case",["get","hub"],"#ffffff",["get","c"]],"circle-stroke-width":["case",["get","hub"],2,0],"circle-stroke-color":["get","c"]}});
+  L({id:"netap-lab",type:"symbol",source:"netap",filter:["get","hub"],layout:{"icon-image":["concat","t:b:",["get","code"]],"icon-anchor":"bottom-left","icon-offset":[5,-4]}});
+  L({id:"ground-dot",type:"circle",source:"ground",maxzoom:5-ZOFF,paint:{"circle-radius":["+",1.5,["*",["sqrt",["get","n"]],.7]],"circle-color":"rgba(205,187,255,.5)"}});
+  L({id:"ground-n",type:"symbol",source:"ground",minzoom:5-ZOFF,layout:{"icon-image":["concat","t:c:",["to-string",["get","n"]]],"icon-anchor":"top","icon-offset":[0,8],"icon-allow-overlap":true}});
+  L({id:"me-halo",type:"circle",source:"me",paint:{"circle-radius":16,"circle-color":"rgba(80,170,255,.18)"}});
+  L({id:"me",type:"circle",source:"me",paint:{"circle-radius":6,"circle-color":"#4aa8ff","circle-stroke-width":2,"circle-stroke-color":"#fff"}});
+  L({id:"heat",type:"heatmap",source:"heatpts",maxzoom:3.3,layout:{visibility:"none"},paint:{"heatmap-weight":1,
+    "heatmap-intensity":["interpolate",["linear"],["zoom"],0,.05,1.5,.07,3,.12],"heatmap-radius":["interpolate",["linear"],["zoom"],0,6,3,14],
+    "heatmap-opacity":["interpolate",["linear"],["zoom"],2.4,1,3.2,0],
+    "heatmap-color":["interpolate",["linear"],["heatmap-density"],0,"rgba(125,52,255,0)",.08,"rgba(125,52,255,.45)",.35,"rgba(230,70,200,.75)",.65,"rgba(255,150,70,.85)",1,"rgba(255,240,170,.92)"]}});
+  /* the planes go in four batches: one batch over about 32,000 icons is more than a map tile can hold */
+  for(const k of PL)L({id:k,type:"symbol",source:k,layout:{"icon-image":"plane","icon-rotate":["get","b"],"icon-rotation-alignment":"map","icon-allow-overlap":true,"icon-ignore-placement":true,
+    "icon-size":["interpolate",["linear"],["zoom"],0,.17,2,.22,4,.3,6,.42,9,.56]},
+    paint:{"icon-color":["get","c"],"icon-halo-color":"rgba(10,12,28,.75)","icon-halo-width":["interpolate",["linear"],["zoom"],3,0,4,1.2]}});
+  L({id:"labels",type:"symbol",source:"labels",minzoom:7-ZOFF,layout:{"icon-image":["concat","t:p:",["get","t"]],"icon-anchor":"left","icon-offset":[9,0],"icon-padding":1}});
+  L({id:"routeend",type:"circle",source:"routeend",paint:{"circle-radius":4.5,"circle-color":"#fff","circle-stroke-width":2,"circle-stroke-color":["get","c"]}});
+  L({id:"routeend-lab",type:"symbol",source:"routeend",layout:{"icon-image":["concat","t:b:",["get","code"]],"icon-anchor":"bottom-left","icon-offset":[7,-5],"icon-allow-overlap":true}});
+  L({id:"sel-halo",type:"circle",source:"sel",paint:{"circle-radius":15,"circle-color":"rgba(125,52,255,.28)","circle-stroke-width":1.5,"circle-stroke-color":"#fff"}});
+  L({id:"sel",type:"symbol",source:"sel",layout:{"icon-image":"plane","icon-rotate":["get","b"],"icon-rotation-alignment":"map","icon-allow-overlap":true,"icon-ignore-placement":true,"icon-size":.62},
+    paint:{"icon-color":"#ffffff","icon-halo-color":"#1d1730","icon-halo-width":1.2}});
+  MREADY=true;apsDone=false;
+  if(S.ly.rain)setRain(true);
+  draw();
+});
+let APLIST=[],apsDone=false,raf=0,viewT=0;
 function redraw(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;draw();});}
-const cp=ll=>{const q=map.latLngToContainerPoint(ll);return {x:q.x+PX,y:q.y+PY};};
-function copies(x){const ww=256*Math.pow(2,map.getZoom()),xs=[];x-=Math.floor((x+30)/ww)*ww;for(;x<W+2*PX+30;x+=ww)xs.push(x);return xs;}
+function resize(){if(M)M.resize();}
+/* the night side of the Earth, as a shape that holds the pole the sun is away from */
+function nightShape(){
+  const sun=sunAt(nowMin()*6e4),dec=Math.abs(sun.lat)<.1?.1:sun.lat,co=[];
+  for(let lo=-180;lo<=180;lo+=3)co.push([lo,Math.atan(-Math.cos((lo-sun.lon)*D2R)/Math.tan(dec*D2R))/D2R]);
+  const pole=dec>0?-85:85;co.push([180,pole],[-180,pole],co[0]);
+  return FC([{type:"Feature",properties:{},geometry:{type:"Polygon",coordinates:[co]}}]);
+}
+const colOf=i=>S.col==="alt"?ALTC[Math.min(21,Math.round(S.P.alt[i]/2000))]:AL[S.P.ai[i]].mc;
+/* everything that follows the clock or the panel: planes, the chosen flight, layers */
 function draw(){
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W+2*PX,H+2*PY);HN=0;
-  if(!D||!S.P)return;
-  const P=S.P,n=S.n,BW=W+2*PX,BH=H+2*PY,z=map.getZoom(),zi=Math.max(2,Math.min(10,Math.round(z))),sc=SIZE[zi],out=zi>=5;
-  const zs=Math.pow(2,z),o0=map.project([0,0],z),c0=cp([0,0]),ox=c0.x-o0.x,oy=c0.y-o0.y,ww=256*zs;
-  if(HX.length<n*4){const m=n*4+300;HX=new Float32Array(m);HY=new Float32Array(m);HI=new Int32Array(m);}
-  const si=selIndex(),G={zs,ox,oy,ww,BW,BH,zi};
-  if(S.ly.night)drawNight(G);
-  if(S.net!=null)drawNetwork(G);
-  if(si>=0)drawRoute(plane(si));
-  if(z>=5)drawAirports(z);
-  if(S.ly.ground&&zi>=3)drawGround(G);
-  if(S.me)drawMe(G);
-  const heat=S.ly.heat&&zi<=4&&!GL.on;
-  if(heat)drawHeat(G);
-  const byAlt=S.col==="alt";let lab=zi>=7;
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.font="600 11px 'Public Sans',sans-serif";
-  /* Like Flightradar: zoomed out, only a steady share of the planes is drawn so
-     the map stays readable and quick; zooming in brings them all back. Which
-     planes stay is fixed per flight, so they don't flicker as the map moves. */
-  let inView=0;
-  const trail=zi>=6&&!heat?[]:null;
-  for(let i=0;i<n;i++){if(!shown(i))continue;const y=P.wy[i]*zs+oy;if(y<-20||y>BH+20)continue;
-    let x=P.wx[i]*zs+ox;x-=Math.floor((x+30)/ww)*ww;if(x<=BW+30){inView++;if(trail&&trail.length<2500&&!P.gr[i])trail.push([i,x,y]);}}
-  if(trail&&trail.length)drawTrails(G,trail);
-  const cap=CAP[zi]*(W*H)/(1280*800);
-  let step=1;if(S.filter.size!==1&&S.type==null)for(const k of [1,2,3,4,6,8,12,16]){step=k;if(inView/k<=cap)break;}
-  if(heat)step=1e9;                                   // the heatmap stands in for the planes
-  S.thin={step,inView};lab=lab&&inView<=160;              // flight numbers only where they have room
-  for(let i=0;i<n;i++){
-    if(i===si||!shown(i))continue;
-    if(step>=1e9)break;
-    if(step>1&&((Math.imul(P.ri[i],2654435761)^Math.imul(P.seq[i]+1,40503))>>>0)%step)continue;
-    const y=P.wy[i]*zs+oy;if(y<-20||y>BH+20)continue;
-    let x=P.wx[i]*zs+ox;x-=Math.floor((x+30)/ww)*ww;if(x>BW+30)continue;
-    const col=byAlt?ALTC[Math.min(21,Math.round(P.alt[i]/2000))]:AL[P.ai[i]].mc,sp=sprite(col,P.brg[i],sc,out),h=sp.width/DPR/2;
-    for(;x<BW+30;x+=ww){
-      cx.drawImage(sp,(x-h)*DPR,(y-h)*DPR);
-      if(lab){const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(l){cx.fillStyle="rgba(232,228,244,.9)";cx.fillText(AL[P.ai[i]].code+l.fn,x+10,y+4);}}
-      if(HN<HX.length){HX[HN]=x-PX;HY[HN]=y-PY;HI[HN]=i;HN++;}
-    }
-  }
-  const th=$("thin");if(th){th.hidden=step<=1;if(step>1)th.textContent=heat?"Traffic heatmap. Zoom in to see the planes.":`Showing 1 in ${step} planes here. Zoom in for all of them.`;}
-  if(si>=0){
-    const p=plane(si),pt=cp([p.la,p.lo]);
-    for(const x of copies(pt.x)){
-      cx.setTransform(DPR,0,0,DPR,0,0);cx.beginPath();cx.arc(x,pt.y,15,0,7);cx.fillStyle="rgba(125,52,255,.28)";cx.fill();
-      cx.lineWidth=1.5;cx.strokeStyle="#fff";cx.stroke();
-      cx.setTransform(DPR*1.35,0,0,DPR*1.35,x*DPR,pt.y*DPR);cx.rotate(p.brg*D2R);
-      cx.fillStyle="#fff";cx.fill(PLANE);cx.lineWidth=1;cx.strokeStyle="#1d1730";cx.stroke(PLANE);
-      if(HN<HX.length){HX[HN]=x-PX;HY[HN]=pt.y-PY;HI[HN]=si;HN++;}
-    }
-    cx.setTransform(DPR,0,0,DPR,0,0);
-  }
+  if(!MREADY||!D)return;
+  M.setLayoutProperty("night","visibility",S.ly.night?"visible":"none");if(S.ly.night)M.getSource("night").setData(nightShape());
+  M.setLayoutProperty("heat","visibility",S.ly.heat?"visible":"none");
+  for(const k of PL)M.setPaintProperty(k,"icon-opacity",S.ly.heat?HEAT_ON:1);
+  if(!apsDone&&APLIST.length){apsDone=true;M.getSource("aps").setData(FC(APLIST.map(c=>PT(AP[c].lo,AP[c].la,{c,hub:!!AP[c].hub}))));}
+  feedGround();feedMe();feedNet();
+  if(!S.P)return;
+  const P=S.P,si=selIndex(),fs=[[],[],[],[]],hp=[];
+  for(let i=0;i<S.n;i++){if(i===si||!shown(i))continue;
+    fs[i&3].push({type:"Feature",properties:{c:colOf(i),b:Math.round(P.brg[i]),ri:P.ri[i],day:P.day[i],seq:P.seq[i]},geometry:{type:"Point",coordinates:[P.lo[i],P.la[i]]}});
+    if(S.ly.heat&&!P.gr[i])hp.push({type:"Feature",properties:{},geometry:{type:"Point",coordinates:[P.lo[i],P.la[i]]}});}
+  PL.forEach((k,j)=>M.getSource(k).setData(FC(fs[j])));M.getSource("heatpts").setData(FC(hp));
+  const sel=[],rt=[],ends=[];
+  if(si>=0){const p=plane(si);sel.push(PT(p.lo,p.la,{b:Math.round(p.brg),ri:p.ri,day:p.day,seq:p.seq}));
+    const l=C.legAt(p.ri,p.day,p.seq);
+    if(l){const g=C.gcSetup(l.from,l.to),N=96,cut=Math.round(C.pathFrac(p.f,l.dur)*N),co=[];let prev=null;
+      for(let k=0;k<=N;k++){let [la,lo]=C.gcAt(g,k/N);if(prev!=null){while(lo-prev>180)lo-=360;while(lo-prev<-180)lo+=360;}prev=lo;co.push([lo,la]);}
+      const c=AL[p.ai].mc;
+      if(cut>0)rt.push(LN(co.slice(0,cut+1),{k:"done",c}));if(cut<N)rt.push(LN(co.slice(cut),{k:"ahead",c}));
+      ends.push(PT(co[0][0],co[0][1],{code:l.from,c}),PT(co[N][0],co[N][1],{code:l.to,c}));}}
+  M.getSource("sel").setData(FC(sel));M.getSource("route").setData(FC(rt));M.getSource("routeend").setData(FC(ends));
+  feedView();
 }
-function drawRoute(p){
-  const l=C.legAt(p.ri,p.day,p.seq);if(!l)return;
-  const g=C.gcSetup(l.from,l.to),N=96,s=C.pathFrac(p.f,l.dur);
-  const sp=[];for(let i=0;i<=N;i++)sp.push(cp(C.gcAt(g,i/N)));
-  const ww=256*Math.pow(2,map.getZoom()),cut=Math.round(s*N);
-  /* keep the line continuous across the date line, then repeat it for each world copy */
-  for(let i=1;i<sp.length;i++){while(sp[i].x-sp[i-1].x>ww/2)sp[i].x-=ww;while(sp[i].x-sp[i-1].x<-ww/2)sp[i].x+=ww;}
-  const col=AL[p.ai].mc,mn=Math.min(...sp.map(q=>q.x)),mx=Math.max(...sp.map(q=>q.x)),BW=W+2*PX;
-  for(let k=-3;k<=3;k++){
-    const dx=k*ww;if(mx+dx<0||mn+dx>BW)continue;
-    cx.setTransform(DPR,0,0,DPR,0,0);
-    cx.lineWidth=2.2;cx.strokeStyle=col;cx.setLineDash([]);cx.beginPath();
-    for(let i=0;i<=cut;i++){const q=sp[i];i?cx.lineTo(q.x+dx,q.y):cx.moveTo(q.x+dx,q.y);}cx.stroke();
-    cx.setLineDash([5,6]);cx.lineWidth=1.6;cx.beginPath();
-    for(let i=cut;i<sp.length;i++){const q=sp[i];i===cut?cx.moveTo(q.x+dx,q.y):cx.lineTo(q.x+dx,q.y);}cx.stroke();cx.setLineDash([]);
-    [[l.from,sp[0]],[l.to,sp[sp.length-1]]].forEach(([c,q])=>{cx.beginPath();cx.arc(q.x+dx,q.y,4.5,0,7);cx.fillStyle="#fff";cx.fill();cx.lineWidth=2;cx.strokeStyle=col;cx.stroke();
-      cx.font="700 13px 'Public Sans',sans-serif";cx.fillStyle="#fff";cx.strokeStyle="rgba(20,26,46,.9)";cx.lineWidth=3;cx.strokeText(c,q.x+dx+8,q.y-8);cx.fillText(c,q.x+dx+8,q.y-8);});
-  }
+/* what depends on where you're looking: flight numbers and trails, only for planes in view */
+const TRC=new Map(),TRAILMIN={6:6.5,7:3.5,8:2,9:1.2,10:.8};   // minutes of trail at each zoom: about 60 px behind each plane
+function inView(){const b=M.getBounds(),w=b.getWest(),e=b.getEast(),s=b.getSouth(),n=b.getNorth();
+  return (la,lo)=>{if(la<s||la>n)return false;if(e-w>=360)return true;let x=lo;while(x<w)x+=360;while(x>w+360)x-=360;return x<=e;};}
+function feedView(){
+  if(!MREADY||!S.P)return;
+  const z=ZL(),zi=Math.max(2,Math.min(10,Math.round(z))),P=S.P,th=$("thin");
+  if(th){const h=S.ly.heat&&M.getZoom()<2.8;th.hidden=!h;if(h)th.textContent="Traffic heatmap. Zoom in to see the planes.";}
+  const lab=[],tr=[];
+  if(zi>=6){const ok=inView(),si=selIndex();let n=0;if(TRC.size>4000)TRC.clear();
+    for(let i=0;i<S.n&&n<2500;i++){if(P.gr[i]||!shown(i)||!ok(P.la[i],P.lo[i]))continue;n++;
+      const k=P.ri[i]+":"+P.day[i]+":"+P.seq[i];let t=TRC.get(k);
+      if(!t){const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)continue;t={g:C.gcSetup(l.from,l.to),d:l.dur,fn:AL[P.ai[i]].code+l.fn};TRC.set(k,t);}
+      if(zi>=7&&lab.length<500&&i!==si)lab.push(PT(P.lo[i],P.la[i],{t:t.fn}));
+      const f1=P.f[i],f0=Math.max(0,f1-TRAILMIN[zi]/t.d);if(f1-f0<.002)continue;
+      const pts=[];let prev=null;for(let q=0;q<=6;q++){let [la,lo]=C.gcAt(t.g,C.pathFrac(f0+(f1-f0)*q/6,t.d));if(prev!=null){while(lo-prev>180)lo-=360;while(lo-prev<-180)lo+=360;}prev=lo;pts.push([lo,la]);}
+      const c=colOf(i);for(let q=0;q<6;q++)tr.push(LN([pts[q],pts[q+1]],{c,o:.08+.5*q/6,w:1+q*.35}));}}
+  M.getSource("labels").setData(FC(lab));M.getSource("trail").setData(FC(tr));
 }
-let APLIST=[];
-function drawAirports(z){
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.font="600 11px 'Public Sans',sans-serif";const BH=H+2*PY;
-  for(const c of APLIST){const a=AP[c],pt=cp([a.la,a.lo]);if(pt.y<-10||pt.y>BH+10)continue;
-    for(const x of copies(pt.x)){cx.beginPath();cx.arc(x,pt.y,a.hub?3.2:2.2,0,7);cx.fillStyle=a.hub?"#cdbbff":"rgba(205,200,230,.55)";cx.fill();
-      if(z>=6&&(a.hub||z>=7)){cx.fillStyle="rgba(205,200,230,.8)";cx.fillText(c,x+5,pt.y-5);}}}
-}
-function hit(x,y,r){let best=-1,bd=r*r;for(let i=0;i<HN;i++){const dx=HX[i]-x,dy=HY[i]-y,d=dx*dx+dy*dy;if(d<bd){bd=d;best=HI[i];}}return best;}
-function hitAirport(x,y,r){if(map.getZoom()<5)return null;let best=null,bd=(r||8)**2;
-  for(const c of APLIST){const a=AP[c],q=map.latLngToContainerPoint([a.la,a.lo]),ww=256*Math.pow(2,map.getZoom());
-    for(let k=-2;k<=2;k++){const d=(q.x+k*ww-x)**2+(q.y-y)**2;if(d<bd){bd=d;best=c;}}}return best;}
-/* Redraw inside the map's own move event, in the same frame it moves the map
-   images, so on phones the planes can't lag a frame behind and seem to float. */
-map.on("move",()=>{if(raf){cancelAnimationFrame(raf);raf=0;}draw();});
-map.on("moveend",redraw);
-/* while a zoom animates the old picture would be at the wrong scale, so it is hidden until the zoom lands */
-map.on("zoomstart",()=>{cv.style.visibility="hidden";});
-map.on("zoomend viewreset",()=>{cv.style.visibility="";draw();});
-map.on("resize",resize);
-map.on("dragstart",()=>{if(S.follow){S.follow=false;if(S.view==="flight")renderFlight();}});
+M.on("moveend",()=>{clearTimeout(viewT);viewT=setTimeout(feedView,60);});
+M.on("dragstart",()=>{if(S.follow){S.follow=false;if(S.view==="flight")renderFlight();}});
 /* Taps are read straight from the pointer, not the map's click event (which a
    finger's slight wobble often cancels), and a finger gets a much bigger
    target than a mouse: the nearest plane within reach is chosen. */
+/* the nearest plane (or airport) to a point on screen, worked out from the
+   positions themselves, so a tap never depends on what has been drawn yet */
+function nearAround(x,y,r){
+  const c=M.unproject([x,y]),dpp=360/(512*Math.pow(2,M.getZoom()))*1.6*r,cl=Math.max(.15,Math.cos(c.lat*D2R));
+  return {c,dla:dpp,dlo:Math.min(180,dpp/cl)};}
+function nearestPlane(x,y,r){
+  if(!S.P)return -1;const {c,dla,dlo}=nearAround(x,y,r),P=S.P,si=selIndex();let best=-1,bd=r*r;
+  for(let i=0;i<S.n;i++){if(i!==si&&!shown(i))continue;if(Math.abs(P.la[i]-c.lat)>dla)continue;
+    let d=P.lo[i]-c.lng;d-=Math.round(d/360)*360;if(Math.abs(d)>dlo)continue;
+    const q=M.project([c.lng+d,P.la[i]]),e=(q.x-x)**2+(q.y-y)**2;if(e<bd||(e<bd*1.6&&i===si)){bd=e;best=i;}}
+  return best;}
+function nearestAirport(x,y,r){
+  const {c,dla,dlo}=nearAround(x,y,r);let best=null,bd=r*r;
+  for(const k of APLIST){const a=AP[k];if(Math.abs(a.la-c.lat)>dla)continue;let d=a.lo-c.lng;d-=Math.round(d/360)*360;if(Math.abs(d)>dlo)continue;
+    const q=M.project([c.lng+d,a.la]),e=(q.x-x)**2+(q.y-y)**2;if(e<bd){bd=e;best=k;}}
+  return best;}
 function onTap(x,y,type){
-  if(S.ly.heat&&Math.round(map.getZoom())<=4){map.setZoomAround(map.containerPointToLatLng([x,y]),Math.round(map.getZoom())+2);return;}
-  const touch=type!=="mouse",i=hit(x,y,touch?30:14);
+  if(!MREADY)return;
+  if(S.ly.heat&&M.getZoom()<2.8){M.easeTo({center:M.unproject([x,y]),zoom:M.getZoom()+2,duration:600});return;}
+  const touch=type!=="mouse",i=nearestPlane(x,y,touch?30:14);
   if(i>=0){selectPlane(i,false);return;}
-  const a=hitAirport(x,y,touch?22:9);if(a){go("#/airport/"+a);return;}
+  if(ZL()>=5){const a=nearestAirport(x,y,touch?22:9);if(a){go("#/airport/"+a);return;}}
   if(S.sel){S.sel=null;S.follow=false;if(S.view==="flight")go("#/");redraw();}
 }
-(()=>{const el=map.getContainer(),downs=new Map();let multi=false;
-  el.addEventListener("pointerdown",e=>{if(e.target.closest(".leaflet-control"))return;downs.set(e.pointerId,{x:e.clientX,y:e.clientY,t:performance.now(),type:e.pointerType});if(downs.size>1)multi=true;},true);
+(()=>{const el=M.getCanvasContainer(),downs=new Map();let multi=false;
+  el.addEventListener("pointerdown",e=>{downs.set(e.pointerId,{x:e.clientX,y:e.clientY,t:performance.now(),type:e.pointerType});if(downs.size>1)multi=true;},true);
   el.addEventListener("pointerup",e=>{const d=downs.get(e.pointerId);downs.delete(e.pointerId);if(!d)return;
     if(multi){if(!downs.size)multi=false;return;}
     if(Math.hypot(e.clientX-d.x,e.clientY-d.y)>(d.type==="mouse"?5:14)||performance.now()-d.t>650)return;
@@ -680,11 +704,13 @@ function onTap(x,y,type){
   el.addEventListener("pointercancel",e=>{downs.delete(e.pointerId);if(!downs.size)multi=false;},true);
 })();
 const tip=$("tip");
-map.on("mousemove",e=>{if(!D||matchMedia("(hover:none)").matches)return;const i=hit(e.containerPoint.x,e.containerPoint.y,10);
-  if(i<0){tip.style.display="none";map.getContainer().style.cursor="";return;}
+let hovT=0;
+M.on("mousemove",e=>{if(!MREADY||!D||!S.P||matchMedia("(hover:none)").matches)return;const now=performance.now();if(now-hovT<40)return;hovT=now;
+  const i=nearestPlane(e.point.x,e.point.y,10);
+  if(i<0){tip.style.display="none";M.getCanvas().style.cursor="";return;}
   const l=C.legAt(S.P.ri[i],S.P.day[i],S.P.seq[i]);if(!l)return;
-  tip.textContent=`${AL[S.P.ai[i]].code}${l.fn}  ${l.from}–${l.to}`;tip.style.left=e.containerPoint.x+"px";tip.style.top=e.containerPoint.y+"px";tip.style.display="block";map.getContainer().style.cursor="pointer";});
-map.on("mouseout",()=>{tip.style.display="none";});
+  tip.textContent=`${AL[S.P.ai[i]].code}${l.fn}  ${l.from}–${l.to}`;tip.style.left=e.point.x+"px";tip.style.top=e.point.y+"px";tip.style.display="block";M.getCanvas().style.cursor="pointer";});
+M.getCanvasContainer().addEventListener("mouseleave",()=>{tip.style.display="none";});
 
 /* ---------- the phone sheet: tap or drag its top to open and close ---------- */
 const body=$("body"),panel=$("panel"),head=panel.querySelector(".head"),handle=$("handle");
@@ -729,7 +755,7 @@ function updateCount(){
   const cd=curDiv();
   $("count").innerHTML=f?`<strong>${fmtN([...S.filter].reduce((s,i)=>s+c[i],0))}</strong> ${cd?esc(divShort(cd))+" flights in the air":"in the air from "+(f===1?esc(AL[[...S.filter][0]].name):f+" airlines")} · <button class="link" id="clr">show all</button>`
     :`<strong>${fmtN(n)}</strong> Echo flights in the air now`;
-  const b=$("clr");if(b)b.onclick=()=>{S.filter.clear();updateCount();redraw();if(GL.on)glFeed();if(S.view==="home")renderHome();else if(S.view==="airline")route();};}
+  const b=$("clr");if(b)b.onclick=()=>{S.filter.clear();updateCount();redraw();if(S.view==="home")renderHome();else if(S.view==="airline")route();};}
 const swatch=ai=>tailSVG(ai);
 function renderHome(){
   S.view="home";const {c}=counts(),ds=DIVS(),cd=curDiv(),upOf=d=>{let n=0;for(let i=d.first;i<d.first+d.count;i++)n+=c[i];return n;};
@@ -761,19 +787,17 @@ function openLeg(l){
 }
 /* on a phone the sheet covers the lower part of the map, so the point goes in the part still showing */
 function focusOn(ll,z){
-  if(GL.on&&GL.map){const cover=narrow()?innerHeight*.34:0;GL.map.flyTo({center:[ll[1],ll[0]],zoom:Math.max(GL.map.getZoom(),z-1.4),offset:[narrow()?0:180,-cover/2],duration:900});return;}
-  if(!narrow()){map.flyTo(ll,z,{duration:.8});return;}
-  const cover=innerHeight*(panel.classList.contains("full")?.88:.68);
-  map.flyTo(map.unproject(map.project(ll,z).add([0,cover/2]),z),z,{duration:.8});
+  const cover=narrow()?innerHeight*(panel.classList.contains("full")?.88:.68):0;
+  M.flyTo({center:[ll[1],ll[0]],zoom:Math.max(0,z-ZOFF),offset:[narrow()?0:190,-cover/2],duration:900});
 }
 function selectPlane(i,fly){
   const p=plane(i);S.sel={ri:p.ri,day:p.day,seq:p.seq};
   const l=C.legAt(p.ri,p.day,p.seq);
   const hash=`#/flight/${encodeURIComponent(AL[p.ai].code+l.fn)}/${p.ri}`;
   if(location.hash!==hash)history.replaceState(null,"",hash);
-  renderFlight();sheet("open");if(GL.on)glFeed();
-  if(fly)focusOn([p.la,p.lo],Math.max(map.getZoom(),4));
-  else if(narrow()){const q=map.latLngToContainerPoint([p.la,p.lo]);if(q.y>innerHeight*.32-20)focusOn([p.la,p.lo],map.getZoom());}
+  renderFlight();sheet("open");
+  if(fly)focusOn([p.la,p.lo],Math.max(ZL(),4));
+  else if(narrow()){const q=M.project([p.lo,p.la]);if(q.y>innerHeight*.32-20)focusOn([p.la,p.lo],ZL());}
   redraw();
 }
 function stripHtml(l,ai,f){
@@ -815,7 +839,7 @@ function renderFlight(){
   $("aln").onclick=()=>go("#/airline/"+p.ai);
   body.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>go("#/airport/"+b.dataset.ap));
   if($("reg"))$("reg").onclick=()=>go("#/reg/"+encodeURIComponent(acReg(r.ac)));
-  $("fol").onclick=()=>{S.follow=!S.follow;if(S.follow)map.panTo([p.la,p.lo]);renderFlight();};
+  $("fol").onclick=()=>{S.follow=!S.follow;if(S.follow)M.easeTo({center:[p.lo,p.la],duration:600});renderFlight();};
   $("wch").onclick=async()=>{await toggleWatch(l);renderFlight();};
   $("crd").onclick=()=>{$("crd").textContent="Making the card…";shareCard(si);};
   $("shr").onclick=share;
@@ -890,7 +914,7 @@ function renderAirport(code){
   body.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>show(b.dataset.t));show("dep");
   $("bk").onclick=()=>go("#/");
   sheet("open");
-  if(!S.sel&&!renderAirport.keep)focusOn([a.la,a.lo],Math.max(map.getZoom(),6));
+  if(!S.sel&&!renderAirport.keep)focusOn([a.la,a.lo],Math.max(ZL(),6));
 }
 let REG={};
 function renderReg(reg){
@@ -985,96 +1009,49 @@ function sunAt(ms){
   const eqt=mod(mod(q,360)-mod(ra,360)+180,360)-180,h=(ms/36e5)%24;
   return {lat:dec,lon:mod(-15*(h-12)-eqt+180,360)-180};
 }
-function drawNight(G){
-  const sun=sunAt(nowMin()*6e4),dec=Math.abs(sun.lat)<.1?.1:sun.lat,pts=[];
-  for(let lo=-180;lo<=180;lo+=2)pts.push([lo,Math.atan(-Math.cos((lo-sun.lon)*D2R)/Math.tan(dec*D2R))/D2R]);
-  const edge=dec>0?mercY(-85.05):mercY(85.05);           // the dark side holds the pole the sun is away from
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.fillStyle="rgba(2,4,16,.42)";
-  for(let k=-2;k<=2;k++){
-    const dx=k*G.ww;if(dx+G.ox+G.ww<0||dx+G.ox>G.BW)continue;
-    cx.beginPath();pts.forEach(([lo,la],i)=>{const x=lonX(lo)*G.zs+G.ox+dx,y=mercY(la)*G.zs+G.oy;i?cx.lineTo(x,y):cx.moveTo(x,y);});
-    cx.lineTo(lonX(180)*G.zs+G.ox+dx,edge*G.zs+G.oy);cx.lineTo(lonX(-180)*G.zs+G.ox+dx,edge*G.zs+G.oy);cx.closePath();cx.fill();
-  }
-}
-/* traffic heatmap: planes counted on a coarse grid, softened, then coloured */
-let HEAT=null;
-function drawHeat(G){
-  const s=4,w=Math.ceil(G.BW/s),h=Math.ceil(G.BH/s);
-  if(!HEAT||HEAT.w!==w||HEAT.h!==h){const c=document.createElement("canvas");c.width=w;c.height=h;HEAT={w,h,c,g:c.getContext("2d"),a:new Float32Array(w*h),b:new Float32Array(w*h)};}
-  const A=HEAT.a,B=HEAT.b,P=S.P;A.fill(0);
-  for(let i=0;i<S.n;i++){if(P.gr[i]||!shown(i))continue;
-    const y=Math.round((P.wy[i]*G.zs+G.oy)/s);if(y<0||y>=h)continue;
-    let x=P.wx[i]*G.zs+G.ox;x-=Math.floor(x/G.ww)*G.ww;
-    for(;x<G.BW;x+=G.ww){const xi=Math.round(x/s);if(xi>=0&&xi<w)A[y*w+xi]+=1;}}
-  const R=G.zi<=2?2:3;
-  for(let pass=0;pass<2;pass++){
-    for(let y=0;y<h;y++){let acc=0;const o=y*w;for(let x=-R;x<w+R;x++){if(x+R<w)acc+=A[o+x+R];if(x-R-1>=0)acc-=A[o+x-R-1];if(x>=0&&x<w)B[o+x]=acc;}}
-    for(let x=0;x<w;x++){let acc=0;for(let y=-R;y<h+R;y++){if(y+R<h)acc+=B[(y+R)*w+x];if(y-R-1>=0)acc-=B[(y-R-1)*w+x];if(y>=0&&y<h)A[y*w+x]=acc;}}
-  }
-  let mx=0;for(let i=0;i<A.length;i++)if(A[i]>mx)mx=A[i];
-  const img=HEAT.g.createImageData(w,h),d=img.data,sc=mx?1/Math.max(mx*.55,1):0;
-  const ramp=[[125,52,255],[230,70,200],[255,150,70],[255,240,170]];
-  for(let i=0;i<A.length;i++){const t=Math.min(1,Math.sqrt(A[i]*sc));if(t<.04)continue;
-    const f=t*(ramp.length-1),k=Math.min(ramp.length-2,Math.floor(f)),u=f-k,c0=ramp[k],c1=ramp[k+1];
-    d[i*4]=c0[0]+(c1[0]-c0[0])*u;d[i*4+1]=c0[1]+(c1[1]-c0[1])*u;d[i*4+2]=c0[2]+(c1[2]-c0[2])*u;d[i*4+3]=Math.min(235,40+t*230);}
-  HEAT.g.putImageData(img,0,0);
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.imageSmoothingEnabled=true;cx.drawImage(HEAT.c,0,0,G.BW,G.BH);
-}
 /* aircraft parked between flights, as a count at each airport */
-function drawGround(G){
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.font="600 11px 'Public Sans',sans-serif";cx.textAlign="center";cx.textBaseline="middle";
-  for(const c in S.ground){const a=AP[c];if(!a)continue;
-    const list=S.filter.size?S.ground[c].filter(ac=>S.filter.has(ACAI[ac])):S.ground[c];const n=list.length;if(!n)continue;
-    const y=mercY(a.la)*G.zs+G.oy;if(y<-20||y>G.BH+20)continue;
-    let x=lonX(a.lo)*G.zs+G.ox;x-=Math.floor((x+30)/G.ww)*G.ww;
-    for(;x<G.BW+30;x+=G.ww){
-      if(G.zi<5){cx.beginPath();cx.arc(x,y,1.5+Math.sqrt(n)*.7,0,7);cx.fillStyle="rgba(205,187,255,.5)";cx.fill();}
-      else{const t=String(n),bw=Math.max(18,cx.measureText(t).width+10);cx.fillStyle="rgba(233,230,240,.92)";
-        cx.beginPath();cx.roundRect?cx.roundRect(x-bw/2,y+8,bw,15,4):cx.rect(x-bw/2,y+8,bw,15);cx.fill();cx.fillStyle="#1d1730";cx.fillText(t,x,y+16);}
-    }}
-  cx.textAlign="start";cx.textBaseline="alphabetic";
+function feedGround(){
+  const fs=[];
+  if(S.ly.ground&&ZL()>=2.5)for(const c in S.ground){const a=AP[c];if(!a)continue;
+    const list=S.filter.size?S.ground[c].filter(ac=>S.filter.has(ACAI[ac])):S.ground[c];if(list.length)fs.push(PT(a.lo,a.la,{n:list.length}));}
+  M.getSource("ground").setData(FC(fs));
 }
-function drawMe(G){
-  const y=mercY(S.me.la)*G.zs+G.oy;let x=lonX(S.me.lo)*G.zs+G.ox;x-=Math.floor((x+30)/G.ww)*G.ww;
-  cx.setTransform(DPR,0,0,DPR,0,0);
-  for(;x<G.BW+30;x+=G.ww){cx.beginPath();cx.arc(x,y,16,0,7);cx.fillStyle="rgba(80,170,255,.18)";cx.fill();
-    cx.beginPath();cx.arc(x,y,6,0,7);cx.fillStyle="#4aa8ff";cx.fill();cx.lineWidth=2;cx.strokeStyle="#fff";cx.stroke();}
-}
+function feedMe(){M.getSource("me").setData(FC(S.me?[PT(S.me.lo,S.me.la)]:[]));}
 /* an airline's network: every route it flies, with its hubs marked */
-const NET={};
+const NET={};let netShown=-2;
 function netOf(ai){
   if(NET[ai])return NET[ai];const seen=new Set(),routes=[],aps=new Set();
   const add=(a,b)=>{const k=a<b?a+b:b+a;if(seen.has(k)||!AP[a]||!AP[b])return;seen.add(k);aps.add(a);aps.add(b);
-    const g=C.gcSetup(a,b),pts=[];let prev=null;for(let i=0;i<=24;i++){let [la,lo]=C.gcAt(g,i/24);if(prev!=null){while(lo-prev>180)lo-=360;while(lo-prev<-180)lo+=360;}prev=lo;pts.push([lonX(lo),mercY(la)]);}routes.push(pts);};
+    const g=C.gcSetup(a,b),pts=[];let prev=null;for(let i=0;i<=24;i++){let [la,lo]=C.gcAt(g,i/24);if(prev!=null){while(lo-prev>180)lo-=360;while(lo-prev<-180)lo+=360;}prev=lo;pts.push([lo,la]);}routes.push(pts);};
   ROT.forEach(r=>{if(r.ai!==ai)return;add(r.A,r.B);if(r.C)add(r.B,r.C);});
   return NET[ai]={routes,aps:[...aps]};
 }
-function drawNetwork(G){
-  const N=netOf(S.net),col=AL[S.net].mc;
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.strokeStyle=col;cx.globalAlpha=.5;cx.lineWidth=1.1;
-  for(let k=-2;k<=2;k++){const dx=k*G.ww;if(dx+G.ox+2*G.ww<0||dx+G.ox-G.ww>G.BW)continue;cx.beginPath();
-    for(const pts of N.routes)pts.forEach(([x,y],i)=>{const X=x*G.zs+G.ox+dx,Y=y*G.zs+G.oy;i?cx.lineTo(X,Y):cx.moveTo(X,Y);});cx.stroke();}
-  cx.globalAlpha=1;cx.font="600 12px 'Public Sans',sans-serif";
-  const hubs=new Set(AL[S.net].hubs);
-  for(const c of N.aps){const a=AP[c],y=mercY(a.la)*G.zs+G.oy;let x=lonX(a.lo)*G.zs+G.ox;x-=Math.floor((x+30)/G.ww)*G.ww;const hub=hubs.has(c);
-    for(;x<G.BW+30;x+=G.ww){cx.beginPath();cx.arc(x,y,hub?4.5:2,0,7);cx.fillStyle=hub?"#fff":col;cx.fill();
-      if(hub){cx.lineWidth=2;cx.strokeStyle=col;cx.stroke();cx.fillStyle="#fff";cx.strokeStyle="rgba(20,26,46,.9)";cx.lineWidth=3;cx.strokeText(c,x+7,y-7);cx.fillText(c,x+7,y-7);}}}
+function feedNet(){
+  const k=S.net==null?-1:S.net;if(k===netShown)return;netShown=k;
+  if(S.net==null){M.getSource("net").setData(FC([]));M.getSource("netap").setData(FC([]));return;}
+  const N=netOf(S.net),c=AL[S.net].mc,hubs=new Set(AL[S.net].hubs);
+  M.getSource("net").setData(FC(N.routes.map(r=>LN(r,{c}))));
+  M.getSource("netap").setData(FC(N.aps.map(a=>PT(AP[a].lo,AP[a].la,{c,code:a,hub:hubs.has(a)}))));
 }
 function showNetwork(ai){
-  S.net=ai;if(ai==null){redraw();return;}
-  const pts=netOf(ai).aps.map(c=>[AP[c].la,AP[c].lo]);
-  if(pts.length)map.fitBounds(pts,{padding:[30,30],paddingTopLeft:narrow()?[20,20]:[400,20],paddingBottomRight:narrow()?[20,innerHeight*.7]:[20,20],maxZoom:6});
-  redraw();
+  S.net=ai;redraw();if(ai==null)return;
+  const aps=netOf(ai).aps;if(!aps.length)return;
+  const b=new maplibregl.LngLatBounds();aps.forEach(c=>b.extend([AP[c].lo,AP[c].la]));
+  const pad=narrow()?{top:20,left:20,right:20,bottom:Math.round(innerHeight*.7)}:{top:20,left:400,right:20,bottom:20};
+  try{M.fitBounds(b,{padding:pad,maxZoom:6-ZOFF,duration:900});}catch(_){}
 }
 /* real-world rain radar (RainViewer), under the planes */
-let rainLayer=null,rainTimer=0;
+let rainTimer=0;
 async function setRain(on){
-  clearInterval(rainTimer);if(rainLayer){map.removeLayer(rainLayer);rainLayer=null;}
-  if(!on)return;
+  clearInterval(rainTimer);
+  if(MREADY){if(M.getLayer("rain"))M.removeLayer("rain");if(M.getSource("rain"))M.removeSource("rain");}
+  if(!on||!MREADY)return;
   try{
     const j=await (await fetch("https://api.rainviewer.com/public/weather-maps.json",{cache:"no-cache"})).json();
-    const f=j.radar.past[j.radar.past.length-1];if(!map.getPane("rain"))map.createPane("rain").style.zIndex=350;
-    rainLayer=L.tileLayer(`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,{pane:"rain",opacity:.75,maxNativeZoom:7,maxZoom:10,attribution:'Radar © <a href="https://www.rainviewer.com/">RainViewer</a>'}).addTo(map);
+    const f=j.radar.past[j.radar.past.length-1];
+    if(M.getLayer("rain"))M.removeLayer("rain");if(M.getSource("rain"))M.removeSource("rain");
+    M.addSource("rain",{type:"raster",tiles:[`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`],tileSize:256,maxzoom:7,attribution:'Radar © <a href="https://www.rainviewer.com/">RainViewer</a>'});
+    M.addLayer({id:"rain",type:"raster",source:"rain",paint:{"raster-opacity":.75}},"night");
     rainTimer=setInterval(()=>{if(S.ly.rain)setRain(true);},10*60*1000);
   }catch(e){toast("The rain radar couldn't load right now.");S.ly.rain=false;syncLayers();}
 }
@@ -1289,7 +1266,7 @@ function tailOnCanvas(g,ai,x,y,s){
 /* ---------- aircraft types ---------- */
 let RMOD=null;
 const shown=i=>(!S.filter.size||S.filter.has(S.P.ai[i]))&&(S.type==null||RMOD[S.P.ri[i]]===S.type);
-function setType(mi){S.type=mi;updateCount();redraw();if(GL.on)glFeed();}
+function setType(mi){S.type=mi;updateCount();redraw();}
 
 /* ---------- play the day ---------- */
 const SPEEDS=[60,300,900];let playing=false,spd=0,lastT=0,lastSend=0;
@@ -1308,23 +1285,6 @@ function playStep(t){
 $("tplay").onclick=()=>setPlaying(!playing);
 $("tspeed").onclick=()=>{spd=(spd+1)%SPEEDS.length;$("tspeed").textContent="×"+SPEEDS[spd];};
 $("trange").addEventListener("pointerdown",()=>{if(playing)setPlaying(false);});
-
-/* ---------- trails behind planes when zoomed in ---------- */
-const TRC=new Map(),TRAILMIN={6:5,7:7,8:10,9:12,10:14};   // minutes of trail, about 40-60 px at each zoom
-function drawTrails(G,list){
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.lineCap="round";
-  if(TRC.size>4000)TRC.clear();
-  for(const [i,x,y] of list){
-    const P=S.P,k=P.ri[i]+":"+P.day[i]+":"+P.seq[i];let t=TRC.get(k);
-    if(!t){const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)continue;t={g:C.gcSetup(l.from,l.to),d:l.dur};TRC.set(k,t);}
-    const f1=P.f[i],f0=Math.max(0,f1-TRAILMIN[G.zi]/t.d);if(f1-f0<.002)continue;
-    const pts=[];for(let q=0;q<=6;q++){const f=f0+(f1-f0)*q/6,[la,lo]=C.gcAt(t.g,C.pathFrac(f,t.d));pts.push([lonX(lo)*G.zs,mercY(la)*G.zs+G.oy]);}
-    const dx=x-pts[6][0];                                 // put the trail on the same world copy as the plane
-    const col=S.col==="alt"?ALTC[Math.min(21,Math.round(P.alt[i]/2000))]:AL[P.ai[i]].mc;
-    for(let q=0;q<6;q++){cx.globalAlpha=.08+.5*q/6;cx.strokeStyle=col;cx.lineWidth=1+q*.35;cx.beginPath();cx.moveTo(pts[q][0]+dx,pts[q][1]);cx.lineTo(pts[q+1][0]+dx,pts[q+1][1]);cx.stroke();}
-  }
-  cx.globalAlpha=1;cx.lineCap="butt";
-}
 
 /* ---------- favourites ---------- */
 let FAV={al:[],ap:[]};try{FAV=Object.assign(FAV,JSON.parse(localStorage.getItem("echo_favs")||"{}"));}catch(_){}
@@ -1460,67 +1420,19 @@ function hourChart(code,dep){
 }
 
 /* ---------- globe view (MapLibre) ---------- */
-const GL={on:false,map:null,ready:false,loading:null};
-function loadAsset(src,css){return new Promise((res,rej)=>{const e=document.createElement(css?"link":"script");if(css){e.rel="stylesheet";e.href=src;}else e.src=src;e.onload=res;e.onerror=()=>rej(new Error(src));document.head.appendChild(e);});}
-async function setGlobe(on){
-  GL.on=on;$("globebtn").setAttribute("aria-pressed",String(on));$("globebtn").textContent=on?"Flat map":"Globe";
-  document.body.classList.toggle("globe",on);
-  if(!on){if(GL.map){const c=GL.map.getCenter();map.setView([c.lat,c.lng],Math.max(2,Math.round(GL.map.getZoom()+1)),{animate:false});}map.invalidateSize();redraw();return;}
-  try{
-    if(!GL.loading)GL.loading=Promise.all([loadAsset("https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"),loadAsset("https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css",true)]);
-    await GL.loading;
-  }catch(e){toast("The globe couldn't load. Check your connection.");GL.loading=null;setGlobe(false);return;}
-  const c=map.getCenter();
-  if(!GL.map){
-    GL.map=new maplibregl.Map({container:"globe",attributionControl:{compact:true},center:[c.lng,c.lat],zoom:Math.max(.6,map.getZoom()-1.4),maxZoom:9,
-      style:{version:8,projection:{type:"globe"},sources:{osm:{type:"raster",tiles:["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],tileSize:256,maxzoom:9,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}},
-        layers:[{id:"bg",type:"background",paint:{"background-color":"#0d1222"}},{id:"osm",type:"raster",source:"osm",paint:{"raster-brightness-min":.82,"raster-brightness-max":.08,"raster-saturation":-.75,"raster-hue-rotate":200,"raster-contrast":.1}}],
-        sky:{"atmosphere-blend":["interpolate",["linear"],["zoom"],0,.8,5,0]}}});
-    GL.map.on("load",()=>{
-      const g=document.createElement("canvas");g.width=g.height=48;const x=g.getContext("2d");x.translate(24,24);x.scale(2.6,2.6);x.fillStyle="#fff";x.fill(PLANE);
-      GL.map.addImage("plane",x.getImageData(0,0,48,48),{sdf:true});
-      GL.map.addSource("planes",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
-      GL.map.addSource("route",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
-      GL.map.addLayer({id:"route",type:"line",source:"route",paint:{"line-color":["get","c"],"line-width":2}});
-      GL.map.addLayer({id:"planes",type:"symbol",source:"planes",layout:{"icon-image":"plane","icon-rotate":["get","b"],"icon-rotation-alignment":"map","icon-allow-overlap":true,"icon-ignore-placement":true,
-        "icon-size":["interpolate",["linear"],["zoom"],0,.16,3,.24,6,.42,9,.6]},paint:{"icon-color":["get","c"]}});
-      GL.ready=true;glFeed();
-    });
-    GL.map.on("click",e=>{
-      const r=e.originalEvent&&e.originalEvent.pointerType==="mouse"?10:24,p=e.point;
-      const fs=GL.map.queryRenderedFeatures([[p.x-r,p.y-r],[p.x+r,p.y+r]],{layers:["planes"]});
-      if(!fs.length){if(S.sel){S.sel=null;if(S.view==="flight")go("#/");glFeed();}return;}
-      let best=fs[0],bd=1e9;for(const f of fs){const q=GL.map.project(f.geometry.coordinates),d=(q.x-p.x)**2+(q.y-p.y)**2;if(d<bd){bd=d;best=f;}}
-      const i=findPlane(best.properties.ri,best.properties.day,best.properties.seq);if(i>=0)selectPlane(i,false);});
-  }else{GL.map.jumpTo({center:[c.lng,c.lat],zoom:Math.max(.6,map.getZoom()-1.4)});GL.map.resize();}
-  glFeed();
-}
-function glFeed(){
-  if(!GL.on||!GL.ready||!S.P)return;const P=S.P,fs=[],si=selIndex();
-  for(let i=0;i<S.n;i++){if(!shown(i)&&i!==si)continue;
-    fs.push({type:"Feature",properties:{c:i===si?"#ffffff":(S.col==="alt"?ALTC[Math.min(21,Math.round(P.alt[i]/2000))]:AL[P.ai[i]].mc),b:P.brg[i],ri:P.ri[i],day:P.day[i],seq:P.seq[i]},geometry:{type:"Point",coordinates:[P.lo[i],P.la[i]]}});}
-  GL.map.getSource("planes").setData({type:"FeatureCollection",features:fs});
-  const rf=[];if(si>=0){const p=plane(si),l=C.legAt(p.ri,p.day,p.seq);if(l){const g=C.gcSetup(l.from,l.to),co=[];let prev=null;
-    for(let k=0;k<=64;k++){let [la,lo]=C.gcAt(g,k/64);if(prev!=null){while(lo-prev>180)lo-=360;while(lo-prev<-180)lo+=360;}prev=lo;co.push([lo,la]);}
-    rf.push({type:"Feature",properties:{c:AL[p.ai].mc},geometry:{type:"LineString",coordinates:co}});}}
-  GL.map.getSource("route").setData({type:"FeatureCollection",features:rf});
-  if(S.follow&&si>=0)GL.map.easeTo({center:[P.lo[si],P.la[si]],duration:800});
-}
-$("globebtn").onclick=()=>setGlobe(!GL.on);
-
 /* ---------- start ---------- */
 let worker=null,lastFlightPaint=0,lastHome=0;
 function onPositions(m){
   const first=!S.P;S.P=m;S.n=m.n;if(m.ground){S.ground=m.ground;if(S.view==="airport"&&!first)groundList();}updateCount();
   if(first){$("loading")&&$("loading").remove();route();}
   else if(S.view==="home"&&performance.now()-lastHome>30000){lastHome=performance.now();renderHome();}
-  if(S.sel&&S.follow){const i=selIndex();if(i>=0)map.panTo([S.P.la[i],S.P.lo[i]],{animate:true});}
-  draw();if(GL.on)glFeed();
+  if(S.sel&&S.follow&&MREADY){const i=selIndex();if(i>=0)M.easeTo({center:[S.P.lo[i],S.P.la[i]],duration:800});}
+  draw();
   if(S.view==="flight"&&performance.now()-lastFlightPaint>3500){lastFlightPaint=performance.now();if(selIndex()<0){S.sel=null;renderHome();}else renderFlight();}
 }
 let tick=0;
 function pulse(){
-  tick++;const z=map.getZoom();
+  tick++;const z=MREADY?ZL():3;
   /* zoomed out, planes move about a pixel a minute, so they are moved on less often */
   if(z<=3&&tick%3&&!S.sel)return;
   worker.postMessage({now:nowMin()});
@@ -1566,7 +1478,7 @@ async function start(){
   setInterval(checkWatch,15000);checkWatch();
   syncLayers();if(S.ly.rain)setRain(true);
 }
-addEventListener("resize",()=>{map.invalidateSize();resize();});
+
 /* ---------- signing in ----------
    Optional. Google, Discord or email and password, through Supabase Auth on
    the Echo Live project. A signed-in visitor's favourites and map layers are
