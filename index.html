@@ -201,6 +201,7 @@ h3{margin:16px 18px 4px;font:400 21px/1.15 var(--display)}
 #legend .g{width:190px;height:8px;border-radius:4px;margin:3px 0 2px;background:linear-gradient(90deg,#3fd0c9,#9be15d 35%,#f5c542 65%,#ff6fa8)}
 #legend .s{display:flex;justify-content:space-between;color:var(--muted)}
 #thin{font:13px var(--ui);color:#c9c3e6;text-shadow:0 1px 2px #000}
+#thin button{background:rgba(233,230,240,.94);color:var(--ink);border:0;border-radius:6px;padding:4px 10px;margin-left:4px;font:600 13px var(--ui);text-shadow:none;box-shadow:0 4px 12px rgba(5,8,20,.35)}
 #timebar{width:290px;background:rgba(233,230,240,.94);border-radius:8px;padding:8px 12px 6px;box-shadow:0 6px 18px rgba(5,8,20,.35)}
 #timebar.away{background:#fff3c9}
 .tb-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13.5px;color:var(--muted)}
@@ -263,7 +264,8 @@ ol.board .nm .sw{display:inline-block;width:10px;height:10px;border-radius:2px;m
 .pick{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
 .pick select{font:inherit;color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:6px 8px;background:#fff;max-width:230px}
 img.card{display:block;width:calc(100% - 28px);margin:6px 14px 4px;border-radius:6px;box-shadow:0 6px 18px rgba(5,8,20,.25)}
-a.btn{text-decoration:none;color:inherit}a.btn.prim{color:#fff}
+a.btn{text-decoration:none;color:inherit}
+a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
 .cnt{font:500 13px var(--ui);color:var(--muted);margin-left:4px}
 /* the TV board */
 #tv{position:fixed;inset:0;z-index:3000;background:#0a0b10;color:#f4f1e6;padding:3vh 3vw;display:flex;flex-direction:column;font-family:"JetBrains Mono",ui-monospace,monospace}
@@ -550,6 +552,11 @@ let D=null,C=null,AP={},AL=[],ROT=[],MODELS=[],ACL=[],SRC="";
 const DIVS=()=>(D&&D.divs)||[{code:"kyra",name:"Echo Kyra",color:"#7D34FF",first:0,count:AL.length,captured:D&&D.captured,missing:[]}];
 const divOf=ai=>{const ds=DIVS();for(const d of ds)if(ai>=d.first&&ai<d.first+d.count)return d;return ds[0];};
 const divShort=d=>d.name.replace(/^Echo /,"");
+/* the airline's page on the Echo United Alliances site: its name in lower case, letters and
+   digits of any alphabet kept, everything else turned into one underscore (Pelita Air Int'l →
+   pelita_air_int_l, 中国南方航空 stays as it is). Checked against the alliance's directory. */
+const euSlug=n=>String(n||"").toLowerCase().replace(/[^\p{L}\p{N}]+/gu,"_").replace(/^_+|_+$/g,"");
+const euLink=ai=>`https://echounitedalliances.github.io/#/d/${divOf(ai).code}/${euSlug(AL[ai].name)}`;
 const divDot=d=>`<i class="dvdot" style="background:${d.color}"></i>`;
 function curDiv(){if(!S.filter.size)return null;for(const d of DIVS())if(S.filter.size===d.count&&[...S.filter].every(i=>i>=d.first&&i<d.first+d.count))return d;return null;}
 function setDiv(code){S.filter.clear();const d=DIVS().find(x=>x.code===code);if(d)for(let i=d.first;i<d.first+d.count;i++)S.filter.add(i);
@@ -689,8 +696,11 @@ const colOf=i=>S.col==="alt"?ALTC[Math.min(21,Math.round(S.P.alt[i]/2000))]:AL[S
 function draw(){
   if(!MREADY||!D)return;
   M.setLayoutProperty("night","visibility",S.ly.night?"visible":"none");if(S.ly.night)M.getSource("night").setData(nightShape());
-  M.setLayoutProperty("heat","visibility",S.ly.heat?"visible":"none");
-  for(const k of PL)M.setPaintProperty(k,"icon-opacity",S.ly.heat?HEAT_ON:1);
+  /* an airline's route map is easier to read with the planes out of the way */
+  const noPlanes=S.net!=null,vis=v=>v?"visible":"none";
+  M.setLayoutProperty("heat","visibility",vis(S.ly.heat&&!noPlanes));
+  for(const k of PL){M.setLayoutProperty(k,"visibility",vis(!noPlanes));M.setPaintProperty(k,"icon-opacity",S.ly.heat?HEAT_ON:1);}
+  for(const k of ["labels","trail"])M.setLayoutProperty(k,"visibility",vis(!noPlanes));
   if(!apsDone&&APLIST.length){apsDone=true;M.getSource("aps").setData(FC(APLIST.map(c=>PT(AP[c].lo,AP[c].la,{c,hub:!!AP[c].hub}))));}
   feedGround();feedMe();feedNet();
   if(!S.P)return;
@@ -717,7 +727,10 @@ function inView(){const b=M.getBounds(),w=b.getWest(),e=b.getEast(),s=b.getSouth
 function feedView(){
   if(!MREADY||!S.P)return;
   const z=ZL(),zi=Math.max(2,Math.min(10,Math.round(z))),P=S.P,th=$("thin");
-  if(th){const h=S.ly.heat&&M.getZoom()<2.8;th.hidden=!h;if(h)th.textContent="Traffic heatmap. Zoom in to see the planes.";}
+  if(th){const n=S.net!=null,h=!n&&S.ly.heat&&M.getZoom()<2.8;th.hidden=!(h||n);
+    if(n){if(th.dataset.net!==String(S.net)){th.dataset.net=String(S.net);th.innerHTML=`Planes hidden while ${esc(AL[S.net].name)}'s route map is on · <button type="button" id="thshow">Show planes</button>`;
+        $("thshow").onclick=()=>{showNetwork(null);if(S.view==="airline")route();};}}
+    else{th.dataset.net="";if(h)th.textContent="Traffic heatmap. Zoom in to see the planes.";}}
   const lab=[],tr=[];
   if(zi>=6){const ok=inView(),si=selIndex();let n=0;if(TRC.size>4000)TRC.clear();
     for(let i=0;i<S.n&&n<2500;i++){if(P.gr[i]||!shown(i)||!ok(P.la[i],P.lo[i]))continue;n++;
@@ -753,8 +766,8 @@ function nearestAirport(x,y,r){
   return best;}
 function onTap(x,y,type){
   if(!MREADY)return;
-  if(S.ly.heat&&M.getZoom()<2.8){M.easeTo({center:M.unproject([x,y]),zoom:M.getZoom()+2,duration:600});return;}
-  const touch=type!=="mouse",i=nearestPlane(x,y,touch?30:14);
+  if(S.ly.heat&&S.net==null&&M.getZoom()<2.8){M.easeTo({center:M.unproject([x,y]),zoom:M.getZoom()+2,duration:600});return;}
+  const touch=type!=="mouse",i=S.net!=null?-1:nearestPlane(x,y,touch?30:14);
   if(i>=0){selectPlane(i,false);return;}
   {const a=nearestAirport(x,y,touch?24:12);if(a){go("#/airport/"+a);return;}}
   if(S.sel){S.sel=null;S.follow=false;if(S.view==="flight")go("#/");redraw();}
@@ -769,7 +782,7 @@ function onTap(x,y,type){
 })();
 const tip=$("tip");
 let hovT=0;
-M.on("mousemove",e=>{if(!MREADY||!D||!S.P||matchMedia("(hover:none)").matches)return;const now=performance.now();if(now-hovT<40)return;hovT=now;
+M.on("mousemove",e=>{if(!MREADY||!D||!S.P||S.net!=null||matchMedia("(hover:none)").matches)return;const now=performance.now();if(now-hovT<40)return;hovT=now;
   const i=nearestPlane(e.point.x,e.point.y,10);
   if(i<0){tip.style.display="none";M.getCanvas().style.cursor="";return;}
   const l=C.legAt(S.P.ri[i],S.P.day[i],S.P.seq[i]);if(!l)return;
@@ -1006,7 +1019,7 @@ function renderAirline(ai){
     ${a.joined?`<dt>Joined</dt><dd>${new Date(a.joined+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</dd>`:""}
     <dt>Hubs</dt><dd><div class="chips">${a.hubs.filter(h=>AP[h]).map(h=>`<button type="button" class="chip" data-ap="${h}">${h}</button>`).join("")||"—"}</div></dd>
   </dl>
-  <div class="acts"><button type="button" class="btn${on?"":" prim"}" id="flt" aria-pressed="${on}">${on?"Showing only this airline":"Show only this airline"}</button>${S.filter.size&&!on?`<button type="button" class="btn" id="add">Add to map filter</button>`:""}<button type="button" class="btn" id="net" aria-pressed="${S.net===ai}">${S.net===ai?"Hide route map":"Route map"}</button><button type="button" class="btn" data-go="#/top/${ai}">Leaderboards</button></div>
+  <div class="acts"><button type="button" class="btn${on?"":" prim"}" id="flt" aria-pressed="${on}">${on?"Showing only this airline":"Show only this airline"}</button>${S.filter.size&&!on?`<button type="button" class="btn" id="add">Add to map filter</button>`:""}<button type="button" class="btn" id="net" aria-pressed="${S.net===ai}">${S.net===ai?"Hide route map":"Route map"}</button><button type="button" class="btn" data-go="#/top/${ai}">Leaderboards</button><a class="btn eu" href="${euLink(ai)}" target="_blank" rel="noopener">Echo United Alliances page ↗</a></div>
   ${fl.length?`<h3>Fleet by type</h3><ul class="fleet">${fl.slice(0,12).map(([m,n])=>`<li>${esc(MODELS[m])}<span>${fmtN(n)}</span></li>`).join("")}${fl.length>12?`<li>${fl.length-12} more types<span>${fmtN(fl.slice(12).reduce((s,x)=>s+x[1],0))}</span></li>`:""}</ul>`:""}
   ${a.routes===0?`<p class="note">${esc(a.name)} has no flights in the game yet.</p>`:""}`;
   $("bk").onclick=()=>go("#/");
