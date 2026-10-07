@@ -236,6 +236,12 @@ table.vs thead th{border-top:0;font-weight:600}
 table.vs th[scope="row"]{color:var(--muted);font-weight:400;width:34%}
 table.vs td.win{font-weight:700}
 table.vs small{color:var(--muted)}
+/* division table: scrolls sideways when the divisions don't fit, names stay put */
+.vsw{overflow-x:auto;margin:4px 18px 8px;-webkit-overflow-scrolling:touch}
+.vsw table.vs{margin:0;width:100%}
+.vsw thead th{white-space:nowrap;padding-right:10px}
+.vsw td{min-width:78px;padding-right:10px}
+.vsw th[scope="row"]{position:sticky;left:0;z-index:1;background:var(--paper);min-width:92px;width:auto}
 figure.hourc{margin:6px 18px 4px}
 figure.hourc figcaption{font-size:13px;color:var(--muted);margin-bottom:4px}
 figure.hourc svg{width:100%;height:auto;display:block;overflow:visible}
@@ -442,13 +448,17 @@ const country=cc=>{try{return REGION&&cc?REGION.of(cc):cc||"";}catch(_){return c
    first departure. */
 function CORE(D){
   const AP={};for(const c in D.ap){const x=D.ap[c];AP[c]={la:x[0],lo:x[1],z:x[2],name:x[3],city:x[4],cc:x[5],hub:false};}
+  /* the game keeps every airport on its standard time all year: no daylight saving
+     (checked 6 October: NZ20 Perth to Auckland shows 07:35 in the game). So the offset
+     used is the standard one, the smaller of mid-January's and mid-July's. */
   const TZF=[],OFF=new Map();
-  function off(z,ms){
-    const h=Math.floor(ms/36e5),k=z*1e7+h;let v=OFF.get(k);if(v!==undefined)return v;
+  function raw(z,ms){
     try{const f=TZF[z]||(TZF[z]=new Intl.DateTimeFormat("en-US",{timeZone:D.tz[z],hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
-      const p={};f.formatToParts(new Date(h*36e5)).forEach(x=>p[x.type]=x.value);
-      v=Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-h*36e5)/6e4);}catch(_){v=0;}
-    if(OFF.size>200000)OFF.clear();OFF.set(k,v);return v;}
+      const p={};f.formatToParts(new Date(ms)).forEach(x=>p[x.type]=x.value);
+      return Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-ms)/6e4);}catch(_){return 0;}}
+  function off(z,ms){
+    const y=new Date(ms).getUTCFullYear(),k=z*1e4+y;let v=OFF.get(k);if(v!==undefined)return v;
+    v=Math.min(raw(z,Date.UTC(y,0,15,12)),raw(z,Date.UTC(y,6,15,12)));OFF.set(k,v);return v;}
   const offAt=(c,min)=>off(AP[c].z,min*6e4);
   function fromLocal(c,day,m){const L=day*1440+m,z=AP[c].z,u=L-off(z,L*6e4);return L-off(z,u*6e4);}
   const D2R=Math.PI/180,R2D=180/Math.PI;
@@ -587,7 +597,7 @@ const divShort=d=>d.name.replace(/^Echo /,"");
 /* the airline's page on the Echo United Alliances site: its name in lower case, letters and
    digits of any alphabet kept, everything else turned into one underscore (Pelita Air Int'l →
    pelita_air_int_l, 中国南方航空 stays as it is). Checked against the alliance's directory. */
-const euSlug=n=>String(n||"").toLowerCase().replace(/[^\p{L}\p{N}]+/gu,"_").replace(/^_+|_+$/g,"");
+const euSlug=n=>String(n||"").toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu,"_").replace(/^_+|_+$/g,"");   // marks kept, as in Hindi
 const euOf=ai=>AL[ai].eu||euSlug(AL[ai].name);   // same-named airlines in a division get a uid suffix on the alliance site
 const euLink=ai=>`https://echounitedalliances.github.io/#/d/${divOf(ai).code}/${euOf(ai)}`;
 const divDot=d=>`<i class="dvdot" style="background:${d.color}"></i>`;
@@ -1757,7 +1767,7 @@ function renderDivs(){
   const row=(label,vals,nums)=>{const w=nums?best(nums):[];return `<tr><th scope="row">${label}</th>${vals.map((v,k)=>`<td class="${w[k]?"win":""}">${v}</td>`).join("")}</tr>`;};
   const rt=x=>x?x[0].replace("|","–"):"—";
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Division vs division</h2></div>
-  <table class="vs"><thead><tr><th></th>${F.map(f=>`<th>${divDot(f.d)} ${esc(divShort(f.d))}</th>`).join("")}</tr></thead><tbody>
+  <div class="vsw"><table class="vs"><thead><tr><th></th>${F.map(f=>`<th>${divDot(f.d)} ${esc(divShort(f.d))}</th>`).join("")}</tr></thead><tbody>
   ${row("Airlines",F.map(f=>fmtN(f.d.count)),F.map(f=>f.d.count))}
   ${row("Aircraft",F.map(f=>fmtN(f.ac)),F.map(f=>f.ac))}
   ${row("In the air now",F.map(f=>fmtN(f.up)),F.map(f=>f.up))}
@@ -1768,7 +1778,7 @@ function renderDivs(){
   ${row("Busiest airport",F.map(f=>f.busy[0]?`${f.busy[0][0]}<br><small>${fmtN(f.busy[0][1])} a week</small>`:"—"))}
   ${row("Longest route",F.map(f=>f.longest?`${rt(f.longest)}<br><small>${fmtDist(f.longest[1])} · ${esc(AL[f.longest[2]].name)}</small>`:"—"),F.map(f=>f.longest?f.longest[1]:null))}
   ${row("Joined in the last 30 days",F.map(f=>fmtN(f.joined)),F.map(f=>f.joined))}
-  </tbody></table>
+  </tbody></table></div>
   ${F.map(f=>`<h3>${esc(f.d.name)}: busiest airports</h3><ol class="board">${f.busy.map(([a,n])=>`<li><button type="button" class="row two" data-go="#/airport/${a}"><span class="rk"></span><span><span class="nm">${a} ${esc(AP[a]?AP[a].city||"":"")}</span></span><span class="n">${fmtN(n)} a week</span></button></li>`).join("")}</ol>`).join("")}
   <p class="note">Aircraft are those in the captured fleets. Weekly departures from the timetable. "In the air" follows the time slider.${F.some(f=>(f.d.missing||[]).length)?` Not captured yet: ${F.flatMap(f=>f.d.missing||[]).map(esc).join(", ")}.`:""}</p>`;
   $("bk").onclick=()=>go("#/");body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));sheet("open");
