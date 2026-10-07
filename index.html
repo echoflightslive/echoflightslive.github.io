@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Echo Live</title>
-<meta name="description" content="Live map of Echo United Alliances flights, worked out from the game's timetables. Echo Kyra and Echo Aegis so far.">
+<meta name="description" content="Live map of Echo United Alliances flights, worked out from the game's timetables. Echo Kyra, Aegis and Elysium so far.">
 <meta name="theme-color" content="#141a2e">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
@@ -353,7 +353,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
     </label>
   </div>
   <div id="body"></div>
-  <div class="foot" id="foot">Echo Kyra and Echo Aegis so far. Positions are worked out from the game's timetables.</div>
+  <div class="foot" id="foot">Echo Kyra, Aegis and Elysium so far. Positions are worked out from the game's timetables.</div>
 </aside>
 <div id="hud">
   <div id="thin" hidden></div>
@@ -442,13 +442,17 @@ const country=cc=>{try{return REGION&&cc?REGION.of(cc):cc||"";}catch(_){return c
    first departure. */
 function CORE(D){
   const AP={};for(const c in D.ap){const x=D.ap[c];AP[c]={la:x[0],lo:x[1],z:x[2],name:x[3],city:x[4],cc:x[5],hub:false};}
+  /* the game keeps every airport on its standard time all year: no daylight saving
+     (checked 6 October: NZ20 Perth to Auckland shows 07:35 in the game). So the offset
+     used is the standard one, the smaller of mid-January's and mid-July's. */
   const TZF=[],OFF=new Map();
-  function off(z,ms){
-    const h=Math.floor(ms/36e5),k=z*1e7+h;let v=OFF.get(k);if(v!==undefined)return v;
+  function raw(z,ms){
     try{const f=TZF[z]||(TZF[z]=new Intl.DateTimeFormat("en-US",{timeZone:D.tz[z],hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
-      const p={};f.formatToParts(new Date(h*36e5)).forEach(x=>p[x.type]=x.value);
-      v=Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-h*36e5)/6e4);}catch(_){v=0;}
-    if(OFF.size>200000)OFF.clear();OFF.set(k,v);return v;}
+      const p={};f.formatToParts(new Date(ms)).forEach(x=>p[x.type]=x.value);
+      return Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-ms)/6e4);}catch(_){return 0;}}
+  function off(z,ms){
+    const y=new Date(ms).getUTCFullYear(),k=z*1e4+y;let v=OFF.get(k);if(v!==undefined)return v;
+    v=Math.min(raw(z,Date.UTC(y,0,15,12)),raw(z,Date.UTC(y,6,15,12)));OFF.set(k,v);return v;}
   const offAt=(c,min)=>off(AP[c].z,min*6e4);
   function fromLocal(c,day,m){const L=day*1440+m,z=AP[c].z,u=L-off(z,L*6e4);return L-off(z,u*6e4);}
   const D2R=Math.PI/180,R2D=180/Math.PI;
@@ -588,7 +592,8 @@ const divShort=d=>d.name.replace(/^Echo /,"");
    digits of any alphabet kept, everything else turned into one underscore (Pelita Air Int'l →
    pelita_air_int_l, 中国南方航空 stays as it is). Checked against the alliance's directory. */
 const euSlug=n=>String(n||"").toLowerCase().replace(/[^\p{L}\p{N}]+/gu,"_").replace(/^_+|_+$/g,"");
-const euLink=ai=>`https://echounitedalliances.github.io/#/d/${divOf(ai).code}/${euSlug(AL[ai].name)}`;
+const euOf=ai=>AL[ai].eu||euSlug(AL[ai].name);   // same-named airlines in a division get a uid suffix on the alliance site
+const euLink=ai=>`https://echounitedalliances.github.io/#/d/${divOf(ai).code}/${euOf(ai)}`;
 const divDot=d=>`<i class="dvdot" style="background:${d.color}"></i>`;
 function curDiv(){if(!S.filter.size)return null;for(const d of DIVS())if(S.filter.size===d.count&&[...S.filter].every(i=>i>=d.first&&i<d.first+d.count))return d;return null;}
 function setDiv(code){S.filter.clear();const d=DIVS().find(x=>x.code===code);if(d)for(let i=d.first;i<d.first+d.count;i++)S.filter.add(i);
@@ -1557,7 +1562,14 @@ $("trange").addEventListener("pointerdown",()=>{if(playing)setPlaying(false);});
 
 /* ---------- favourites ---------- */
 let FAV={al:[],ap:[]};try{FAV=Object.assign(FAV,JSON.parse(localStorage.getItem("echo_favs")||"{}"));}catch(_){}
-const alKey=i=>AL[i].code+"|"+AL[i].name;
+/* favourite airlines are kept by the game's id (several Elysium airlines share a name and code);
+   older favourites saved as "code|name" are moved over to the id once the timetable has loaded */
+const alKey=i=>AL[i].uid||AL[i].code+"|"+AL[i].name;
+function migrateFav(){
+  if(!AL.length)return;let ch=false;
+  FAV.al=[...new Set(FAV.al.map(k=>{if(!k.includes("|"))return k;const i=AL.findIndex(a=>a.code+"|"+a.name===k);if(i<0||!AL[i].uid)return k;ch=true;return AL[i].uid;}))];
+  if(ch){try{localStorage.setItem("echo_favs",JSON.stringify(FAV));}catch(_){}pushAcct();}
+}
 const isFavAl=i=>FAV.al.includes(alKey(i)),isFavAp=c=>FAV.ap.includes(c);
 function toggleFav(kind,v){const L=FAV[kind],k=kind==="al"?alKey(v):v,j=L.indexOf(k);if(j>=0)L.splice(j,1);else L.push(k);try{localStorage.setItem("echo_favs",JSON.stringify(FAV));}catch(_){}pushAcct();}
 const star=on=>`<span class="star" aria-hidden="true">${on?"★":"☆"}</span>`;
@@ -1768,13 +1780,13 @@ function renderDivs(){
 
 /* ---------- embedding ---------- */
 const SITE="https://echoflightslive.github.io/";
-const embedSrc=ai=>`${SITE}?embed&div=${divOf(ai).code}&airline=${encodeURIComponent(euSlug(AL[ai].name))}`;
+const embedSrc=ai=>`${SITE}?embed&div=${divOf(ai).code}&airline=${encodeURIComponent(euOf(ai))}`;
 const embedCode=ai=>`<iframe src="${embedSrc(ai)}" width="100%" height="460" style="border:0;border-radius:10px" loading="lazy" title="${AL[ai].name.replace(/"/g,"&quot;")} on Echo Live"></iframe>`;
 let EMB={ai:-1};
 function setupEmbed(){
   document.documentElement.classList.add("embed");
   const dv=(QS.get("div")||"").toLowerCase(),slug=(QS.get("airline")||"").toLowerCase(),d=DIVS().find(x=>x.code===dv);
-  if(slug)EMB.ai=AL.findIndex((a,i)=>euSlug(a.name)===slug&&(!d||divOf(i)===d));
+  if(slug)EMB.ai=AL.findIndex((a,i)=>euOf(i)===slug&&(!d||divOf(i)===d));
   if(EMB.ai>=0){S.filter.clear();S.filter.add(EMB.ai);}else if(d)setDiv(d.code);
   const e=$("emb"),home=location.origin+location.pathname;
   e.href=EMB.ai>=0?home+"#/airline/"+EMB.ai:home;
@@ -1821,6 +1833,7 @@ async function start(){
   D=got.D;SRC=got.src;C=CORE(D);AP=C.AP;ROT=C.ROT;MODELS=D.models;ACL=D.ac;
   AL=D.airlines.map(a=>Object.assign(a,{mc:mapColor(a.color)}));
   AL.forEach(a=>a.hubs.forEach(h=>{if(AP[h])AP[h].hub=true;}));
+  migrateFav();
   const used=new Set();
   ROT.forEach(r=>{
     [r.A,r.B,r.C].forEach(c=>{if(c){(APROT[c]=APROT[c]||[]).push(r.i);used.add(c);}});
@@ -1895,7 +1908,7 @@ async function pullAcct(){
   if(error){console.info("[Echo Live] reading your account:",error.message);return;}
   if(data){
     const f=data.favs||{},un=(a,b)=>[...new Set([...(a||[]),...(b||[])])];
-    FAV.al=un(f.al,FAV.al);FAV.ap=un(f.ap,FAV.ap);
+    FAV.al=un(f.al,FAV.al);FAV.ap=un(f.ap,FAV.ap);migrateFav();
     try{localStorage.setItem("echo_favs",JSON.stringify(FAV));}catch(_){}
     if(data.layers&&typeof data.layers==="object"){const was=S.ly.rain;Object.assign(S.ly,data.layers);
       try{localStorage.setItem("echo_layers",JSON.stringify(S.ly));}catch(_){}
