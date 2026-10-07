@@ -442,17 +442,13 @@ const country=cc=>{try{return REGION&&cc?REGION.of(cc):cc||"";}catch(_){return c
    first departure. */
 function CORE(D){
   const AP={};for(const c in D.ap){const x=D.ap[c];AP[c]={la:x[0],lo:x[1],z:x[2],name:x[3],city:x[4],cc:x[5],hub:false};}
-  /* the game keeps every airport on its standard time all year: no daylight saving
-     (checked 6 October: NZ20 Perth to Auckland shows 07:35 in the game). So the offset
-     used is the standard one, the smaller of mid-January's and mid-July's. */
   const TZF=[],OFF=new Map();
-  function raw(z,ms){
-    try{const f=TZF[z]||(TZF[z]=new Intl.DateTimeFormat("en-US",{timeZone:D.tz[z],hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
-      const p={};f.formatToParts(new Date(ms)).forEach(x=>p[x.type]=x.value);
-      return Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-ms)/6e4);}catch(_){return 0;}}
   function off(z,ms){
-    const y=new Date(ms).getUTCFullYear(),k=z*1e4+y;let v=OFF.get(k);if(v!==undefined)return v;
-    v=Math.min(raw(z,Date.UTC(y,0,15,12)),raw(z,Date.UTC(y,6,15,12)));OFF.set(k,v);return v;}
+    const h=Math.floor(ms/36e5),k=z*1e7+h;let v=OFF.get(k);if(v!==undefined)return v;
+    try{const f=TZF[z]||(TZF[z]=new Intl.DateTimeFormat("en-US",{timeZone:D.tz[z],hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
+      const p={};f.formatToParts(new Date(h*36e5)).forEach(x=>p[x.type]=x.value);
+      v=Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-h*36e5)/6e4);}catch(_){v=0;}
+    if(OFF.size>200000)OFF.clear();OFF.set(k,v);return v;}
   const offAt=(c,min)=>off(AP[c].z,min*6e4);
   function fromLocal(c,day,m){const L=day*1440+m,z=AP[c].z,u=L-off(z,L*6e4);return L-off(z,u*6e4);}
   const D2R=Math.PI/180,R2D=180/Math.PI;
