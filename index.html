@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Echo Live</title>
-<meta name="description" content="Live map of Echo United Alliances flights, worked out from the game's timetables. Echo Kyra, Aegis and Elysium so far.">
+<meta name="description" content="Live map of Echo United Alliances flights, worked out from the game's timetables.">
 <meta name="theme-color" content="#141a2e">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
@@ -389,7 +389,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
     </label>
   </div>
   <div id="body"></div>
-  <div class="foot" id="foot">Echo Kyra, Aegis and Elysium so far. Positions are worked out from the game's timetables.</div>
+  <div class="foot" id="foot">Echo United Alliances divisions. Positions are worked out from the game's timetables.</div>
 </aside>
 <div id="hud">
   <div id="thin" hidden></div>
@@ -2069,6 +2069,7 @@ async function start(){
     worker=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
     worker.onmessage=e=>onPositions(e.data);
     worker.postMessage({data:D,now:nowMin()});
+    D.rot=null;   // the worker has its own copy and the page keeps the parsed routes (C.ROT): the raw rows aren't needed here any more
   }catch(e){
     /* no workers (very old browsers): do the same work here */
     const ctx=new Function("postMessage","CORE","mod",`let onmessage;(${WORKER.toString().replace(/^function WORKER\(\)\{/,"").replace(/\}$/,"")});return m=>onmessage({data:m});`);
