@@ -628,10 +628,46 @@ function CORE(D,RW){
     }
     GEO.set(c,g);return g;}
   const along=(g,p)=>(p[0]-g.mid[0])*g.d[0]+(p[1]-g.mid[1])*g.d[1];
+  /* the real layout, where OpenStreetMap has one (ground/*.json, loaded when you zoom in):
+     taxiways as a network, stands with the taxiway point each one joins. Departures taxi the
+     shortest way from the stand to the take-off runway's end; arrivals turn off at the first
+     exit at least 1.1 km down the landing runway and taxi the shortest way to their stand. */
+  const GROUND={};
+  function setGround(obj){for(const c in obj){GROUND[c]=obj[c];GEO.delete(c);}LEG.clear();}
+  function realOf(g,c){
+    if(g.R!==undefined)return g.R;g.R=null;const d=GROUND[c];if(!d)return null;
+    const n=(d.n||[]).length/2,X=new Float64Array(n),Y=new Float64Array(n);for(let i=0;i<n;i++){X[i]=d.n[2*i];Y[i]=d.n[2*i+1];}
+    const adj=Array.from({length:n},()=>[]);
+    for(const ch of d.c||[])for(let k=0;k+1<ch.length;k++){const a=ch[k],b=ch[k+1],w=Math.hypot(X[a]-X[b],Y[a]-Y[b]);adj[a].push(b,w);adj[b].push(a,w);}
+    const R={X,Y,adj,n,stands:(d.s||[]).filter(st=>st[3]<n&&st[4]<n),aprons:d.ap||[],chains:d.c||[],trees:{},hold:-1,exit:-1};
+    if(n){
+      let bd=1e18;for(let i=0;i<n;i++){const q=Math.hypot(X[i]-g.dep.s[0],Y[i]-g.dep.s[1]);if(q<bd){bd=q;R.hold=i;}}
+      if(bd>800)R.hold=-1;
+      const A=g.arr,al=i=>(X[i]-A.s[0])*A.u[0]+(Y[i]-A.s[1])*A.u[1],lat=i=>Math.abs((X[i]-A.s[0])*A.u[1]-(Y[i]-A.s[1])*A.u[0]);
+      let eb=1e18;for(let i=0;i<n;i++){const a=al(i),l=lat(i);if(a<1100||a>A.L-80||l<25||l>450)continue;const sc=a+l*2;if(sc<eb){eb=sc;R.exit=i;}}
+      if(R.exit<0){let b2=1e18;for(let i=0;i<n;i++){const a=al(i),l=lat(i);if(a<500||l>600)continue;const sc=Math.abs(a-Math.min(A.L*.65,2300))+l;if(sc<b2){b2=sc;R.exit=i;}}}
+      if(R.exit>=0)R.exitAlong=Math.max(500,Math.min(A.L-40,al(R.exit)));}
+    g.R=R;return R;}
+  /* shortest taxi distances from one node to every other (Dijkstra), kept per airport */
+  function tree(R,root){let t=R.trees[root];if(t)return t;
+    const dist=new Float64Array(R.n).fill(Infinity),pred=new Int32Array(R.n).fill(-1),hk=[],hv=[];dist[root]=0;
+    const push=(k,v)=>{hk.push(k);hv.push(v);let i=hk.length-1;while(i>0){const p=(i-1)>>1;if(hk[p]<=hk[i])break;[hk[p],hk[i]]=[hk[i],hk[p]];[hv[p],hv[i]]=[hv[i],hv[p]];i=p;}};
+    const pop=()=>{const v=hv[0],k=hk[0],lk=hk.pop(),lv=hv.pop();if(hk.length){hk[0]=lk;hv[0]=lv;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<hk.length&&hk[l]<hk[m])m=l;if(r<hk.length&&hk[r]<hk[m])m=r;if(m===i)break;[hk[m],hk[i]]=[hk[i],hk[m]];[hv[m],hv[i]]=[hv[i],hv[m]];i=m;}}return [k,v];};
+    push(0,root);
+    while(hk.length){const [k,u]=pop();if(k>dist[u])continue;const a=R.adj[u];for(let j=0;j<a.length;j+=2){const v=a[j],nd=k+a[j+1];if(nd<dist[v]){dist[v]=nd;pred[v]=u;push(nd,v);}}}
+    return R.trees[root]={dist,pred};}
+  /* from a stand's taxiway point to a tree's root: [[x,y], ...] in metres, or null */
+  function pathTo(R,t,st){const a=st[3],b=st[4],P=[st[5],st[6]];
+    const ca=t.dist[a]+Math.hypot(R.X[a]-P[0],R.Y[a]-P[1]),cb=t.dist[b]+Math.hypot(R.X[b]-P[0],R.Y[b]-P[1]);
+    if(!isFinite(Math.min(ca,cb)))return null;let u=ca<=cb?a:b;const out=[P];while(u>=0){out.push([R.X[u],R.Y[u]]);u=t.pred[u];}return out;}
   const twAt=(g,a)=>[g.mid[0]+g.d[0]*a+g.n[0]*g.tw,g.mid[1]+g.d[1]*a+g.n[1]*g.tw];
   function standOf(g,ac){const k=hashStr("s"+ac)%g.stands.length,st=g.stands[k];return {k,a:st.a,p:st.p};}
   /* where an aircraft parked at an airport stands: [lat, lon, heading, stand number] (nose in) */
-  function standPos(c,ac){const g=apGeo(c);if(!g)return null;const st=standOf(g,ac),q=g.ll(st.p[0],st.p[1]);return [q[0],q[1],hdg(g.n[0],g.n[1]),st.k];}
+  function realStand(g,c,ac){const R=realOf(g,c);if(!R||!R.stands.length)return null;const k=hashStr("s"+ac)%R.stands.length;return {k,st:R.stands[k],R};}
+  function standPos(c,ac){const g=apGeo(c);if(!g)return null;
+    const rs=realStand(g,c,ac);
+    if(rs){const st=rs.st,q=g.ll(st[0],st[1]),h=st[2]>=0?st[2]:hdg(st[0]-st[5],st[1]-st[6]);return [q[0],q[1],h,rs.k];}
+    const st=standOf(g,ac),q=g.ll(st.p[0],st.p[1]);return [q[0],q[1],hdg(g.n[0],g.n[1]),st.k];}
   function poly(pts){const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return {pts,cum,len:cum[cum.length-1]};}
   function polyAt(P,dist){const c=P.cum,n=c.length;let i=1;while(i<n-1&&c[i]<dist)i++;
     const a=P.pts[i-1],b=P.pts[i],seg=c[i]-c[i-1],t=seg>0?Math.max(0,Math.min(1,(dist-c[i-1])/seg)):0;
@@ -645,21 +681,30 @@ function CORE(D,RW){
     G={t0:l.t,t1:l.t+l.dur,gA,gB,climb:null,fin:null};
     let E1,F1;
     if(gA){const R=gA.dep,u=R.u,S2=[R.s[0]+u[0]*60,R.s[1]+u[1]*60],lof=Math.min(R.L*.6,2400),LOF=[R.s[0]+u[0]*lof,R.s[1]+u[1]*lof],E=[LOF[0]+u[0]*9000*sc,LOF[1]+u[1]*9000*sc];
-      const st=standOf(gA,who),tw=twAt(gA,st.a);
-      G.push=poly([st.p,tw]);G.out=poly([tw,twAt(gA,along(gA,R.s)),S2]);G.roll=poly([S2,LOF]);G.climb=poly([LOF,E]);
+      const rs=realStand(gA,l.from,who),path=rs&&rs.R.hold>=0?pathTo(rs.R,tree(rs.R,rs.R.hold),rs.st):null;
+      if(path){G.push=poly([[rs.st[0],rs.st[1]],path[0]]);G.out=poly([...path,S2]);}
+      else{const st=standOf(gA,who),tw=twAt(gA,st.a);G.push=poly([st.p,tw]);G.out=poly([tw,twAt(gA,along(gA,R.s)),S2]);}
+      G.roll=poly([S2,LOF]);G.climb=poly([LOF,E]);
       G.t0=l.t-ROLL-HOLD-G.out.len/TAXI-PUSH;E1=gA.ll(E[0],E[1]);}
     else E1=[A.la,A.lo];
-    if(gB){const R=gB.arr,u=R.u,TD=[R.s[0]+u[0]*350,R.s[1]+u[1]*350],F=[R.s[0]-u[0]*16000*sc,R.s[1]-u[1]*16000*sc],xd=Math.min(R.L*.65,2300),X=[R.s[0]+u[0]*xd,R.s[1]+u[1]*xd];
-      const st=standOf(gB,who);
-      G.fin=poly([F,TD]);G.ro=poly([TD,X]);G.inn=poly([X,twAt(gB,along(gB,X)),twAt(gB,st.a),st.p]);
+    if(gB){const R=gB.arr,u=R.u,TD=[R.s[0]+u[0]*350,R.s[1]+u[1]*350],F=[R.s[0]-u[0]*16000*sc,R.s[1]-u[1]*16000*sc];
+      const rs=realStand(gB,l.to,who),path=rs&&rs.R.exit>=0?pathTo(rs.R,tree(rs.R,rs.R.exit),rs.st):null;
+      G.fin=poly([F,TD]);
+      if(path){const xd=rs.R.exitAlong,X=[R.s[0]+u[0]*xd,R.s[1]+u[1]*xd];G.ro=poly([TD,X]);G.inn=poly([X,...path.reverse(),[rs.st[0],rs.st[1]]]);}
+      else{const xd=Math.min(R.L*.65,2300),X=[R.s[0]+u[0]*xd,R.s[1]+u[1]*xd],st=standOf(gB,who);G.ro=poly([TD,X]);G.inn=poly([X,twAt(gB,along(gB,X)),twAt(gB,st.a),st.p]);}
       G.t1=l.t+l.dur+ROLLOUT+G.inn.len/TAXI+PARK;F1=gB.ll(F[0],F[1]);}
     else F1=[B.la,B.lo];
     G.g=gcLL(E1,F1);G.d1=G.climb?G.climb.len:0;G.d2=G.g.w*6371000;G.d3=G.fin?G.fin.len:0;G.D=Math.max(1,G.d1+G.d2+G.d3);
     LEG.set(l.key,G);return G;}
   const legWin=l=>{const G=legGeo(l);return [G.t0,G.t1];};
   /* an airport's runways and the laid-out taxiway, as lines: [[[lon,lat],[lon,lat]], ...] */
-  function apLines(c){const g=apGeo(c),out={rw:[],tw:[]};if(!g)return out;
+  function apLines(c){const g=apGeo(c),out={rw:[],tw:[],ap:[]};if(!g)return out;
     (RWD[c]||[]).forEach(r=>out.rw.push([[r[1],r[0]],[r[3],r[2]]]));
+    const R=realOf(g,c);
+    if(R&&R.n){const L=(x,y)=>{const q=g.ll(x,y);return [q[1],q[0]];};
+      R.chains.forEach(ch=>out.tw.push(ch.map(i=>L(R.X[i],R.Y[i]))));
+      R.aprons.forEach(r=>{const ring=[];for(let i=0;i<r.length;i+=2)ring.push(L(r[i],r[i+1]));ring.push(ring[0]);out.ap.push(ring);});
+      return out;}
     const xs=[along(g,g.dep.s),along(g,g.dep.e),along(g,g.arr.s),along(g,g.arr.e),-g.span/2,g.span/2],a0=Math.min(...xs),a1=Math.max(...xs);
     const p0=g.ll(...twAt(g,a0)),p1=g.ll(...twAt(g,a1));out.tw.push([[p0[1],p0[0]],[p1[1],p1[0]]]);return out;}
   function prune(keep){if(!keep){LEG.clear();return;}for(const k of LEG.keys())if(!keep.has(k))LEG.delete(k);}
@@ -698,7 +743,7 @@ function CORE(D,RW){
     if(now<l.t&&G.out){[...G.push.pts,...G.out.pts.slice(1),...G.roll.pts.slice(1)].forEach(p=>{const q=G.gA.ll(p[0],p[1]);pts.push([q[1],q[0]]);});}
     else if(now>l.t+l.dur&&G.ro){[...G.ro.pts,...G.inn.pts.slice(1)].forEach(p=>{const q=G.gB.ll(p[0],p[1]);pts.push([q[1],q[0]]);});}
     return pts;}
-  return {AP,ROT,off,offAt,fromLocal,km,legsOf,legsAround,legAt,runsOn,phases,pathFrac,est,gcSetup,gcAt,bearing,apGeo,standPos,legGeo,legWin,posAt,airLine,taxiLine,apLines,prune,hasRunways:()=>Object.keys(RWD).length>0};
+  return {AP,ROT,off,offAt,fromLocal,km,legsOf,legsAround,legAt,runsOn,phases,pathFrac,est,gcSetup,gcAt,bearing,apGeo,standPos,legGeo,legWin,posAt,airLine,taxiLine,apLines,prune,setGround,hashStr,hasGround:c=>!!GROUND[c],hasRunways:()=>Object.keys(RWD).length>0};
 }
 
 /* ---------- the background worker ----------
@@ -735,6 +780,7 @@ function WORKER(){
     postMessage({n,now,la,lo,brg,f,wx,wy,alt,ri,day,seq,ai,gr,ground:gnd},[la.buffer,lo.buffer,brg.buffer,f.buffer,wx.buffer,wy.buffer,alt.buffer,ri.buffer,day.buffer,seq.buffer,ai.buffer,gr.buffer]);}
   onmessage=e=>{const m=e.data;
     if(m.data){C=CORE(m.data,m.rw);lastScan=0;place(m.now);}
+    else if(m.ground&&C){C.setGround(m.ground);}
     else if(m.now&&C){if(m.rescan)lastScan=0;place(m.now,m.fast);}};
 }
 
@@ -904,9 +950,10 @@ M.on("load",()=>{
   for(const s of ["rwy","night","net","netap","trail","route","routeend","aps","ground","parked","me","heatpts","p0","p1","p2","p3","day","dayap","labels","sel"])M.addSource(s,{type:"geojson",data:FC([])});
   const L=(o,before)=>M.addLayer(o,before);
   /* runways (real) and the taxiway beside them (laid out), drawn to scale once you're close */
+  L({id:"apron",type:"fill",source:"rwy",minzoom:RWZ+1,filter:["==",["get","k"],"ap"],paint:{"fill-color":"rgba(150,130,210,.13)","fill-outline-color":"rgba(170,150,230,.3)"}});
   L({id:"rwy",type:"line",source:"rwy",minzoom:RWZ,filter:["==",["get","k"],"rw"],layout:{"line-cap":"butt"},paint:{"line-color":"rgba(196,188,226,.32)","line-width":["interpolate",["exponential",2],["zoom"],9,.35,16,58]}});
   L({id:"rwy-c",type:"line",source:"rwy",minzoom:12,filter:["==",["get","k"],"rw"],paint:{"line-color":"rgba(255,255,255,.55)","line-width":1,"line-dasharray":[6,6]}});
-  L({id:"twy",type:"line",source:"rwy",minzoom:RWZ+1,filter:["==",["get","k"],"tw"],layout:{"line-cap":"round"},paint:{"line-color":"rgba(168,85,247,.28)","line-width":["interpolate",["exponential",2],["zoom"],10,.4,16,26]}});
+  L({id:"twy",type:"line",source:"rwy",minzoom:RWZ+1,filter:["==",["get","k"],"tw"],layout:{"line-cap":"round"},paint:{"line-color":"rgba(168,85,247,.32)","line-width":["interpolate",["exponential",2],["zoom"],10,.3,16,18]}});
   L({id:"night",type:"fill",source:"night",paint:{"fill-color":"#020410","fill-opacity":.42}});
   L({id:"net",type:"line",source:"net",paint:{"line-color":["get","c"],"line-opacity":.5,"line-width":1.1}});
   L({id:"trail",type:"line",source:"trail",layout:{"line-cap":"round"},paint:{"line-color":["get","c"],"line-opacity":["get","o"],"line-width":["get","w"]}});
@@ -1492,6 +1539,14 @@ function sunAt(ms){
   const eqt=mod(mod(q,360)-mod(ra,360)+180,360)-180,h=(ms/36e5)%24;
   return {lat:dec,lon:mod(-15*(h-12)-eqt+180,360)-180};
 }
+/* real airport layouts (OpenStreetMap), fetched for the airports you zoom in on */
+let GIDX=null,GIDXP=null,GNB=48;const GLOAD=new Map();
+function wantGround(codes){
+  if(!GIDX){if(!GIDXP)GIDXP=fetch("ground/index.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{GIDX=new Set(j?j.ap:[]);GNB=(j&&j.nb)||48;feedGround();}).catch(()=>{GIDX=new Set();});return;}
+  for(const c of codes){if(!GIDX.has(c))continue;const b=C.hashStr(c)%GNB;if(GLOAD.has(b))continue;
+    GLOAD.set(b,fetch(`ground/g${String(b).padStart(2,"0")}.json`).then(r=>r.ok?r.json():null).then(j=>{if(!j)return;
+      C.setGround(j);if(worker)worker.postMessage({ground:j});TRC.clear();feedGround();sendNow();redraw();}).catch(()=>{}));}
+}
 /* aircraft parked between flights, as a count at each airport */
 function feedGround(){
   const fs=[],pk=[];
@@ -1508,8 +1563,11 @@ function feedGround(){
   /* runways of the airports in view */
   const rf=[];
   if(M.getZoom()>=RWZ){const b=M.getBounds(),pad=.1,w=b.getWest()-pad,e=b.getEast()+pad,so=b.getSouth()-pad,no=b.getNorth()+pad;
-    for(const c of APLIST){const a=AP[c];let lo=a.lo;while(lo<w)lo+=360;while(lo>w+360)lo-=360;if(a.la<so||a.la>no||lo>e)continue;
-      const x=C.apLines(c);x.rw.forEach(q=>rf.push(LN(q,{k:"rw"})));x.tw.forEach(q=>rf.push(LN(q,{k:"tw"})));}}
+    const inv=[];
+    for(const c of APLIST){const a=AP[c];let lo=a.lo;while(lo<w)lo+=360;while(lo>w+360)lo-=360;if(a.la<so||a.la>no||lo>e)continue;inv.push(c);
+      const x=C.apLines(c);x.rw.forEach(q=>rf.push(LN(q,{k:"rw"})));x.tw.forEach(q=>rf.push(LN(q,{k:"tw"})));
+      x.ap.forEach(q=>rf.push({type:"Feature",properties:{k:"ap"},geometry:{type:"Polygon",coordinates:[q]}}));}
+    if(M.getZoom()>=RWZ+1&&inv.length<=40)wantGround(inv);}
   M.getSource("rwy").setData(FC(rf));
 }
 function feedMe(){M.getSource("me").setData(FC(S.me?[PT(S.me.lo,S.me.la)]:[]));}
