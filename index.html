@@ -465,7 +465,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
 .cam-k{font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal)}
 .cam-ap{display:flex;align-items:baseline;gap:10px;margin:2px 0 4px}.cam-ap b{font:700 30px/1 var(--mono);letter-spacing:.03em}.cam-ap span{font:400 22px/1 var(--display);color:var(--ink)}
 .cam-l{font:12.5px/1.5 var(--mono);color:var(--muted)}
-.cam-acts{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;color:var(--muted)}
+.cam-acts{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;color:var(--muted);flex-wrap:wrap}
 .embed #dock,.embed #cam,body.camming #panel,body.camming #dock,body.camming #hud,body.camming .maplibregl-ctrl-top-right{display:none!important}
 @media (max-width:760px){
   #dock{left:8px;right:8px;transform:none;bottom:calc(146px + env(safe-area-inset-bottom));justify-content:space-between;padding:3px 4px;border-radius:12px}
@@ -475,6 +475,17 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
   #panel.open~#dock,#panel.full~#dock{display:none}
   #cam{left:10px;right:10px;width:auto;bottom:calc(14px + env(safe-area-inset-bottom))}
 }
+
+.tb-days{display:flex;gap:4px;overflow-x:auto;margin:6px 0 2px;scrollbar-width:none}
+.tb-days::-webkit-scrollbar{display:none}
+.tb-days button{flex:none;border:1px solid var(--rule);background:var(--paper2);color:var(--muted);border-radius:999px;padding:2px 9px;font:500 11.5px var(--ui)}
+.tb-days button[aria-pressed=true]{background:var(--grad);border-color:transparent;color:#fff}
+.rec{display:flex;flex-direction:column;gap:1px}
+.rec-k{font:600 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
+.rec-v{font:700 18px var(--ui)}.rec-v small{font:500 13px var(--ui);color:var(--muted);margin-left:4px}
+.inst{display:flex;align-items:center;gap:10px;margin:10px 12px 0;padding:9px 10px;border-radius:9px;background:linear-gradient(90deg,rgba(124,58,237,.3),rgba(124,58,237,.08));border:1px solid rgba(192,132,252,.4)}
+.inst img{border-radius:8px;flex:none}.inst span{display:flex;flex-direction:column;min-width:0;flex:1}.inst small{color:var(--muted);font-size:12.5px}
+.inst .btn{flex:none}.inst .x{flex:none;background:none;border:0;color:var(--muted);font-size:20px;line-height:1;padding:2px 4px}
 </style>
 </head>
 <body>
@@ -511,8 +522,9 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
   <div id="thin" hidden></div>
   <div id="legend" hidden><div>Altitude</div><div class="g"></div><div class="s" id="legs"><span>0</span><span>20,000</span><span>40,000 ft</span></div></div>
   <div id="timebar">
-    <div class="tb-top"><span id="tlabel">Live</span><span class="tb-r"><button type="button" id="tlive" class="link" hidden>Back to live</button><button type="button" id="thide" class="link" aria-label="Hide the time controls">Hide</button></span></div>
+    <div class="tb-top"><span id="tlabel">Live</span><span class="tb-r"><button type="button" id="tlive" class="link" hidden>Go live</button><button type="button" id="thide" class="link" aria-label="Hide the time controls">Hide</button></span></div>
     <div class="tb-play"><button type="button" id="tplay" class="btn" aria-pressed="false">Play</button><button type="button" id="tspeed" class="btn" aria-label="Playback speed">×60</button><span>Play runs the day forward fast.</span></div>
+    <div class="tb-days" id="tdays" role="group" aria-label="Day"></div>
     <input id="trange" type="range" min="-720" max="720" step="5" value="0" aria-label="Move the map up to 12 hours back or ahead">
     <div class="tb-ends"><span>12 h ago</span><span>now</span><span>in 12 h</span></div>
   </div>
@@ -521,6 +533,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
     <div class="seg" role="group" aria-label="Colour planes by"><button type="button" data-col="airline" aria-pressed="true">Airline</button><button type="button" data-col="alt" aria-pressed="false">Altitude</button></div>
     <label class="ly"><input type="checkbox" data-ly="night"> Day and night</label>
     <label class="ly"><input type="checkbox" data-ly="rain"> Rain radar <small>real-world weather</small></label>
+    <label class="ly"><input type="checkbox" data-ly="clouds"> Clouds <small>NASA satellite, last full day</small></label>
     <label class="ly"><input type="checkbox" data-ly="heat"> Traffic heatmap <small>when zoomed out</small></label>
     <label class="ly"><input type="checkbox" data-ly="ground"> Planes on the ground</label>
     <label class="ly"><input type="checkbox" data-ly="light"> Light map</label>
@@ -543,7 +556,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
   <div class="cam-k">Airport camera</div>
   <div class="cam-ap"><b id="cam-code"></b><span id="cam-city"></span></div>
   <div class="cam-l" id="cam-l"></div>
-  <div class="cam-acts"><label><input type="checkbox" id="cam-tour"> Tour the busiest airports</label><button type="button" class="btn" id="cam-x">Exit</button></div>
+  <div class="cam-acts"><label><input type="checkbox" id="cam-tour"> Tour the busiest airports</label><span><button type="button" class="btn" id="cam-pic">Save picture</button> <button type="button" class="btn" id="cam-x">Exit</button></span></div>
 </div>
 <div id="tip"></div>
 <a id="emb" target="_blank" rel="noopener"></a>
@@ -608,17 +621,25 @@ const country=cc=>{try{return REGION&&cc?REGION.of(cc):cc||"";}catch(_){return c
    first departure. */
 function CORE(D,RW){
   const AP={};for(const c in D.ap){const x=D.ap[c];AP[c]={la:x[0],lo:x[1],z:x[2],name:x[3],city:x[4],cc:x[5],hub:false};}
-  /* the game keeps every airport on its standard time all year: no daylight saving
-     (checked 6 October: NZ20 Perth to Auckland shows 07:35 in the game). So the offset
-     used is the standard one, the smaller of mid-January's and mid-July's. */
-  const TZF=[],OFF=new Map();
+  /* every airport runs on its own wall clock, daylight saving included (11 October: with
+     standard time all year the site ran exactly an hour behind the game wherever clocks had
+     gone forward). Each zone's changes in a year are found once: sampled a week apart, then
+     narrowed to the minute. The last stretch looked up is kept per zone, so most calls are one check. */
+  const TZF=[],ZSEG=new Map(),ZLAST=[];
   function raw(z,ms){
     try{const f=TZF[z]||(TZF[z]=new Intl.DateTimeFormat("en-US",{timeZone:D.tz[z],hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}));
       const p={};f.formatToParts(new Date(ms)).forEach(x=>p[x.type]=x.value);
       return Math.round((Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute)-ms)/6e4);}catch(_){return 0;}}
-  function off(z,ms){
-    const y=new Date(ms).getUTCFullYear(),k=z*1e4+y;let v=OFF.get(k);if(v!==undefined)return v;
-    v=Math.min(raw(z,Date.UTC(y,0,15,12)),raw(z,Date.UTC(y,6,15,12)));OFF.set(k,v);return v;}
+  function zoneYear(z,y){const k=z*1e4+y;let s=ZSEG.get(k);if(s)return s;
+    const b=Date.UTC(y+1,0,1),W=7*864e5;let t=Date.UTC(y,0,1),v=raw(z,t);s=[t,v];
+    while(t<b){const t2=Math.min(b,t+W),v2=raw(z,t2);
+      if(v2===v){t=t2;continue;}
+      let lo=t,hi=t2;while(hi-lo>6e4){const mid=lo+Math.max(1,Math.floor((hi-lo)/12e4))*6e4;if(raw(z,mid)===v)lo=mid;else hi=mid;}
+      if(hi>=b)break;v=raw(z,hi);s.push(hi,v);t=hi;}
+    ZSEG.set(k,s);return s;}
+  function off(z,ms){const c=ZLAST[z];if(c&&ms>=c[0]&&ms<c[1])return c[2];
+    const y=new Date(ms).getUTCFullYear(),s=zoneYear(z,y);let i=0;while(i+2<s.length&&s[i+2]<=ms)i+=2;
+    ZLAST[z]=[s[i],i+2<s.length?s[i+2]:Date.UTC(y+1,0,1),s[i+1]];return s[i+1];}
   const offAt=(c,min)=>off(AP[c].z,min*6e4);
   function fromLocal(c,day,m){const L=day*1440+m,z=AP[c].z,u=L-off(z,L*6e4);return L-off(z,u*6e4);}
   const D2R=Math.PI/180,R2D=180/Math.PI;
@@ -781,11 +802,13 @@ function CORE(D,RW){
      together. They go one at a time in booking order, 1.5 minutes apart per take-off runway, and
      a very busy minute is spread evenly over 10 minutes. A flight held back makes the time up in
      the air (it still lands on time) and is never held more than an eighth of its flight. Worked out once, by minute
-     of the day, which is the same every day since the game keeps no daylight saving. */
-  let DLY=null,AOF=null,HLD=null;
-  function buildDly(){const N=ROT.length*4;DLY=new Uint8Array(N);AOF=new Uint8Array(N);HLD=new Uint8Array(N);const DUR=new Uint16Array(N),by=new Map(),ar=new Map(),day0=Math.floor(Date.now()/864e5),K=4e6;
+     of today, from today's clocks (a daylight saving change only moves it on the next load). */
+  let DLY=null,AOF=null,HLD=null,DUR=null,LT=null,LF=null,LTO=null;const APX=[],API=new Map();
+  const apIdx=c=>{let k=API.get(c);if(k===undefined){k=APX.length;APX.push(c);API.set(c,k);}return k;};
+  function buildDly(){const N=ROT.length*4;DLY=new Uint8Array(N);AOF=new Uint8Array(N);HLD=new Uint8Array(N);DUR=new Uint16Array(N);LT=new Int16Array(N);LF=new Uint16Array(N);LTO=new Uint16Array(N);
+    const by=new Map(),ar=new Map(),day0=Math.floor(Date.now()/864e5),K=4e6;
     const put=(m,c,v)=>{let a=m.get(c);if(!a)m.set(c,a=[]);a.push(v);};
-    for(const r of ROT)for(const l of legsOf(r,day0)){const id=r.i*4+l.seq;DUR[id]=l.dur;put(by,l.from,mod(l.t,1440)*K+id);put(ar,l.to,mod(l.t+l.dur,1440)*K+id);}
+    for(const r of ROT)for(const l of legsOf(r,day0)){const id=r.i*4+l.seq;DUR[id]=l.dur;LT[id]=l.t-day0*1440;LF[id]=apIdx(l.from);LTO[id]=apIdx(l.to);put(by,l.from,mod(l.t,1440)*K+id);put(ar,l.to,mod(l.t+l.dur,1440)*K+id);}
     /* landings booked for the same minute touch down spread through that minute; past what the
        landing runways take (about 2.5 a minute each) the rest fly racetrack holds on the way in */
     for(const [c,a] of ar){a.sort((x,y)=>x-y);const g=apGeo(c),cap=Math.max(2,Math.round((g?g.arrs.length:1)*2.5));
@@ -797,7 +820,14 @@ function CORE(D,RW){
         const n=j-i,W=Math.min(10,n*sep);   // a busy minute is spread over up to 10 minutes
         for(let k=i;k<j;k++){const id=a[k]-m*K;DLY[id]=Math.round(Math.min(W*(k-i)/n,DUR[id]/8)*10);}
         i=j;}}}
-  const tabs=()=>{if(!DLY){if(typeof window!=="undefined")return false;buildDly();}return true;};   // the page gets the tables from the worker
+  /* a UTC day's flights from the timetable: how many, and the busiest route, airport and airline (worker side) */
+  function dayStats(D){if(!DUR)buildDly();let n=0;const rt=new Map(),apd=new Map(),ald=new Map(),inc=(m,k)=>m.set(k,(m.get(k)||0)+1);
+    for(const r of ROT)for(let q=0;q<4;q++){const id=r.i*4+q;if(!DUR[id])continue;if(!runsOn(r,D-Math.floor(LT[id]/1440)))continue;n++;
+      const a=LF[id],b=LTO[id];inc(rt,a<b?a*65536+b:b*65536+a);inc(apd,a);inc(ald,r.ai);}
+    const top=m=>{let k=null,v=0;for(const [x,y] of m)if(y>v){v=y;k=x;}return [k,v];};
+    const [rk,rn]=top(rt),[ak,an]=top(apd),[lk,ln]=top(ald);
+    return {k:D,n,route:rk==null?[null,0]:[APX[Math.floor(rk/65536)]+"-"+APX[rk%65536],rn],ap:[ak==null?null:APX[ak],an],al:[lk,ln]};}
+  const tabs=()=>!!DLY;   // built once by the worker after the first positions are out, then shared with the page   // the page gets the tables from the worker
   const dly=l=>tabs()?DLY[l.r.i*4+l.seq]/10:0,aof=l=>tabs()?AOF[l.r.i*4+l.seq]/100:0,hld=l=>tabs()?HLD[l.r.i*4+l.seq]:0;
   /* where along its airborne path (0..1) a flight is, from the share of its booked time gone */
   function airFrac(l,f){const w=dly(l),d=l.dur-w+aof(l);return pathFrac(Math.max(0,Math.min(1,(f*l.dur-w)/d)),d);}
@@ -909,7 +939,7 @@ function CORE(D,RW){
     if(now<l.t+dly(l)&&G.out){[...G.push.pts,...G.out.pts.slice(1),...G.roll.pts.slice(1)].forEach(p=>{const q=G.gA.ll(p[0],p[1]);pts.push([q[1],q[0]]);});}
     else if(now>l.t+l.dur+aof(l)&&G.ro){[...G.ro.pts,...G.inn.pts.slice(1)].forEach(p=>{const q=G.gB.ll(p[0],p[1]);pts.push([q[1],q[0]]);});}
     return pts;}
-  return {AP,ROT,off,offAt,fromLocal,km,legsOf,legsAround,legAt,runsOn,phases,pathFrac,airFrac,dly,aof,holding,setWind:o=>{for(const c in o){WIND[c]=o[c];GEO.delete(c);}LEG.clear();},
+  return {AP,ROT,off,offAt,fromLocal,km,legsOf,legsAround,legAt,runsOn,phases,pathFrac,airFrac,dly,aof,holding,dayStats,setWind:o=>{for(const c in o){WIND[c]=o[c];GEO.delete(c);}LEG.clear();},
     rwyUse:c=>{const g=apGeo(c);return g?{d:[...new Set(g.deps.map(e=>e.id).filter(Boolean))],a:[...new Set(g.arrs.map(e=>e.id).filter(Boolean))],w:WIND[c]||null}:null;},buildDly,dlyTable:()=>({d:DLY,a:AOF,h:HLD}),setDly:o=>{DLY=o.d;AOF=o.a;HLD=o.h;LEG.clear();},est,gcSetup,gcAt,bearing,apGeo,standPos,legGeo,legWin,posAt,airLine,taxiLine,apLines,prune,setGround,hashStr,hasGround:c=>!!GROUND[c],hasRunways:()=>Object.keys(RWD).length>0};
 }
 
@@ -946,9 +976,11 @@ function WORKER(){
     const gnd=ground;ground=null;
     postMessage({n,now,la,lo,brg,f,wx,wy,alt,ri,day,seq,ai,gr,ground:gnd},[la.buffer,lo.buffer,brg.buffer,f.buffer,wx.buffer,wy.buffer,alt.buffer,ri.buffer,day.buffer,seq.buffer,ai.buffer,gr.buffer]);}
   onmessage=e=>{const m=e.data;
-    if(m.data){C=CORE(m.data,m.rw);C.buildDly();postMessage({dly:C.dlyTable()});lastScan=0;place(m.now);}
+    if(m.data){C=CORE(m.data,m.rw);lastScan=0;place(m.now);
+      setTimeout(()=>{C.buildDly();const t=C.dlyTable();C.setDly(t);postMessage({dly:t});lastScan=0;},30);}
     else if(m.ground&&C){C.setGround(m.ground);}
     else if(m.wind&&C){C.setWind(m.wind);lastScan=0;}
+    else if(m.stats!=null&&C){postMessage({stats:C.dayStats(m.stats)});}
     else if(m.now&&C){if(m.rescan)lastScan=0;place(m.now,m.fast);}};
 }
 
@@ -1029,6 +1061,7 @@ const fmtAlt=ft=>{const [v,u]=uv("a",ft);return fmtN(u==="m"?Math.round(v/10)*10
 const fmtSpd=kt=>{const [v,u]=uv("s",kt);return fmtN(Math.round(v))+" "+u;};
 /* S.off moves the whole map in time (the time slider); 0 is now */
 const nowMin=()=>Date.now()/6e4+S.off, realNow=()=>Date.now()/6e4;
+let TBASE=0;   // replay: whole days back (0, -1440, ... -8640); the slider moves 12 hours either side of it
 const hhmm=m=>{m=mod(Math.round(m),1440);return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");};
 const localMin=(c,min)=>min+C.offAt(c,min);
 const localTime=(c,min)=>hhmm(localMin(c,min));
@@ -1168,7 +1201,7 @@ M.on("load",()=>{
     "icon-size":["interpolate",["linear"],["zoom"],0,["*",["coalesce",["get","s"],1],.42],4,["*",["coalesce",["get","s"],1],.55],9,["*",["coalesce",["get","s"],1],.75],12,["*",["coalesce",["get","s"],1],.7],14,["*",["coalesce",["get","s"],1],.8],16,["*",["coalesce",["get","s"],1],1.35]]},paint:{"icon-color":"#ff5b26","icon-halo-color":"#1a0f0a","icon-halo-width":1.4}});
   MREADY=true;apsDone=false;
   applyTheme();
-  if(S.ly.rain)setRain(true);
+  if(S.ly.rain)setRain(true);if(S.ly.clouds)setClouds(true);
   draw();
 });
 let APLIST=[],apsDone=false,raf=0,viewT=0;
@@ -1404,7 +1437,33 @@ function busyBody(){const L=busyList();if(!L.length)return "";
 /* the two ways in, at the top of the home panel */
 function liveLinks(){return `<div class="lv">
   <button type="button" class="lv-b" data-go="#/tracked">${SV(IC.people)}<span>Most tracked flights</span><span class="live">LIVE</span><i aria-hidden="true">›</i></button>
-  <button type="button" class="lv-b" data-go="#/disruptions">${SV(IC.dep)}<span>Airport disruptions</span><span class="live">LIVE</span><i aria-hidden="true">›</i></button></div>`;}
+  <button type="button" class="lv-b" data-go="#/disruptions">${SV(IC.dep)}<span>Airport disruptions</span><span class="live">LIVE</span><i aria-hidden="true">›</i></button>
+  <button type="button" class="lv-b" data-go="#/records">${SV('<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4v3h-4z"/>')}<span>Today's records</span><span class="live">LIVE</span><i aria-hidden="true">›</i></button></div>`;}
+/* today's records: right now from the planes on the map, today from the timetable (UTC day), worked out once a day */
+let RECDAY={k:null};
+function recDay(){const day=Math.floor(nowMin()/1440);if(RECDAY.k===day)return RECDAY;if(worker&&RECDAY.ask!==day){RECDAY.ask=day;worker.postMessage({stats:day});}return null;}
+function renderRecords(){S.view="records";
+  body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Today's records</h2><span class="live">LIVE</span></div><p class="note">Working it out…</p>`;
+  $("bk").onclick=()=>go("#/");sheet("open");
+  setTimeout(()=>{if(S.view!=="records")return;const P=S.P,now=nowMin();let far=null,long=null,fk=0,lk=0;const {c}=counts();
+    if(P)for(let i=0;i<S.n;i++){if(P.gr[i]||AL[P.ai[i]].hidden)continue;const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)continue;const k=C.km(l.from,l.to);if(k>fk){fk=k;far=l;}if(l.dur>lk){lk=l.dur;long=l;}}
+    let ai=-1,am=0;c.forEach((v,i)=>{if(v>am&&!AL[i].hidden){am=v;ai=i;}});
+    const dl=delayList()[0],hold=[...delayList()].sort((a,b)=>b.h-a.h)[0],R=recDay()||{n:null,route:[null,0],ap:[null,0],al:[null,0]};
+    const fl=l=>l?`${esc(AL[l.r.ai].code)}${l.fn} <small>${l.from} → ${l.to} · ${esc(AL[l.r.ai].name)}</small>`:"—",fg=l=>l?`#/flight/${encodeURIComponent(AL[l.r.ai].code+l.fn)}/${l.r.i}`:"";
+    const card=(k,v,sub,go)=>`<button type="button" class="tk rec"${go?` data-go="${go}"`:""}><span class="rec-k">${k}</span><span class="rec-v">${v}</span>${sub?`<span class="tk-2">${sub}</span>`:""}</button>`;
+    const [rk,rn]=R.route,[ra,ran]=R.ap,[rl,rln]=R.al;
+    body.querySelector(".note").textContent=`Right now from the ${fmtN(counts().n)} planes in the air; today from the timetable for ${new Date(now*6e4).toISOString().slice(0,10)} (UTC).`;
+    body.insertAdjacentHTML("beforeend",`<div class="lvl">
+      ${card("Longest flight in the air",fl(far),far?`${fmtDist(fk)} · ${dur(far.dur)} block`:"",fg(far))}
+      ${long&&long!==far?card("Longest by time in the air",fl(long),`${dur(long.dur)} block · ${fmtDist(C.km(long.from,long.to))}`,fg(long)):""}
+      ${ai>=0?card("Most planes up",esc(AL[ai].name),`${fmtN(am)} in the air now`,`#/airline/${ai}`):""}
+      ${dl&&Math.max(dl.d,dl.a)>=.5?card("Most disrupted airport",`${dl.c} <small>${esc(AP[dl.c].city||AP[dl.c].name)}</small>`,`Take-offs ${dl.d.toFixed(1)} · landings ${dl.a.toFixed(1)} out of 5`,`#/airport/${dl.c}`):""}
+      ${hold&&hold.h>0?card("Most planes holding",`${hold.c} <small>${esc(AP[hold.c].city||AP[hold.c].name)}</small>`,`${Math.round(hold.h*100)}% of arrivals going round`,`#/airport/${hold.c}`):""}
+      ${rk?card("Busiest route today",`${rk.replace("-"," – ")}`,`${fmtN(rn)} flights both ways`,`#/between/${rk.split("-")[0]}/${rk.split("-")[1]}`):""}
+      ${ra?card("Busiest airport today",`${ra} <small>${esc(AP[ra].city||AP[ra].name)}</small>`,`${fmtN(ran)} departures`,`#/airport/${ra}`):""}
+      ${rl!=null&&AL[rl]?card("Biggest airline day",esc(AL[rl].name),`${fmtN(rln)} flights today`,`#/airline/${rl}`):""}
+      ${R.n!=null?card("Echo flights today",fmtN(R.n),"every division, departures in the UTC day",""):`<p class="wdg-e">Counting today's timetable…</p>`}</div>`);
+    body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));},30);}
 function renderTracked(){S.view="tracked";
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Most tracked flights</h2><span class="live">LIVE</span></div>
   <p class="note">The flights opened most on Echo Live today and yesterday. Counts only; nobody is identified.</p><div class="lvl">${trackedBody()}</div>`;
@@ -1414,16 +1473,26 @@ function renderDisruptions(){S.view="disrupt";
   <p class="note">From 0 (calm) to 5 for take-offs ${SV(IC.dep)} and landings ${SV(IC.arr)}: how long departures wait in the queue, how many arrivals are holding, and the real weather there now (storms, snow, fog and strong wind, from Open-Meteo).</p>
   <div class="lvl">${delaysBody()}</div>`;
   $("bk").onclick=()=>go("#/");body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));sheet("open");}
+/* install: Chrome and Edge offer it through beforeinstallprompt; on an iPhone it's Share → Add to Home Screen */
+let INSTALL=null;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();INSTALL=e;if(S.view==="home")renderHome();});
+addEventListener("appinstalled",()=>{INSTALL=null;try{localStorage.setItem("echo_inst","x");}catch(_){}});
+function installHtml(){if(EMBED)return "";let off=false;try{off=!!localStorage.getItem("echo_inst");}catch(_){}
+  const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone,ios=/iP(hone|ad|od)/.test(navigator.userAgent)&&!/CriOS|FxiOS/.test(navigator.userAgent);
+  if(off||standalone||!(INSTALL||ios))return "";
+  return `<div class="inst"><img src="icon-192.png" alt="" width="34" height="34"><span><b>Echo Live as an app</b><small>${INSTALL?"Opens full-screen from your home screen or dock.":"Tap Share, then Add to Home Screen."}</small></span>${INSTALL?`<button type="button" class="btn" id="inst-go">Install</button>`:""}<button type="button" class="x" id="inst-x" aria-label="Don't show again">×</button></div>`;}
+function bindInstall(){if($("inst-go"))$("inst-go").onclick=async()=>{const e=INSTALL;if(!e)return;INSTALL=null;e.prompt();try{await e.userChoice;}catch(_){}renderHome();};
+  if($("inst-x"))$("inst-x").onclick=()=>{try{localStorage.setItem("echo_inst","x");}catch(_){}renderHome();};}
 function renderHome(){
   S.view="home";const {c}=counts(),ds=DIVS(),cd=curDiv(),upOf=d=>{let n=0;for(let i=d.first;i<d.first+d.count;i++)n+=c[i];return n;};
   const order=AL.map((a,i)=>i).filter(i=>!AL[i].hidden).sort((a,b)=>c[b]-c[a]||AL[a].name.localeCompare(AL[b].name));
   const w=WATCH.length?WATCH.map(x=>`<div class="watch">Watching <b>${esc(x.label)}</b> · ${x.st===1?"in the air":"waiting for take-off"}</div>`).join(""):"";
-  body.innerHTML=`${w}${liveLinks()}${weekHtml(c)}${busyBody()}${favHtml(c)}
+  body.innerHTML=`${w}${installHtml()}${liveLinks()}${weekHtml(c)}${busyBody()}${favHtml(c)}
   <div class="dvs" role="group" aria-label="Echo divisions"><button type="button" class="dv" data-dv="" aria-pressed="${!cd&&!S.filter.size}">All <span>${fmtN(c.reduce((s,x)=>s+x,0))}</span></button>${ds.map(d=>`<button type="button" class="dv" data-dv="${d.code}" aria-pressed="${cd===d}">${divDot(d)}${esc(divShort(d))} <span>${fmtN(upOf(d))}</span></button>`).join("")}</div>
   <div class="bar"><h2>${cd?"Airlines in "+esc(cd.name):"Airlines"}</h2><span style="font-size:13px;color:var(--muted)">${cd?cd.count:AL.length}</span></div>
   ${(cd?[cd]:ds).map(d=>`${cd||ds.length<2?"":`<div class="dvh">${divDot(d)}${esc(d.name)}<span>${d.count} airlines</span></div>`}<ul class="rows">${order.filter(i=>i>=d.first&&i<d.first+d.count).map(i=>`<li><button type="button" class="row${S.filter.size&&!S.filter.has(i)?" off":""}" data-al="${i}">${swatch(i)}<span class="nm">${esc(AL[i].name)}<span>${esc(AL[i].code)}</span></span><span class="n">${c[i]?fmtN(c[i])+" up":"—"}</span></button></li>`).join("")}</ul>`).join("")}`;
   body.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{setDiv(b.dataset.dv);renderHome();});
-  bindLegs(FEATLEGS);
+  bindLegs(FEATLEGS);bindInstall();
   body.querySelectorAll("[data-al]").forEach(b=>b.onclick=()=>go("#/airline/"+b.dataset.al));
   body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
 }
@@ -1557,7 +1626,7 @@ function renderFlight(){
      ${cs.length?`<dt>Also sold as</dt><dd class="m">${cs.map(esc).join(", ")}</dd>`:""}
      ${nx?`<dt>Next</dt><dd><span class="m">${esc(AL[r.ai].code)}${nx.fn}</span> ${nx.from}–${nx.to} at ${localTime(nx.from,nx.t)}</dd>`:""}
    </dl>
-   <div class="acts"><button type="button" class="btn" id="wch" aria-pressed="${isWatched(l)}">${isWatched(l)?"Watching":"Watch"}</button><button type="button" class="btn" id="crd">Share card</button><button type="button" class="btn" id="shr">Copy link</button>${reg?`<button type="button" class="btn" id="fday">This plane's day</button>`:""}</div>`:""}
+   <div class="acts"><button type="button" class="btn" id="wch" aria-pressed="${isWatched(l)}">${isWatched(l)?"Watching":"Watch"}</button><button type="button" class="btn" id="crd">Share card</button><button type="button" class="btn" id="shr">Copy link</button><button type="button" class="btn" id="fpic">Save picture</button>${reg?`<button type="button" class="btn" id="fday">This plane's day</button>`:""}</div>`:""}
    <nav class="fc-nav" aria-label="Flight actions">
      <button type="button" id="frt" aria-pressed="${!!S.froute}">${ICON.route}<span>Route</span></button>
      <button type="button" id="fmo" aria-expanded="${!!S.fmore}">${S.fmore?ICON.less:ICON.more}<span>${S.fmore?"Less info":"More info"}</span></button>
@@ -1583,6 +1652,7 @@ function renderFlight(){
   if(S.fmore){$("wch").onclick=async()=>{await toggleWatch(l);renderFlight();};
     $("crd").onclick=()=>{$("crd").textContent="Making the card…";shareCard(si);};
     $("shr").onclick=async()=>{try{await navigator.clipboard.writeText(location.href);toast("Link copied.");}catch(_){toast(location.href);}};
+    $("fpic").onclick=()=>savePic(`${a.code}${l.fn} · ${l.from} to ${l.to}`,`${a.code}${l.fn}`);
     if($("fday"))$("fday").onclick=()=>{S.sel=null;S.follow=false;if(S.d3)flat3D();go("#/reg/"+encodeURIComponent(reg));};}
 }
 function renderLeg(l){
@@ -1770,6 +1840,7 @@ function route(){
   if(p[0]==="reg"){renderReg(p[1]||"");return;}
   if(p[0]==="tracked"){renderTracked();return;}
   if(p[0]==="disruptions"){renderDisruptions();return;}
+  if(p[0]==="records"){renderRecords();return;}
   if(p[0]==="flight"){
     const r=ROT[+p[2]],now=nowMin(),fn=+((p[1]||"").match(/\d+$/)||[])[0];let cand=[];
     if(r&&(r.fn===fn||r.ifn===fn||r.cfn===fn||r.cifn===fn))cand=C.legsAround(r,now-60,now+2880).filter(l=>l.fn===fn);
@@ -1877,6 +1948,13 @@ function showNetwork(ai){
 }
 /* real-world rain radar (RainViewer), under the planes */
 let rainTimer=0;
+/* clouds: NASA's daily satellite picture of the whole Earth (VIIRS, yesterday's complete pass), in grey so the clouds stand out */
+function setClouds(on){
+  if(!MREADY)return;if(M.getLayer("clouds"))M.removeLayer("clouds");if(M.getSource("clouds"))M.removeSource("clouds");if(!on)return;
+  const d=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  M.addSource("clouds",{type:"raster",tiles:[`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${d}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`],tileSize:256,maxzoom:8,
+    attribution:'Clouds: <a href="https://earthdata.nasa.gov/gibs">NASA GIBS</a>'});
+  M.addLayer({id:"clouds",type:"raster",source:"clouds",paint:{"raster-saturation":-1,"raster-contrast":.35,"raster-brightness-max":.95,"raster-opacity":["interpolate",["linear"],["zoom"],0,.55,7,.4,9,0]}},"night");}
 async function setRain(on){
   clearInterval(rainTimer);
   if(MREADY){if(M.getLayer("rain"))M.removeLayer("rain");if(M.getSource("rain"))M.removeSource("rain");}
@@ -1898,7 +1976,7 @@ function dockSync(){const lyOpen=!$("layers").hidden;document.querySelector('#do
   document.querySelector('#dock [data-dk="camera"]').setAttribute("aria-pressed",String(!!CAM.on));}
 const lyBox=(k,label,small)=>`<label class="ly"><input type="checkbox" data-lx="${k}"${S.ly[k]?" checked":""}> ${label}${small?` <small>${small}</small>`:""}</label>`;
 function popWeather(){const top=busyList().slice(0,5).map(x=>x[0]);loadWind(top);
-  return `<p class="ly-h">Weather</p>${lyBox("rain","Rain radar","real-world weather")}${lyBox("night","Day and night")}
+  return `<p class="ly-h">Weather</p>${lyBox("rain","Rain radar","real-world weather")}${lyBox("clouds","Clouds","NASA satellite, last full day")}${lyBox("night","Day and night")}
   <p>Planes take off and land into the live wind at each airport, and runway lights come on after dark.</p>
   ${top.length?`<div class="wx">${top.map(c=>`<b>${c}</b><span>${esc(AP[c].city||"")}</span><span class="dl-w" style="justify-content:flex-end">${wxLine(c)||"—"}</span>`).join("")}</div>`:""}`;}
 function popFilters(){const cd=curDiv(),ds=DIVS();
@@ -1944,6 +2022,22 @@ function camTick(t){if(!CAM.on)return;
   requestAnimationFrame(camTick);}
 function camStop(){if(!CAM.on)return;CAM.on=false;document.body.classList.remove("camming");$("cam").hidden=true;M.easeTo({pitch:0,bearing:0,duration:800});dockSync();}
 $("cam-x").onclick=camStop;
+$("cam-pic").onclick=()=>{const c=CAM.code,a=AP[c];savePic(`${c} ${a.city||a.name} · ${localTime(c,nowMin())} local`,c);};
+/* the map as it is now, with the Echo Live mark and a caption along the bottom, saved as a PNG */
+function savePic(caption,name){
+  if(!MREADY)return;
+  M.once("render",()=>{try{
+    const src=M.getCanvas(),w=src.width,h=src.height,c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");g.fillStyle="#07060c";g.fillRect(0,0,w,h);g.drawImage(src,0,0);
+    const k=Math.max(.6,Math.min(2.2,w/1400)),bh=96*k,gr=g.createLinearGradient(0,h-bh,0,h);gr.addColorStop(0,"rgba(7,6,12,0)");gr.addColorStop(1,"rgba(7,6,12,.88)");g.fillStyle=gr;g.fillRect(0,h-bh,w,bh);
+    g.save();g.translate(26*k,h-50*k);g.scale(1.25*k,1.25*k);g.translate(-12.5,-10.5);g.fillStyle="#efeafc";g.fill(new Path2D("M28.3 11h10.6L22.5 25H13zM22.5 25.9h10.8l5.6 5.9H28.3z"));g.restore();
+    g.textBaseline="alphabetic";g.font=`${28*k}px 'Instrument Serif',Georgia,serif`;g.fillStyle="#ece8f7";const x0=66*k,y0=h-24*k;g.fillText("Echo",x0,y0);
+    const ew=g.measureText("Echo ").width;g.fillStyle="#b56cff";g.fillText("Live",x0+ew,y0);
+    g.font=`600 ${14*k}px 'Public Sans',system-ui,sans-serif`;g.fillStyle="rgba(236,232,247,.9)";g.textAlign="right";
+    g.fillText(caption,w-24*k,y0);g.font=`500 ${11*k}px 'JetBrains Mono',monospace`;g.fillStyle="rgba(198,155,255,.85)";
+    g.fillText(`${new Date(nowMin()*6e4).toISOString().slice(0,16).replace("T"," ")} UTC · echoflightslive.github.io · map © OpenStreetMap`,w-24*k,y0-22*k);
+    c.toBlob(b=>{if(!b){toast("Couldn't save the picture here.");return;}const u=URL.createObjectURL(b),x=document.createElement("a");x.href=u;x.download=`echo-live-${String(name||"map").replace(/[^a-z0-9-]+/gi,"-").toLowerCase()}.png`;document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);toast("Picture saved.");},"image/png");
+  }catch(e){toast("Couldn't save the picture here.");}});
+  M.triggerRepaint();}
 $("cam-tour").onchange=()=>{CAM.next=performance.now()+75000;};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&CAM.on)camStop();});setTimeout(dockSync,600);
 function syncLayers(){
@@ -1955,7 +2049,7 @@ function syncLayers(){
   pushAcct();
 }
 (()=>{if(EMBED)return;try{const v=JSON.parse(localStorage.getItem("echo_layers")||"null");if(v)Object.assign(S.ly,v);}catch(_){}})();
-document.querySelectorAll("[data-ly]").forEach(b=>b.onchange=()=>{S.ly[b.dataset.ly]=b.checked;syncLayers();if(b.dataset.ly==="rain")setRain(b.checked);if(b.dataset.ly==="ground"&&S.view==="airport")route();if(b.dataset.ly==="light")applyTheme();redraw();});
+document.querySelectorAll("[data-ly]").forEach(b=>b.onchange=()=>{S.ly[b.dataset.ly]=b.checked;syncLayers();if(b.dataset.ly==="rain")setRain(b.checked);if(b.dataset.ly==="clouds")setClouds(b.checked);if(b.dataset.ly==="ground"&&S.view==="airport")route();if(b.dataset.ly==="light")applyTheme();redraw();});
 document.querySelectorAll("[data-un]").forEach(b=>b.onclick=()=>{S.ly["u"+b.dataset.un]=b.dataset.v;syncLayers();
   if(D&&!["search","card"].includes(S.view)){renderAirport.keep=true;try{route();}finally{renderAirport.keep=false;}}});
 /* light or dark map: the base map, plane colours and the text drawn on the map */
@@ -1990,20 +2084,27 @@ let PLAYING=false;
 let tbOpen=(()=>{try{const v=localStorage.getItem("echo_timebar");return v==null?innerWidth>760:v==="1";}catch(_){return innerWidth>760;}})();
 function setTimebar(open){tbOpen=open;$("timebar").hidden=!open;$("tshow").hidden=open;if(document.getElementById("dock"))setTimeout(dockSync,0);try{localStorage.setItem("echo_timebar",open?"1":"0");}catch(_){}timeLabel();}
 $("thide").onclick=()=>setTimebar(false);$("tshow").onclick=()=>setTimebar(true);
+function dayChips(){const el=$("tdays");if(!el)return;const now=new Date();let h="";
+  for(let k=0;k<7;k++){const d=new Date(now.getTime()-k*864e5),lab=k===0?"Today":k===1?"Yesterday":d.toLocaleDateString(undefined,{weekday:"short",day:"numeric",timeZone:"UTC"});
+    h+=`<button type="button" data-tb="${-k*1440}" aria-pressed="${TBASE===-k*1440}">${lab}</button>`;}
+  el.innerHTML=h;el.querySelectorAll("[data-tb]").forEach(b=>b.onclick=()=>{TBASE=+b.dataset.tb;setOff(+$("trange").value,true);dayChips();});
+  const e=document.querySelectorAll(".tb-ends span");if(e.length===3){e[0].textContent="12 h before";e[1].textContent=TBASE?"this time then":"now";e[2].textContent="12 h after";}}
 function timeLabel(){
   const t=new Date(nowMin()*6e4),hm=t.toISOString().slice(11,16),o=Math.round(S.off);
-  $("tlabel").innerHTML=o?`<b>${hm} UTC</b> · ${o>0?"in "+dur(o):dur(-o)+" ago"}`:`<b>${hm} UTC</b> · live`;
+  const day=TBASE?t.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"})+" ":"";
+  $("tlabel").innerHTML=!o?`<b>${hm} UTC</b> · live`:Math.abs(o)>=1440?`<b>${day}${hm} UTC</b> · replay`:`<b>${day}${hm} UTC</b> · ${o>0?"in "+dur(o):dur(-o)+" ago"}`;
   $("tlive").hidden=!o;$("timebar").classList.toggle("away",!!o);
   const ts=$("tshow");ts.textContent=o?`Time · ${o>0?"+":"−"}${dur(Math.abs(o))}`:(PLAYING?"Time · playing":"Time");ts.classList.toggle("away",!!o);
 }
 function setOff(v,final){
-  S.off=v;$("trange").value=String(v);timeLabel();
+  S.off=TBASE+v;$("trange").value=String(v);timeLabel();
   const t=performance.now();if(final||t-tSend>120){tSend=t;sendNow();}
   if(final&&D&&!["search","card","near"].includes(S.view)){renderAirport.keep=true;try{route();}finally{renderAirport.keep=false;}}
 }
 $("trange").addEventListener("input",e=>setOff(+e.target.value,false));
 $("trange").addEventListener("change",e=>setOff(+e.target.value,true));
-$("tlive").onclick=()=>setOff(0,true);
+$("tlive").onclick=()=>{TBASE=0;setOff(0,true);dayChips();};
+dayChips();
 
 /* ---------- leaderboards ---------- */
 const pop=m=>{let c=0;for(;m;m&=m-1)c++;return c;};
@@ -2190,13 +2291,13 @@ function setType(mi){S.type=mi;updateCount();redraw();}
 const SPEEDS=[60,300,900];let playing=false,spd=0,lastT=0,lastSend=0;
 function setPlaying(on){
   playing=on;PLAYING=on;$("tplay").textContent=on?"Pause":"Play";$("tplay").setAttribute("aria-pressed",String(on));
-  if(on){if(S.off>=715)S.off=-720;lastT=performance.now();requestAnimationFrame(playStep);}
+  if(on){if(S.off-TBASE>=715)S.off=TBASE-720;lastT=performance.now();requestAnimationFrame(playStep);}
   else{sendNow();if(D&&!["search","card","near"].includes(S.view)){renderAirport.keep=true;try{route();}finally{renderAirport.keep=false;}}}
 }
 function playStep(t){
   if(!playing)return;const dt=Math.min(.25,(t-lastT)/1000);lastT=t;
-  let v=S.off+dt*(SPEEDS[spd]-1)/60;if(v>=720){v=720;S.off=v;setPlaying(false);}
-  S.off=v;$("trange").value=String(Math.round(v));timeLabel();
+  let v=S.off-TBASE+dt*(SPEEDS[spd]-1)/60;if(v>=720){v=720;S.off=TBASE+v;setPlaying(false);}
+  S.off=TBASE+v;$("trange").value=String(Math.round(v));timeLabel();
   if(t-lastSend>110){lastSend=t;if(worker)worker.postMessage({now:nowMin(),fast:true});}
   requestAnimationFrame(playStep);
 }
@@ -2658,6 +2759,7 @@ function admAccounts(box){
 let worker=null,lastFlightPaint=0,lastHome=0;
 function onPositions(m){
   if(m.dly){C.setDly(m.dly);return;}
+  if(m.stats){RECDAY=m.stats;if(S.view==="records")renderRecords();return;}
   const first=!S.P;S.P=m;S.n=m.n;if(m.ground){S.ground=m.ground;if(S.view==="airport"&&!first)groundList();}updateCount();
   if(first){$("loading")&&$("loading").remove();route();}
   else if(S.view==="home"&&performance.now()-lastHome>30000){lastHome=performance.now();renderHome();}
@@ -2718,7 +2820,7 @@ async function start(){
   setInterval(pulse,4000);
   setTimebar(tbOpen);setInterval(timeLabel,10000);
   setInterval(checkWatch,15000);checkWatch();
-  syncLayers();if(S.ly.rain)setRain(true);
+  syncLayers();if(S.ly.rain)setRain(true);if(MREADY)setClouds(!!S.ly.clouds);
 }
 
 /* ---------- signing in ----------
