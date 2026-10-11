@@ -581,7 +581,8 @@ function WORKER(){
    The browser keeps a copy (IndexedDB). On each visit it asks Supabase for the
    fingerprints of the parts and downloads only the ones that changed. If
    Supabase can't be reached the saved copy is used, and failing that the
-   data.json beside this page. */
+   data.json beside this page (plus data-2.json etc. when data.json lists them in
+   "more": GitHub's web upload stops at 25MB, so the timetable comes in pieces). */
 const idb=(()=>{let p=null;const open=()=>p||(p=new Promise((res,rej)=>{try{const r=indexedDB.open("echo-live",1);
   r.onupgradeneeded=()=>r.result.createObjectStore("parts");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}}));
   const tx=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction("parts",mode),s=t.objectStore("parts");const out=fn(s);t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out);t.onerror=()=>rej(t.error);}));
@@ -591,7 +592,7 @@ async function rpc(fn,body,ms){
   try{const r=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,{method:"POST",signal:ctl.signal,headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body||{})});
     if(!r.ok)throw new Error(fn+": HTTP "+r.status);return await r.json();}finally{clearTimeout(t);}}
 function assemble(base,parts){
-  const keys=Object.keys(parts).filter(k=>k.startsWith("rot:")).sort();const rot=[];keys.forEach(k=>rot.push(...parts[k]));
+  const keys=Object.keys(parts).filter(k=>k.startsWith("rot:")).sort();const rot=[].concat(...keys.map(k=>parts[k]));
   return Object.assign({},base,{rot});}
 async function loadData(note){
   let saved=null;try{saved=await idb.get("all");}catch(_){}
@@ -614,7 +615,10 @@ async function loadData(note){
     if(saved&&saved.parts&&saved.parts.base)return {D:assemble(saved.parts.base,saved.parts),src:"saved copy"};
     note("Downloading the timetable…");
     const r=await fetch("data.json",{cache:"no-cache"});if(!r.ok)throw new Error("data.json: HTTP "+r.status);
-    const d=await r.json();d.rot=d.rot.map((x,i)=>[x,i]).sort((a,b)=>a[0][0]-b[0][0]||a[1]-b[1]).map(x=>x[0]);   // same order as Supabase
+    const d=await r.json();
+    for(const f of d.more||[]){const x=await fetch(f,{cache:"no-cache"});if(!x.ok)throw new Error(f+": HTTP "+x.status);
+      const e=await x.json();if(e.of!==d.id)throw new Error(f+" is from a different upload than data.json");d.rot=d.rot.concat(e.rot);}
+    delete d.more;d.rot=d.rot.map((x,i)=>[x,i]).sort((a,b)=>a[0][0]-b[0][0]||a[1]-b[1]).map(x=>x[0]);   // same order as Supabase
     return {D:d,src:"data.json"};
   }
 }
@@ -1910,7 +1914,7 @@ async function admData(box){
   const divs=st.divs||[],byCode={};divs.forEach(d=>byCode[d.code]=d);
   const jobs=(st.jobs||[]).map(j=>`<li><span>${whenTxt(j.requested)}</span><span class="muted">${esc(j.result||"waiting")}</span></li>`).join("");
   box.innerHTML=`<div class="card"><p><b>Timetable on the site</b>: updated ${st.updated?ago(st.updated):"never"} (${whenTxt(st.updated)}), ${fmtN(st.parts)} parts, ${divs.length} divisions, ${fmtN(divs.reduce((s,d)=>s+(d.count||0),0))} airlines.</p>
-    <p class="muted">Supabase reads data.json from the site every day at 09:07 UTC. After uploading a new data.json to GitHub, wait a minute for it to go live, then refresh here.</p>
+    <p class="muted">Supabase reads data.json and data-2.json from the site every day at 09:07 UTC. After uploading new ones to GitHub (both together, in one commit), wait a minute for them to go live, then refresh here.</p>
     <div class="row2"><button type="button" class="btn prim" id="ref">Refresh now</button><span id="refm" class="muted"></span></div></div>
     <h3>Capture checklist</h3>
     <div class="card"><ul class="plain">${ALLDIVS.map(([code,name])=>{const d=byCode[code];
@@ -1919,7 +1923,7 @@ async function admData(box){
       return `<li><span><b>${name}</b> · ${d.count} airlines${(d.missing||[]).length?`<br><small>Open in the next capture: ${(d.missing||[]).map(esc).join(", ")}</small>`:""}</span><span class="muted" style="text-align:right;white-space:nowrap">${new Date(d.captured+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"short"})}<br><small>${days?days+" days ago":"today"}</small>${days>=14?`<span class="due">due</span>`:""}</span></li>`;}).join("")}</ul></div>
     <h3>Recent refreshes</h3><div class="card"><ul class="plain">${jobs||`<li><span class="muted">None yet.</span></li>`}</ul></div>`;
   $("ref").onclick=async()=>{
-    const btn=$("ref"),msg=$("refm");btn.disabled=true;msg.textContent="Asking the site for data.json…";
+    const btn=$("ref"),msg=$("refm");btn.disabled=true;msg.textContent="Asking the site for data.json and data-2.json…";
     try{const {job}=await adm("echo_admin_refresh");let r="not arrived yet";
       for(let k=0;k<25&&r==="not arrived yet";k++){await new Promise(z=>setTimeout(z,4000));msg.textContent="Importing…";r=(await adm("echo_admin_refresh",{p_job:job})).result;}
       msg.innerHTML=r==="not arrived yet"?`<span class="bad">Still waiting on GitHub. Try again in a minute.</span>`:/parts checked/.test(r)?`<span class="ok">Done: ${esc(r)}.</span> Reload the page to see it.`:`<span class="bad">${esc(r)}</span>`;
@@ -2059,7 +2063,8 @@ async function start(){
   RMOD=new Int16Array(ROT.length);ROT.forEach((r,i)=>{RMOD[i]=r.ac>=0&&ACL[r.ac]?ACL[r.ac][0]:-1;});
   APLIST=[...used].filter(c=>AP[c]).sort((a,b)=>(AP[a].hub?1:0)-(AP[b].hub?1:0));
   {const fd=x=>new Date(x+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long"}),ds=DIVS(),miss=ds.flatMap(d=>d.missing||[]);
-   $("foot").textContent=`${ds.map(d=>`${d.name} captured ${fd(d.captured||D.captured)}`).join(", ")}; loaded from ${SRC}. Positions are worked out from the schedule.${miss.length?` Not captured yet: ${miss.join(", ")}.`:""}`;
+   const one=new Set(ds.map(d=>d.captured||D.captured)).size===1;
+   $("foot").textContent=`${one?`All ${ds.length} divisions captured ${fd(ds[0].captured||D.captured)}`:ds.map(d=>`${d.name} captured ${fd(d.captured||D.captured)}`).join(", ")}; loaded from ${SRC}. Positions are worked out from the schedule.${miss.length?` No flights in the capture: ${miss.join(", ")}.`:""}`;
   }
   await loadSite();applyOverrides();paintAnn();
   if(EMBED)setupEmbed();else hitOnce("visit","");
