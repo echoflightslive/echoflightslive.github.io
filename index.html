@@ -225,9 +225,9 @@ svg.sw.tail{width:18px;height:18px;border-radius:0;box-shadow:none;background:no
 .row{grid-template-columns:18px 1fr auto}
 svg.tail.big{width:30px;height:30px;vertical-align:-6px;margin-right:6px}
 .star{font-size:17px;line-height:1;color:var(--kyra);margin-right:4px}
-form.ab{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:4px 18px 10px}
-form.ab input{border:1px solid var(--rule);border-radius:7px;padding:9px 10px;font:600 16px var(--ui);text-transform:uppercase;width:100%;background:#fff}
-form.ab .btn{grid-column:1/-1}
+.ab{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:4px 18px 10px}
+.ab input{border:1px solid var(--rule);border-radius:7px;padding:9px 10px;font:600 16px var(--ui);text-transform:uppercase;width:100%;background:#fff}
+.ab .btn{grid-column:1/-1}
 .vs-pick{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:4px 18px 10px;color:var(--muted);font-size:14px}
 .vs-pick select{font:inherit;color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:7px 6px;background:#fff;min-width:0;width:100%}
 table.vs{width:calc(100% - 36px);margin:4px 18px 8px;border-collapse:collapse;font-size:14px}
@@ -263,6 +263,16 @@ figure.hourc .hb:hover path{opacity:1}
 #ann .x{position:absolute;right:4px;top:3px;background:none;border:0;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px}
 .btn.adm{border-color:var(--kyra);color:var(--kyra-ink)}
 /* admin page */
+.wk{border-bottom:1px solid var(--rule);padding-bottom:6px;margin-bottom:4px}
+.wk-rt{display:flex;align-items:center;gap:12px;width:calc(100% - 36px);margin:2px 18px 8px;padding:10px 14px;background:#fff;border:1px solid var(--rule);border-radius:8px;text-align:left;color:var(--ink);font:14px var(--ui)}
+.wk-rt span{display:flex;flex-direction:column;min-width:0;flex:1}
+.wk-rt span:last-child{text-align:right}
+.wk-rt b{font:600 22px/1.1 var(--mono);letter-spacing:.02em}
+.wk-rt i{font-style:normal;color:var(--kyra);font-size:20px}
+.wk-note{margin:0;padding:0 18px 8px;font-size:14px}
+.wk-more{padding:2px 18px 8px}
+.wk-al small{color:var(--muted);font-weight:400}
+.wk-al .sub .dvdot{vertical-align:0}
 .adm-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:2px 18px 10px}
 .adm-tabs button{border:1px solid var(--rule);background:#fff;border-radius:999px;padding:4px 11px;font:600 13px var(--ui);color:var(--muted)}
 .adm-tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
@@ -625,7 +635,12 @@ async function loadData(note){
 
 let D=null,C=null,AP={},AL=[],ROT=[],MODELS=[],ACL=[],SRC="";
 /* Echo divisions: airlines are numbered division by division (Kyra first) */
-const DIVS=()=>(D&&D.divs)||[{code:"kyra",name:"Echo Kyra",color:"#7D34FF",first:0,count:AL.length,captured:D&&D.captured,missing:[]}];
+/* the order divisions are shown in; the data keeps its own order so airline numbers (and links) never move */
+const DIV_ORDER=["kyra","aegis","elysium","proxima","rhea","vilis","aura","elion","eos"];
+let DIVS_SORTED=null,DIVS_SRC=null;
+const DIVS=()=>{if(!(D&&D.divs))return [{code:"kyra",name:"Echo Kyra",color:"#7D34FF",first:0,count:AL.length,captured:D&&D.captured,missing:[]}];
+  if(DIVS_SRC!==D.divs){const r=c=>{const k=DIV_ORDER.indexOf(c);return k<0?99:k;};DIVS_SRC=D.divs;DIVS_SORTED=D.divs.map((d,i)=>[d,i]).sort((x,y)=>r(x[0].code)-r(y[0].code)||x[1]-y[1]).map(x=>x[0]);}
+  return DIVS_SORTED;};
 const divOf=ai=>{const ds=DIVS();for(const d of ds)if(ai>=d.first&&ai<d.first+d.count)return d;return ds[0];};
 const divShort=d=>d.name.replace(/^Echo /,"");
 /* the airline's page on the Echo United Alliances site: its name in lower case, letters and
@@ -944,7 +959,7 @@ function renderHome(){
   S.view="home";const {c}=counts(),ds=DIVS(),cd=curDiv(),upOf=d=>{let n=0;for(let i=d.first;i<d.first+d.count;i++)n+=c[i];return n;};
   const order=AL.map((a,i)=>i).filter(i=>!AL[i].hidden).sort((a,b)=>c[b]-c[a]||AL[a].name.localeCompare(AL[b].name));
   const w=WATCH.length?WATCH.map(x=>`<div class="watch">Watching <b>${esc(x.label)}</b> · ${x.st===1?"in the air":"waiting for take-off"}</div>`).join(""):"";
-  body.innerHTML=`<div class="home-acts"><button type="button" class="btn" data-go="#/between">A to B</button><button type="button" class="btn" data-go="#/fleet">Fleet</button><button type="button" class="btn" data-go="#/top">Leaderboards</button><button type="button" class="btn" data-go="#/vs">Compare</button><button type="button" class="btn" data-go="#/near">Near me</button><button type="button" class="btn" data-go="#/divs">Divisions</button><button type="button" class="btn" data-go="#/new">What's new</button>${ACC.admin?`<button type="button" class="btn adm" data-go="#/admin">Admin</button>`:""}</div>${w}${featHtml()}${favHtml(c)}
+  body.innerHTML=`<div class="home-acts"><button type="button" class="btn" data-go="#/between">A to B</button><button type="button" class="btn" data-go="#/fleet">Fleet</button><button type="button" class="btn" data-go="#/top">Leaderboards</button><button type="button" class="btn" data-go="#/vs">Compare</button><button type="button" class="btn" data-go="#/near">Near me</button><button type="button" class="btn" data-go="#/divs">Divisions</button><button type="button" class="btn" data-go="#/new">What's new</button>${ACC.admin?`<button type="button" class="btn adm" data-go="#/admin">Admin</button>`:""}</div>${w}${weekHtml(c)}${favHtml(c)}
   <div class="dvs" role="group" aria-label="Echo divisions"><button type="button" class="dv" data-dv="" aria-pressed="${!cd&&!S.filter.size}">All <span>${fmtN(c.reduce((s,x)=>s+x,0))}</span></button>${ds.map(d=>`<button type="button" class="dv" data-dv="${d.code}" aria-pressed="${cd===d}">${divDot(d)}${esc(divShort(d))} <span>${fmtN(upOf(d))}</span></button>`).join("")}</div>
   <div class="bar"><h2>${cd?"Airlines in "+esc(cd.name):"Airlines"}</h2><span style="font-size:13px;color:var(--muted)">${cd?cd.count:AL.length}</span></div>
   ${(cd?[cd]:ds).map(d=>`${cd||ds.length<2?"":`<div class="dvh">${divDot(d)}${esc(d.name)}<span>${d.count} airlines</span></div>`}<ul class="rows">${order.filter(i=>i>=d.first&&i<d.first+d.count).map(i=>`<li><button type="button" class="row${S.filter.size&&!S.filter.has(i)?" off":""}" data-al="${i}">${swatch(i)}<span class="nm">${esc(AL[i].name)}<span>${esc(AL[i].code)}</span></span><span class="n">${c[i]?fmtN(c[i])+" up":"—"}</span></button></li>`).join("")}</ul>`).join("")}`;
@@ -1631,6 +1646,17 @@ function weekdaysOf(r,seq){
   for(let d=day0;d<day0+7;d++){if(!C.runsOn(r,d))continue;const l=C.legsOf(r,d).find(x=>x.seq===seq);if(l)set.add(mod(Math.floor(localMin(l.from,l.t)/1440)+3,7));}
   return DAYN.filter((_,i)=>set.has(i)).join(", ")||"—";
 }
+/* every Echo flight from a to b: the next time each one leaves, sorted by local departure time */
+function abFlights(a,b){
+  const rows=[];
+  (APROT[a]||[]).forEach(ri=>{const r=ROT[ri];
+    const legs=[[0,r.A,r.B],[3,r.B,r.A]];if(r.C)legs.push([1,r.B,r.C],[2,r.C,r.B]);
+    for(const [seq,f,t] of legs)if(f===a&&t===b)rows.push({ri,seq});});
+  const now=nowMin();
+  return rows.map(x=>{const r=ROT[x.ri],ls=C.legsAround(r,now-60,now+10080).filter(l=>l.seq===x.seq).sort((p,q)=>p.t-q.t);
+    const nx=ls.find(l=>l.t>=now-10)||ls[0];if(!nx)return null;const end=nx;
+    return {x,l:nx,end,lm:mod(localMin(a,nx.t),1440)};}).filter(Boolean).sort((p,q)=>p.lm-q.lm);
+}
 function renderBetween(a,b){
   S.view="between";a=(a||"").toUpperCase();b=(b||"").toUpperCase();
   const form=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Who flies A to B</h2></div>
@@ -1639,13 +1665,7 @@ function renderBetween(a,b){
   if(a&&b){
     if(!AP[a]||!AP[b])res=`<p class="note">${!AP[a]?esc(a):esc(b)} isn't an airport any Echo airline flies to. Use the three-letter code, like LHR.</p>`;
     else{
-      const rows=[];
-      (APROT[a]||[]).forEach(ri=>{const r=ROT[ri];
-        const legs=[[0,r.A,r.B],[3,r.B,r.A]];if(r.C)legs.push([1,r.B,r.C],[2,r.C,r.B]);
-        for(const [seq,f,t] of legs)if(f===a&&t===b)rows.push({ri,seq});});
-      const now=nowMin(),out=rows.map(x=>{const r=ROT[x.ri],ls=C.legsAround(r,now-60,now+10080).filter(l=>l.seq===x.seq).sort((p,q)=>p.t-q.t);
-        const nx=ls.find(l=>l.t>=now-10)||ls[0];if(!nx)return null;const end=nx;
-        return {x,l:nx,end,lm:mod(localMin(a,nx.t),1440)};}).filter(Boolean).sort((p,q)=>p.lm-q.lm);
+      const out=abFlights(a,b);
       res=out.length?`<p class="note">${out.length} Echo flight${out.length===1?"":"s"} from ${esc(AP[a].city||a)} to ${esc(AP[b].city||b)}${out.length>150?", the first 150 by departure time":""}. Times are local.</p><ul class="rows">${out.slice(0,150).map(o=>{const l=o.l,e=o.end,r=ROT[o.x.ri];
         return `<li><button type="button" class="row two" data-leg="${l.key}">${tailSVG(r.ai)}<span><span class="rt">${esc(AL[r.ai].code)}${l.fn} · ${localTime(a,l.t)} → ${localTime(b,e.t+e.dur)}${dayTag(b,e.t+e.dur,a,l.t)}</span><span class="sub">${esc(AL[r.ai].name)} · ${esc(acName(r.ac))} · ${weekdaysOf(r,o.x.seq)}</span></span><span class="st">${dur(e.t+e.dur-l.t)}</span></button></li>`;}).join("")}</ul>`
         :`<p class="note">No Echo airline flies nonstop from ${esc(a)} to ${esc(b)}.</p>`;
@@ -1851,7 +1871,7 @@ function embCard(){
   box.hidden=false;box.querySelector(".x").onclick=()=>{S.sel=null;box.hidden=true;redraw();};
 }
 
-/* ---------- settings set on the Admin page: announcement, featured, airline fixes ---------- */
+/* ---------- settings set on the Admin page: announcement, route and airline of the week, airline fixes ---------- */
 let SETS={},FEATLEGS=[];
 async function loadSite(){try{SETS=(await rpc("echo_site_get",{},6000))||{};}catch(_){SETS={};}}
 function applyOverrides(){
@@ -1866,12 +1886,29 @@ function paintAnn(){
   e.innerHTML=`<span>${esc(a.text)}</span>${link?` <a href="${esc(link)}"${inside?"":` target="_blank" rel="noopener"`}>${inside?"Take a look":"More ↗"}</a>`:""}<button type="button" class="x" aria-label="Close the announcement">×</button>`;
   e.hidden=false;e.querySelector(".x").onclick=()=>{try{localStorage.setItem("echo_ann_x",String(a.id));}catch(_){}e.hidden=true;};
 }
-function featHtml(){
-  FEATLEGS=[];const f=SETS.featured;if(!f||!D)return "";
-  const als=(f.airlines||[]).map(u=>AL.findIndex(a=>a.uid===u)).filter(i=>i>=0&&!AL[i].hidden),{c}=counts();
-  FEATLEGS=(f.flights||[]).map(q=>{const r=(results(q)||[]).find(x=>x.leg);return r&&r.leg;}).filter(Boolean);
-  if(!als.length&&!FEATLEGS.length)return "";
-  return `<div class="bar"><h2>Featured</h2></div>${f.note?`<p class="note">${esc(f.note)}</p>`:""}<ul class="rows">${als.map(i=>`<li><button type="button" class="row" data-al="${i}">${tailSVG(i)}<span class="nm">${esc(AL[i].name)}<span>${esc(AL[i].code)}</span></span><span class="n">${c[i]?fmtN(c[i])+" up":"—"}</span></button></li>`).join("")}${FEATLEGS.map(l=>`<li>${legLine(l)}</li>`).join("")}</ul>`;
+/* Route of the week and Airline of the week, set on the Admin page */
+function weekHtml(c){
+  FEATLEGS=[];if(!D)return "";let h="";
+  const r=SETS.route_week;
+  if(r&&AP[r.from]&&AP[r.to]){
+    const out=abFlights(r.from,r.to),now=nowMin(),als=new Set(out.map(o=>ROT[o.x.ri].ai).filter(ai=>!AL[ai].hidden));
+    FEATLEGS=out.filter(o=>!AL[ROT[o.x.ri].ai].hidden&&o.l.t>now).sort((p,q)=>p.l.t-q.l.t).slice(0,3).map(o=>o.l);
+    const city=x=>esc(AP[x].city||AP[x].name),go=`#/between/${r.from}/${r.to}`;
+    h+=`<section class="wk"><div class="bar"><h2>Route of the week</h2></div>
+      <button type="button" class="wk-rt" data-go="${go}"><span><b>${r.from}</b>${city(r.from)}</span><i aria-hidden="true">→</i><span><b>${r.to}</b>${city(r.to)}</span></button>
+      ${r.note?`<p class="wk-note">${esc(r.note)}</p>`:""}
+      <p class="note">${out.length?`${fmtN(out.length)} Echo flight${out.length===1?"":"s"} by ${als.size} airline${als.size===1?"":"s"}${FEATLEGS.length?". Leaving next:":""}`:"No Echo airline flies it nonstop right now."}</p>
+      ${FEATLEGS.length?`<ul class="rows">${FEATLEGS.map(l=>`<li>${legLine(l)}</li>`).join("")}</ul>`:""}
+      ${out.length>FEATLEGS.length?`<button type="button" class="link wk-more" data-go="${go}">Every flight on this route ›</button>`:""}</section>`;
+  }
+  const w=SETS.airline_week,ai=w&&w.uid?AL.findIndex(a=>a.uid===w.uid):-1;
+  if(ai>=0&&!AL[ai].hidden){
+    const a=AL[ai],d=divOf(ai),bits=[a.aircraft?fmtN(a.aircraft)+" aircraft":"",a.routes?fmtN(a.routes)+" routes":"",(a.hubs||[]).length?"hub"+(a.hubs.length>1?"s ":" ")+a.hubs.slice(0,4).join(", ")+(a.hubs.length>4?"…":""):""].filter(Boolean);
+    h+=`<section class="wk"><div class="bar"><h2>Airline of the week</h2></div>
+      <button type="button" class="row two wk-al" data-al="${ai}">${tailSVG(ai)}<span><span class="rt">${esc(a.name)} <small>${esc(a.code)}</small></span><span class="sub">${divDot(d)} ${esc(divShort(d))}${bits.length?" · "+bits.join(" · "):""}</span></span><span class="n">${c[ai]?fmtN(c[ai])+" up":"—"}</span></button>
+      ${w.note?`<p class="wk-note">${esc(w.note)}</p>`:""}</section>`;
+  }
+  return h;
 }
 
 /* ---------- usage counts: what gets opened, by day; nothing about who ---------- */
@@ -1890,7 +1927,7 @@ async function checkAdmin(){
   if(was!==ACC.admin&&D){if(S.view==="home")renderHome();else if(S.view==="admin")renderAdmin();}
 }
 async function adm(fn,args){const {data,error}=await ACC.c.rpc(fn,args||{});if(error)throw new Error(error.message);return data;}
-const ALLDIVS=[["kyra","Kyra"],["aegis","Aegis"],["elysium","Elysium"],["proxima","Proxima"],["rhea","Rhea"],["aura","Aura"],["elion","Elion"],["vilis","Vilis"],["eos","Eos"]];
+const ALLDIVS=[["kyra","Kyra"],["aegis","Aegis"],["elysium","Elysium"],["proxima","Proxima"],["rhea","Rhea"],["vilis","Vilis"],["aura","Aura"],["elion","Elion"],["eos","Eos"]];
 const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<2?"just now":m<90?m+" minutes ago":m<36*60?Math.round(m/60)+" hours ago":Math.round(m/1440)+" days ago";};
 const whenTxt=t=>t?new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
 function renderAdmin(tab){
@@ -1900,12 +1937,12 @@ function renderAdmin(tab){
     body.innerHTML=head+`<div class="adm"><div class="card"><p>The Admin page is for the Echo Live owner. Sign in with Google as the owner's account to use it.</p>
       <div class="row2"><button type="button" class="btn prim" id="adm-in">${ACC.u?"Switch account":"Sign in"}</button></div></div></div>`;
     $("bk").onclick=()=>go("#/");$("adm-in").onclick=openAuth;sheet("open");return;}
-  const tabs=[["data","Data"],["visitors","Visitors"],["announce","Announcement"],["featured","Featured"],["airlines","Airline fixes"],["accounts","Accounts"]];
+  const tabs=[["data","Data"],["visitors","Visitors"],["announce","Announcement"],["rotw","Route of the week"],["aotw","Airline of the week"],["airlines","Airline fixes"],["accounts","Accounts"]];
   body.innerHTML=head+`<div class="adm-tabs" role="group" aria-label="Admin sections">${tabs.map(([k,n])=>`<button type="button" data-at="${k}" aria-pressed="${k===tab}">${n}</button>`).join("")}</div><div class="adm" id="admb"><p class="muted">Loading…</p></div>`;
   $("bk").onclick=()=>go("#/");
   body.querySelectorAll("[data-at]").forEach(b=>b.onclick=()=>go("#/admin/"+b.dataset.at));
   sheet(narrow()?"full":"open");
-  ({data:admData,visitors:admVisitors,announce:admAnnounce,featured:admFeatured,airlines:admAirlines,accounts:admAccounts}[tab]||admData)($("admb"));
+  ({data:admData,visitors:admVisitors,announce:admAnnounce,rotw:admRoute,aotw:admAirlineWeek,airlines:admAirlines,accounts:admAccounts}[tab]||admData)($("admb"));
 }
 const admFail=(box,e)=>{box.innerHTML=`<div class="card"><p class="bad">That didn't work.</p><p class="muted">${esc(e.message||String(e))}</p></div>`;};
 
@@ -1963,24 +2000,35 @@ function admAnnounce(box){
 
 const alPicker=(id,sel)=>`<select id="${id}"><option value="">Choose an airline…</option>${DIVS().map(d=>`<optgroup label="${esc(d.name)}">${AL.map((a,i)=>[a,i]).filter(([,i])=>i>=d.first&&i<d.first+d.count&&AL[i].uid).sort((x,y)=>x[0].name.localeCompare(y[0].name)).map(([a,i])=>`<option value="${a.uid}"${a.uid===sel?" selected":""}>${esc(a.name)} (${esc(a.code)})${a.hidden?" · hidden":""}</option>`).join("")}</optgroup>`).join("")}</select>`;
 const byUid=u=>AL.findIndex(a=>a.uid===u);
-function admFeatured(box){
-  const f=SETS.featured||{},list=(f.airlines||[]).slice();
-  const paint=()=>{
-    box.innerHTML=`<div class="card"><p class="muted">Shown on the home panel under “Featured”, above favourites.</p>
-      <label class="f" for="fe-n">Line under the heading, optional</label><input id="fe-n" type="text" maxlength="200" value="${esc(f.note||"")}" placeholder="This weekend's fly-in">
-      <label class="f">Airlines</label><div id="fe-al">${list.map(u=>{const i=byUid(u);return i<0?"":`<span class="chip">${tailSVG(i)} ${esc(AL[i].name)}<button type="button" data-rm="${u}" aria-label="Remove ${esc(AL[i].name)}">×</button></span>`;}).join("")||`<span class="muted">None</span>`}</div>
-      <div class="row2">${alPicker("fe-p")}<button type="button" class="btn" id="fe-a">Add</button></div>
-      <label class="f" for="fe-f">Flights, by number, separated by commas</label><input id="fe-f" type="text" value="${esc((f.flights||[]).join(", "))}" placeholder="SR408, CX731">
-      <div class="row2"><button type="button" class="btn prim" id="fe-s">Save</button><button type="button" class="btn" id="fe-c">Clear all</button><span id="fe-m" class="muted"></span></div></div>`;
-    box.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{list.splice(list.indexOf(b.dataset.rm),1);f.note=$("fe-n").value;f.flights=$("fe-f").value.split(",").map(x=>x.trim()).filter(Boolean);paint();});
-    $("fe-a").onclick=()=>{const u=$("fe-p").value;if(u&&!list.includes(u))list.push(u);f.note=$("fe-n").value;f.flights=$("fe-f").value.split(",").map(x=>x.trim()).filter(Boolean);paint();};
-    const msg=t=>$("fe-m").innerHTML=t;
-    $("fe-s").onclick=async()=>{const fl=$("fe-f").value.split(",").map(x=>x.trim().toUpperCase().replace(/\s+/g,"")).filter(Boolean).slice(0,12);
-      const miss=fl.filter(q=>!(results(q)||[]).some(x=>x.leg));
-      try{await admSave("featured",{note:$("fe-n").value.trim(),airlines:list.slice(0,12),flights:fl});
-        msg(`<span class="ok">Saved.</span>${miss.length?` <span class="bad">Not flying in the next two days: ${esc(miss.join(", "))}</span>`:""}`);}catch(e){msg(`<span class="bad">${esc(e.message)}</span>`);}};
-    $("fe-c").onclick=async()=>{try{await admSave("featured",null);list.length=0;f.note="";f.flights=[];paint();}catch(e){msg(`<span class="bad">${esc(e.message)}</span>`);}};
-  };paint();
+function admRoute(box){
+  const r=SETS.route_week||{};
+  box.innerHTML=`<div class="card"><p>${r.from?`On the home panel now: <b>${esc(r.from)} → ${esc(r.to)}</b>${r.note?` · “${esc(r.note)}”`:""}`:`<span class="muted">No route of the week is showing.</span>`}</p></div>
+    <div class="card"><label class="f">Route, by airport code</label>
+    <div class="ab" style="padding:0"><input id="rw-a" maxlength="3" placeholder="From" value="${esc(r.from||"")}" aria-label="From airport code" autocapitalize="characters"><span class="muted" aria-hidden="true">→</span><input id="rw-b" maxlength="3" placeholder="To" value="${esc(r.to||"")}" aria-label="To airport code" autocapitalize="characters"></div>
+    <label class="f" for="rw-n">A line about it, optional</label><input id="rw-n" type="text" maxlength="200" value="${esc(r.note||"")}" placeholder="The busiest transatlantic hop in Echo">
+    <div class="row2"><button type="button" class="btn prim" id="rw-s">Save</button>${r.from?`<button type="button" class="btn" id="rw-c">Take it down</button>`:""}<span id="rw-m" class="muted"></span></div>
+    <p class="muted" style="margin-top:8px">Shown at the top of the home panel with the next three departures and a link to every flight on the route.</p></div>`;
+  const msg=t=>$("rw-m").innerHTML=t;
+  $("rw-s").onclick=async()=>{const a=$("rw-a").value.trim().toUpperCase(),b=$("rw-b").value.trim().toUpperCase();
+    if(!AP[a]||!AP[b]){msg(`<span class="bad">${esc(!AP[a]?a||"From":b||"To")} isn't an airport any Echo airline flies to.</span>`);return;}
+    if(a===b){msg(`<span class="bad">Pick two different airports.</span>`);return;}
+    const n=abFlights(a,b).length;
+    try{await admSave("route_week",{from:a,to:b,note:$("rw-n").value.trim()});admRoute(box);
+      $("rw-m").innerHTML=`<span class="ok">Saved.</span> ${n?`${fmtN(n)} Echo flights fly it.`:`<span class="bad">No Echo airline flies it nonstop right now.</span>`}`;}catch(e){msg(`<span class="bad">${esc(e.message)}</span>`);}};
+  if($("rw-c"))$("rw-c").onclick=async()=>{try{await admSave("route_week",null);admRoute(box);}catch(e){msg(`<span class="bad">${esc(e.message)}</span>`);}};
+}
+
+function admAirlineWeek(box){
+  const w=SETS.airline_week||{},ai=w.uid?byUid(w.uid):-1;
+  box.innerHTML=`<div class="card"><p>${ai>=0?`On the home panel now: ${tailSVG(ai)} <b>${esc(AL[ai].name)}</b>${w.note?` · “${esc(w.note)}”`:""}${AL[ai].hidden?` <span class="bad">(hidden under Airline fixes, so not showing)</span>`:""}`:`<span class="muted">No airline of the week is showing.</span>`}</p></div>
+    <div class="card"><label class="f" for="aw-p">Airline</label>${alPicker("aw-p",w.uid)}
+    <label class="f" for="aw-n">A line about it, optional</label><input id="aw-n" type="text" maxlength="200" value="${esc(w.note||"")}" placeholder="Just passed 100 aircraft">
+    <div class="row2"><button type="button" class="btn prim" id="aw-s">Save</button>${ai>=0?`<button type="button" class="btn" id="aw-c">Take it down</button>`:""}<span id="aw-m" class="muted"></span></div>
+    <p class="muted" style="margin-top:8px">Shown on the home panel with its tail, division, fleet, routes and hubs.</p></div>`;
+  const msg=t=>$("aw-m").innerHTML=t;
+  $("aw-s").onclick=async()=>{const u=$("aw-p").value;if(!u){msg(`<span class="bad">Choose an airline first.</span>`);return;}
+    try{await admSave("airline_week",{uid:u,note:$("aw-n").value.trim()});admAirlineWeek(box);$("aw-m").innerHTML=`<span class="ok">Saved.</span>`;}catch(e){msg(`<span class="bad">${esc(e.message)}</span>`);}};
+  if($("aw-c"))$("aw-c").onclick=async()=>{try{await admSave("airline_week",null);admAirlineWeek(box);}catch(e){msg(`<span class="bad">${esc(e.message)}</span>`);}};
 }
 
 function admAirlines(box){
