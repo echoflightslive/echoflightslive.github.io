@@ -2623,12 +2623,12 @@ function renderAdmin(tab){
     body.innerHTML=head+`<div class="adm"><div class="card"><p>The Admin page is for the Echo Live owner. Sign in with Google as the owner's account to use it.</p>
       <div class="row2"><button type="button" class="btn prim" id="adm-in">${ACC.u?"Switch account":"Sign in"}</button></div></div></div>`;
     $("bk").onclick=()=>go("#/");$("adm-in").onclick=openAuth;sheet("open");return;}
-  const tabs=[["data","Data"],["visitors","Visitors"],["announce","Announcement"],["rotw","Route of the week"],["aotw","Airline of the week"],["airlines","Airline fixes"],["accounts","Accounts"]];
+  const tabs=[["data","Data"],["visitors","Visitors"],["announce","Announcement"],["rotw","Route of the week"],["aotw","Airline of the week"],["airlines","Airline fixes"],["discord","Discord"],["accounts","Accounts"]];
   body.innerHTML=head+`<div class="adm-tabs" role="group" aria-label="Admin sections">${tabs.map(([k,n])=>`<button type="button" data-at="${k}" aria-pressed="${k===tab}">${n}</button>`).join("")}</div><div class="adm" id="admb"><p class="muted">Loading…</p></div>`;
   $("bk").onclick=()=>go("#/");
   body.querySelectorAll("[data-at]").forEach(b=>b.onclick=()=>go("#/admin/"+b.dataset.at));
   sheet(narrow()?"full":"open");
-  ({data:admData,visitors:admVisitors,announce:admAnnounce,rotw:admRoute,aotw:admAirlineWeek,airlines:admAirlines,accounts:admAccounts}[tab]||admData)($("admb"));
+  ({data:admData,visitors:admVisitors,announce:admAnnounce,rotw:admRoute,aotw:admAirlineWeek,airlines:admAirlines,discord:admDiscord,accounts:admAccounts}[tab]||admData)($("admb"));
 }
 const admFail=(box,e)=>{box.innerHTML=`<div class="card"><p class="bad">That didn't work.</p><p class="muted">${esc(e.message||String(e))}</p></div>`;};
 
@@ -2738,6 +2738,44 @@ function admAirlines(box){
       if(Object.keys(y).length)ov[sel]=y;else delete ov[sel];done();};
     if($("ax-u"))$("ax-u").onclick=()=>{delete ov[sel];done();};
   };paint();
+}
+
+/* Discord: the three webhook channels, test posts, and whether the bot's minute job is running.
+   Saved webhook addresses never come back to the page; Supabase only says whether one is set. */
+const BOT_URL="https://lqdgdkksdccpeorxedbl.supabase.co/functions/v1/echo-bot";
+const HOOKS=[["daily","Morning post","Every day at 13:00 UTC: flights in the air, today's records and the busiest airport."],
+  ["alerts","Disruption alerts","Bad weather on top of busy queues at one of the 150 busiest airports. Two at a time at most, and once every 6 hours per airport."],
+  ["news","What's new","When a new timetable lands, and when you change Route or Airline of the week."]];
+async function admDiscord(box){
+  let s;try{s=await adm("echo_admin_discord_get");}catch(e){admFail(box,e);return;}
+  const st=s.state||{},errs=st.errs||{},run=st.last&&Date.now()-st.last<5*6e4;
+  box.innerHTML=`<div class="card"><p><b>Bot</b>: ${run?`<span class="ok">running</span>, last check ${ago(st.last)}`:st.last?`<span class="bad">stopped</span>, last check ${ago(st.last)}`:`<span class="muted">hasn't run yet</span>`}</p>
+    <p class="muted">${s.stats_at?`Records last counted ${ago(s.stats_at)}.`:"Records start counting once a webhook is saved or the bot is added to the server."}${s.tracks?` ${fmtN(s.tracks)} flight${s.tracks===1?"":"s"} being tracked.`:""}</p></div>
+    ${HOOKS.map(([k,n,d])=>`<div class="card"><p><b>${n}</b> · ${s[k]?`<span class="ok">connected</span>`:`<span class="muted">not set</span>`}</p><p class="muted">${d}</p>
+      ${errs[k]?`<p class="bad">Last post failed ${ago(errs[k].at)}: ${esc(/404/.test(errs[k].msg)?"Discord says this webhook doesn't exist any more. Make a new one and save it here.":errs[k].msg)}</p>`:""}
+      <label class="f" for="dh-${k}">${s[k]?"Swap in a different webhook":"Webhook address"}</label><input id="dh-${k}" type="url" autocomplete="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/…">
+      <div class="row2"><button type="button" class="btn prim" data-hs="${k}">Save</button>${s[k]?`<button type="button" class="btn" data-ht="${k}">Send a test post</button><button type="button" class="btn" data-hr="${k}">Remove</button>`:""}<span id="dm-${k}" class="muted"></span></div></div>`).join("")}
+    <h3>Slash commands</h3>
+    <div class="card"><p>/flight, /airport, /airline, /records and /track work once the server's devs have made the Discord app and put its keys in Supabase. The address Discord needs for it:</p>
+      <p><code style="font-size:12px;word-break:break-all">${BOT_URL}</code></p>
+      <div class="row2"><button type="button" class="btn" id="dc-copy">Copy address</button><a class="btn" href="${BOT_URL}?job=register" target="_blank" rel="noopener">Register the commands ↗</a></div>
+      <p class="muted" style="margin-top:8px">Register again whenever the commands change. It's safe to press more than once.</p></div>
+    <p class="muted">In Discord: channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL.</p>`;
+  const msg=(k,t)=>$("dm-"+k).innerHTML=t;
+  box.querySelectorAll("[data-hs]").forEach(b=>b.onclick=async()=>{const k=b.dataset.hs,u=$("dh-"+k).value.trim();
+    if(!u){msg(k,`<span class="bad">Paste the webhook address first.</span>`);return;}
+    if(!/^https:\/\/(canary\.|ptb\.)?(discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(u)){msg(k,`<span class="bad">That isn't a Discord webhook address.</span>`);return;}
+    try{await adm("echo_admin_discord_set",{p_kind:k,p_url:u});await admDiscord(box);msg(k,`<span class="ok">Saved.</span> Send a test post to check it.`);}catch(e){msg(k,`<span class="bad">${esc(e.message)}</span>`);}});
+  box.querySelectorAll("[data-hr]").forEach(b=>b.onclick=async()=>{const k=b.dataset.hr;
+    try{await adm("echo_admin_discord_set",{p_kind:k,p_url:""});await admDiscord(box);msg(k,"Removed.");}catch(e){msg(k,`<span class="bad">${esc(e.message)}</span>`);}});
+  box.querySelectorAll("[data-ht]").forEach(b=>b.onclick=async()=>{const k=b.dataset.ht,t0=Date.now();b.disabled=true;
+    try{await adm("echo_admin_discord_test",{p_kind:k});msg(k,"Sending. The bot checks once a minute…");
+      for(let i=0;i<20;i++){await new Promise(z=>setTimeout(z,5000));if(!$("dm-"+k))return;
+        const t=((await adm("echo_admin_discord_get")).state||{}).test;
+        if(t&&t.k===k&&t.at>=t0-2000){msg(k,t.ok?`<span class="ok">Posted.</span> Check the channel.`:`<span class="bad">Didn't go through: ${esc(/404/.test(t.msg)?"Discord says this webhook doesn't exist any more.":t.msg)}</span>`);b.disabled=false;return;}}
+      msg(k,`<span class="bad">No answer from the bot yet.</span> If it says stopped above, its minute job isn't running.`);}catch(e){msg(k,`<span class="bad">${esc(e.message)}</span>`);}
+    b.disabled=false;});
+  $("dc-copy").onclick=async()=>{try{await navigator.clipboard.writeText(BOT_URL);toast("Address copied");}catch(_){toast("Select the address and copy it.");}};
 }
 
 function admAccounts(box){
