@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Echo Live</title>
 <meta name="description" content="Live map of Echo United Alliances flights, worked out from the game's timetables.">
 <meta name="theme-color" content="#07060c">
@@ -28,6 +28,15 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--night);color:var(--ink);font:15px/1.45 var(--ui);font-variant-numeric:tabular-nums}
+/* phones: pinching or double-tapping anywhere outside the map must never zoom the page itself
+   (the map has its own pinch zoom). Panels still scroll. Text boxes are 16px on touch screens,
+   because an iPhone zooms the whole page into any smaller box you tap. */
+html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media (pointer:coarse){input,select,textarea{font-size:16px!important}
+  /* touch screens: small buttons get room for a finger */
+  #body .chips{gap:7px}#body .chips .chip{padding:5px 9px;font-size:13px}
+  .fc-al,.fc-reg button{padding-top:4px;padding-bottom:4px;min-height:30px}
+  #abs{min-width:40px;min-height:36px}}
 button,input{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--kyra);outline-offset:2px}
@@ -50,7 +59,10 @@ button{cursor:pointer}
 .head{padding:14px 18px 12px;border-bottom:1px solid var(--rule)}
 .acct{margin-left:auto;align-self:center;flex:none;background:none;border:1px solid var(--rule);border-radius:999px;padding:4px 11px;font:600 13px var(--ui);color:var(--kyra-ink);white-space:nowrap}
 .acct:hover{border-color:var(--kyra)}
-.acct.in{padding:0;width:30px;height:30px;border:0;background:var(--grad);color:#fff;font:600 14px/30px var(--ui);text-align:center}
+.acct.in{padding:0;width:30px;height:30px;border:0;background:var(--grad);color:#fff;font:600 14px/30px var(--ui);text-align:center;overflow:hidden}
+.acct.in img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+#auth-who img{width:36px;height:36px;border-radius:50%;object-fit:cover;float:left;margin:2px 10px 4px 0}
+#auth-who::after{content:"";display:block;clear:both}
 #auth{position:fixed;inset:0;z-index:2500;background:rgba(10,12,24,.55);display:flex;align-items:center;justify-content:center;padding:16px}
 #auth[hidden]{display:none}
 .authbox{position:relative;width:100%;max-width:380px;max-height:calc(100% - 8px);overflow:auto;background:radial-gradient(120% 60% at 0% 0%,rgba(124,58,237,.22),transparent 65%),var(--paper);border:1px solid rgba(168,85,247,.2);color:var(--ink);border-radius:10px;padding:22px 22px 18px;box-shadow:0 18px 40px rgba(5,8,20,.45)}
@@ -258,6 +270,8 @@ figure.hourc .hb:hover path{opacity:1}
 #lybtn[aria-expanded="true"]{background:#2a1d45;border-color:var(--kyra)}
 #layers{width:290px;background:var(--paper);border:1px solid rgba(168,85,247,.18);border-radius:10px;padding:10px 14px 8px;box-shadow:0 10px 28px rgba(0,0,0,.55)}
 #layers .seg{box-shadow:none;background:var(--paper2);margin:4px 0 8px;display:inline-flex}
+/* Settings → Text size: the panel's text and the pop-up boxes grow or shrink together (layout follows) */
+#panel .head,#body,#panel .foot,#pop,#layers,#cam,#auth .authbox{zoom:var(--tz,1)}
 .ly-h{margin:0;font-size:13px;color:var(--muted)}
 .ly{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--rule);font-size:14.5px;cursor:pointer}
 .ly input{width:17px;height:17px;accent-color:var(--kyra);margin:0}
@@ -387,8 +401,8 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
 
 @media (max-width:760px){
   #panel{left:0;right:0;top:auto;bottom:0;width:auto;height:calc(138px + env(safe-area-inset-bottom));border-radius:14px 14px 0 0;transition:height .25s ease;padding-bottom:env(safe-area-inset-bottom)}
-  #panel.open{height:68vh}
-  #panel.full{height:88vh}
+  #panel.open{height:var(--sheet-open,68vh)}
+  #panel.full{height:var(--sheet-full,88vh)}
   #handle{display:block;width:100%;height:26px;border:0;background:none;position:relative;flex:none;touch-action:none}
   #handle::after{content:"";position:absolute;left:50%;top:10px;width:44px;height:5px;margin-left:-22px;border-radius:3px;background:#4a3f66}
   .head{padding:0 16px 10px;touch-action:none;cursor:grab}
@@ -417,6 +431,27 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
 
 /* ---------- most tracked / disruptions ---------- */
 .lv{display:flex;flex-direction:column;gap:6px;padding:10px 12px 4px}
+/* News: the stories the Discord bot posts, as cards */
+.ds-q{display:block;margin:4px 18px 8px}
+.ds-list{margin:0 0 6px}
+.ds-card{margin:4px 12px 4px}.ds-card .dl{border-color:rgba(168,85,247,.45)}
+.ds-sum{margin:6px 6px 4px;font-size:13px;color:var(--muted)}
+.ap-ds{margin:2px 12px 12px;padding:10px 12px;background:var(--card);border:1px solid var(--rule);border-radius:8px}
+.ap-ds-h{display:flex;align-items:center;gap:8px;font-size:14px}.ap-ds-h i{width:10px;height:10px;border-radius:50%;flex:none}.ap-ds-h span{margin-left:auto;color:var(--muted);font-size:12.5px;text-align:right}
+.ap-ds-g{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 6px}
+.ap-ds-g small{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:12px}.ap-ds-g small svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ap-ds-g b{display:block;font:700 22px/1.2 var(--mono)}.ap-ds-g b em{font-style:normal;font-size:13px;color:var(--muted);margin-left:2px}
+.ap-ds-g span{display:block;font-size:12.5px;color:var(--muted)}
+.ap-ds-w{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 6px;font-size:12.5px;color:var(--muted)}.ap-ds-w:empty{display:none}
+.ap-ds-bad{color:#f5c542}
+.nw-day{margin:14px 18px 6px;font:600 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.nw{display:block;width:calc(100% - 24px);margin:0 12px 8px;text-align:left;background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--nc,var(--kyra));border-radius:8px;padding:10px 12px;color:var(--ink);font:inherit}
+button.nw:hover{border-color:rgba(168,85,247,.45);border-left-color:var(--nc,var(--kyra))}
+.nw h3{margin:0 0 4px;font:600 15px/1.3 var(--ui)}
+.nw p{margin:0;color:#cfc8e6;font-size:13.5px;line-height:1.45;overflow-wrap:anywhere}
+.nw dl{margin:8px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px 12px;font-size:13px}
+.nw dt{color:var(--muted);font-size:12px}.nw dd{margin:0;overflow-wrap:anywhere}
+.nw .nw-t{display:block;margin-top:6px;color:var(--muted);font-size:12px}
 .lv-b{display:flex;align-items:center;gap:9px;width:100%;padding:10px 12px;background:linear-gradient(90deg,rgba(124,58,237,.2),rgba(124,58,237,.04)),var(--card);border:1px solid rgba(168,85,247,.22);border-radius:9px;color:var(--ink);font:600 15px var(--ui);text-align:left}
 .lv-b:hover{border-color:rgba(192,132,252,.6)}
 .lv-b svg{width:18px;height:18px;fill:none;stroke:var(--kyra-ink);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -536,11 +571,14 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
     <label class="ly"><input type="checkbox" data-ly="clouds"> Clouds <small>NASA satellite, last full day</small></label>
     <label class="ly"><input type="checkbox" data-ly="heat"> Traffic heatmap <small>when zoomed out</small></label>
     <label class="ly"><input type="checkbox" data-ly="ground"> Planes on the ground</label>
+    <label class="ly"><input type="checkbox" data-ly="dis"> Disruptions <small>rings round airports with long queues or holds</small></label>
     <label class="ly"><input type="checkbox" data-ly="light"> Light map</label>
     <p class="ly-h" style="margin-top:8px">Units</p>
     <div class="un">Distance <div class="seg" role="group" aria-label="Distance in"><button type="button" data-un="d" data-v="km">km</button><button type="button" data-un="d" data-v="mi">mi</button><button type="button" data-un="d" data-v="nm">nm</button></div></div>
     <div class="un">Altitude <div class="seg" role="group" aria-label="Altitude in"><button type="button" data-un="a" data-v="ft">ft</button><button type="button" data-un="a" data-v="m">m</button></div></div>
     <div class="un">Speed <div class="seg" role="group" aria-label="Speed in"><button type="button" data-un="s" data-v="kts">kts</button><button type="button" data-un="s" data-v="kmh">km/h</button><button type="button" data-un="s" data-v="mph">mph</button></div></div>
+    <p class="ly-h" style="margin-top:8px">Text size</p>
+    <div class="seg" role="group" aria-label="Text size"><button type="button" data-ts="s">Small</button><button type="button" data-ts="n">Normal</button><button type="button" data-ts="l">Large</button><button type="button" data-ts="x">Larger</button></div>
   </div>
   <div id="pop" hidden></div>
   <div class="hud-btns"><button type="button" id="tshow" hidden aria-label="Show the time controls">Time</button><button type="button" id="lybtn" aria-expanded="false" aria-controls="layers">Map layers</button></div>
@@ -593,6 +631,15 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
   <p class="msg" id="auth-m" role="status"></p>
 </div></div>
 
+<script>
+/* phones: Safari's own pinch gesture would zoom the page (the map handles its pinch with touch events,
+   so this doesn't affect it). If the page does end up zoomed (an older iPhone, a text box), it's put back. */
+(()=>{const stop=e=>e.preventDefault();["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,stop,{passive:false}));
+  const vv=window.visualViewport,meta=document.querySelector('meta[name="viewport"]');if(!vv||!meta)return;let busy=0;
+  const reset=()=>{if(busy||vv.scale<=1.01)return;const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;
+    busy=1;const c=meta.content;meta.content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover";setTimeout(()=>{meta.content=c;busy=0;},300);};
+  vv.addEventListener("resize",reset);document.addEventListener("focusout",()=>setTimeout(reset,350));})();
+</script>
 <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -757,7 +804,9 @@ function CORE(D,RW){
      shortest way from the stand to the take-off runway's end; arrivals turn off at the first
      exit at least 1.1 km down the landing runway and taxi the shortest way to their stand. */
   const GROUND={};
-  function setGround(obj){for(const c in obj){GROUND[c]=obj[c];GEO.delete(c);}LEG.clear();}
+  /* forget the worked-out paths of flights to or from these airports (nothing else depends on them) */
+  function dropLegs(codes){const s=new Set(codes);for(const [k,G] of LEG)if(s.has(G.fa)||s.has(G.fb))LEG.delete(k);}
+  function setGround(obj){for(const c in obj){GROUND[c]=obj[c];GEO.delete(c);}dropLegs(Object.keys(obj));}
   function realOf(g,c){
     if(g.R!==undefined)return g.R;g.R=null;const d=GROUND[c];if(!d)return null;
     const n=(d.n||[]).length/2,X=new Float64Array(n),Y=new Float64Array(n);for(let i=0;i<n;i++){X[i]=d.n[2*i];Y[i]=d.n[2*i+1];}
@@ -827,16 +876,46 @@ function CORE(D,RW){
     const top=m=>{let k=null,v=0;for(const [x,y] of m)if(y>v){v=y;k=x;}return [k,v];};
     const [rk,rn]=top(rt),[ak,an]=top(apd),[lk,ln]=top(ald);
     return {k:D,n,route:rk==null?[null,0]:[APX[Math.floor(rk/65536)]+"-"+APX[rk%65536],rn],ap:[ak==null?null:APX[ak],an],al:[lk,ln]};}
+  /* The worker's scan: which flights are on the map now, which aircraft are flying, and where the rest
+     last landed. Each route's start times on a day (local booking turned into UTC, daylight saving
+     included) are worked out once per day and kept, so a rescan only builds legs for flights near now. */
+  const TPD=new Map();let GMA=null,GMB=null;
+  function tpl(d){let t=TPD.get(d);if(t)return t;const n=ROT.length,A=new Int16Array(n),Cc=new Int16Array(n);
+    if(!GMA){GMA=new Int16Array(n);GMB=new Int16Array(n);for(const r of ROT){GMA[r.i]=groundMin(r.A,r.B);if(r.C)GMB[r.i]=groundMin(r.B,r.C);}}
+    for(const r of ROT){A[r.i]=fromLocal(r.A,d,r.ts)-d*1440;if(r.C)Cc[r.i]=fromLocal(r.B,d,r.cts)-d*1440;}
+    t={A,C:Cc};TPD.set(d,t);return t;}
+  function scanAt(now){
+    const day=Math.floor(now/1440),out=[],last=new Map(),air=new Set(),T=[];
+    for(const k of TPD.keys())if(k<day-3||k>day+1)TPD.delete(k);
+    for(let d=day-3;d<=day+1;d++)T.push(tpl(d));
+    for(const r of ROT){for(let d=day-3;d<=day+1;d++){
+      if(!runsOn(r,d))continue;const tp=T[d-day+3],t0=tp.A[r.i]+d*1440;if(t0>now+60||t0<now-4320)continue;
+      let L=null;
+      const leg=(seq,t,dur,to)=>{const near=t-25<now+30&&t+dur+25>now;let l=null;
+        if(near){if(!L)L=legsOf(r,d);l=L.find(x=>x.seq===seq);out.push(l);}
+        const w=near&&t-25<=now?legWin(l):null;
+        if(w&&w[0]<=now&&now<w[1]){if(r.ac>=0)air.add(r.ac);}
+        else if(r.ac>=0&&t+dur<=now){const a=t+dur,p=last.get(r.ac);if(!p||a>p[0])last.set(r.ac,[a,to]);}};
+      leg(0,t0,r.dur,r.B);let back;
+      if(r.C){const c0=tp.C[r.i]+d*1440,c1=c0+r.cdur;leg(1,c0,r.cdur,r.C);
+        const k0=c1+GMB[r.i]+(r.turn||0)+(r.cturn||0);leg(2,k0,r.cidur||r.cdur,r.B);back=k0+(r.cidur||r.cdur)+60;}
+      else back=t0+r.dur+GMA[r.i]+(r.turn||0);
+      leg(3,back,r.idur||r.dur,r.A);}}
+    return {out,last,air};}
   const tabs=()=>!!DLY;   // built once by the worker after the first positions are out, then shared with the page   // the page gets the tables from the worker
   const dly=l=>tabs()?DLY[l.r.i*4+l.seq]/10:0,aof=l=>tabs()?AOF[l.r.i*4+l.seq]/100:0,hld=l=>tabs()?HLD[l.r.i*4+l.seq]:0;
   /* where along its airborne path (0..1) a flight is, from the share of its booked time gone */
   function airFrac(l,f){const w=dly(l),d=l.dur-w+aof(l);return pathFrac(Math.max(0,Math.min(1,(f*l.dur-w)/d)),d);}
   /* from P flying along unit vector u, bank round (radius R metres) until the nose points at T:
      the arc's points, P first. Gives up after 270 degrees (T inside the circle). */
-  function turnTo(P,u,T,R){const pts=[P],st=5*D2R;let x=P[0],y=P[1],hx=u[0],hy=u[1];
+  const TST=5*D2R,TCP=Math.cos(TST),TSP=Math.sin(TST),TCN=Math.cos(-TST),TSN=Math.sin(-TST),TSH=Math.sin(TST/2);
+  function turnTo(P,u,T,R){const pts=[P],st=TST,chF=2*R*TSH;let x=P[0],y=P[1],hx=u[0],hy=u[1];
     for(let i=0;i<54;i++){const tx=T[0]-x,ty=T[1]-y;if(Math.hypot(tx,ty)<R*.5)break;
-      const ang=Math.atan2(hx*ty-hy*tx,hx*tx+hy*ty);if(Math.abs(ang)<=st/2)break;
-      const s=Math.sign(ang)*Math.min(st,Math.abs(ang)),nx=hx*Math.cos(s)-hy*Math.sin(s),ny=hx*Math.sin(s)+hy*Math.cos(s),ch=2*R*Math.sin(Math.abs(s)/2),m=Math.hypot(hx+nx,hy+ny)||1;
+      const ang=Math.atan2(hx*ty-hy*tx,hx*tx+hy*ty),aa=Math.abs(ang);if(aa<=st/2)break;
+      let cs,sn,ch;
+      if(aa>=st){if(ang>0){cs=TCP;sn=TSP;}else{cs=TCN;sn=TSN;}ch=chF;}   // a full 5 degree step: the same numbers as below, worked out once
+      else{const s=Math.sign(ang)*aa;cs=Math.cos(s);sn=Math.sin(s);ch=2*R*Math.sin(Math.abs(s)/2);}
+      const nx=hx*cs-hy*sn,ny=hx*sn+hy*cs,m=Math.hypot(hx+nx,hy+ny)||1;
       x+=(hx+nx)/m*ch;y+=(hy+ny)/m*ch;hx=nx;hy=ny;pts.push([x,y]);}
     return pts;}
   /* a point in an airport's local metres standing in for somewhere far away: same bearing, at most 150 km */
@@ -844,7 +923,7 @@ function CORE(D,RW){
   /* a holding pattern: from P along u, laps of two straight legs and two right-hand half turns, back to P */
   function racetrack(P,u,Ls,Rh,laps){const pts=[P];let x=P[0],y=P[1],hx=u[0],hy=u[1];
     const fwd=()=>{x+=hx*Ls;y+=hy*Ls;pts.push([x,y]);},s=-10*D2R,ch=2*Rh*Math.sin(5*D2R);
-    const turn=()=>{for(let i=0;i<18;i++){const nx=hx*Math.cos(s)-hy*Math.sin(s),ny=hx*Math.sin(s)+hy*Math.cos(s),m=Math.hypot(hx+nx,hy+ny)||1;x+=(hx+nx)/m*ch;y+=(hy+ny)/m*ch;hx=nx;hy=ny;pts.push([x,y]);}};
+    const cs=Math.cos(s),sn=Math.sin(s),turn=()=>{for(let i=0;i<18;i++){const nx=hx*cs-hy*sn,ny=hx*sn+hy*cs,m=Math.hypot(hx+nx,hy+ny)||1;x+=(hx+nx)/m*ch;y+=(hy+ny)/m*ch;hx=nx;hy=ny;pts.push([x,y]);}};
     for(let k=0;k<laps;k++){fwd();turn();fwd();turn();}
     return pts;}
   const plen=p=>{let t=0;for(let i=1;i<p.length;i++)t+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);return t;};
@@ -855,7 +934,7 @@ function CORE(D,RW){
     let G=LEG.get(l.key);if(G)return G;
     const gA=apGeo(l.from),gB=apGeo(l.to),A=AP[l.from],B=AP[l.to],who=l.r.ac>=0?l.r.ac:"r"+l.r.i;
     const sc=Math.min(1,km(l.from,l.to)*1000*.5/25000);   // short hops get a shorter climb-out and final
-    G={t0:l.t,t1:l.t+l.dur,gA,gB,climb:null,fin:null};
+    G={t0:l.t,t1:l.t+l.dur,gA,gB,climb:null,fin:null,fa:l.from,fb:l.to};
     let dR=null,pathA=null,rsA=null,E=null,LOF=null,aR=null,pathB=null,rsB=null,FAF=null,TD=null,ex=null;
     if(gA){rsA=realStand(gA,l.from,who);const sp=rsA?[rsA.st[0],rsA.st[1]]:standOf(gA,who).p;let best=Infinity;
       const opt=gA.deps.map((rw,k)=>{let cst,p=null;
@@ -939,7 +1018,7 @@ function CORE(D,RW){
     if(now<l.t+dly(l)&&G.out){[...G.push.pts,...G.out.pts.slice(1),...G.roll.pts.slice(1)].forEach(p=>{const q=G.gA.ll(p[0],p[1]);pts.push([q[1],q[0]]);});}
     else if(now>l.t+l.dur+aof(l)&&G.ro){[...G.ro.pts,...G.inn.pts.slice(1)].forEach(p=>{const q=G.gB.ll(p[0],p[1]);pts.push([q[1],q[0]]);});}
     return pts;}
-  return {AP,ROT,off,offAt,fromLocal,km,legsOf,legsAround,legAt,runsOn,phases,pathFrac,airFrac,dly,aof,holding,dayStats,setWind:o=>{for(const c in o){WIND[c]=o[c];GEO.delete(c);}LEG.clear();},
+  return {AP,ROT,off,offAt,fromLocal,km,legsOf,legsAround,legAt,runsOn,phases,pathFrac,airFrac,dly,aof,holding,dayStats,setWind:o=>{for(const c in o){WIND[c]=o[c];GEO.delete(c);}dropLegs(Object.keys(o));},scanAt,
     rwyUse:c=>{const g=apGeo(c);return g?{d:[...new Set(g.deps.map(e=>e.id).filter(Boolean))],a:[...new Set(g.arrs.map(e=>e.id).filter(Boolean))],w:WIND[c]||null}:null;},buildDly,dlyTable:()=>({d:DLY,a:AOF,h:HLD}),setDly:o=>{DLY=o.d;AOF=o.a;HLD=o.h;LEG.clear();},est,gcSetup,gcAt,bearing,apGeo,standPos,legGeo,legWin,posAt,airLine,taxiLine,apLines,prune,setGround,hashStr,hasGround:c=>!!GROUND[c],hasRunways:()=>Object.keys(RWD).length>0};
 }
 
@@ -948,16 +1027,10 @@ function CORE(D,RW){
    them along. The page only receives the finished positions. */
 function WORKER(){
   let C=null,legs=[],lastScan=0,ground=null;
+  let ready=false,pending=null;
   function scan(now){
-    const day=Math.floor(now/1440),out=[],last=new Map(),air=new Set();
     /* a flight is on the map from pushback to parking: up to about 25 minutes either side of the flight itself */
-    for(const r of C.ROT){for(let d=day-3;d<=day+1;d++){
-      if(!C.runsOn(r,d))continue;const t0=C.fromLocal(r.A,d,r.ts);if(t0>now+60||t0<now-4320)continue;
-      for(const l of C.legsOf(r,d)){
-        const near=l.t-25<now+30&&l.t+l.dur+25>now;if(near)out.push(l);
-        const w=near&&l.t-25<=now?C.legWin(l):null;
-        if(w&&w[0]<=now&&now<w[1]){if(r.ac>=0)air.add(r.ac);}
-        else if(r.ac>=0&&l.t+l.dur<=now){const a=l.t+l.dur,p=last.get(r.ac);if(!p||a>p[0])last.set(r.ac,[a,l.to]);}}}}
+    const sc=C.scanAt(now),out=sc.out,last=sc.last,air=sc.air;
     const keep=new Set(out.map(l=>l.key));C.prune(keep);
     /* an aircraft that isn't flying is parked where its last flight landed */
     ground={};for(const [ac,[,ap]] of last){if(!air.has(ac))(ground[ap]=ground[ap]||[]).push(ac);}
@@ -975,9 +1048,30 @@ function WORKER(){
       const e=C.est(l,fr);alt[i]=e.alt;gr[i]=e.ground?1:0;ri[i]=l.r.i;day[i]=l.day;seq[i]=l.seq;ai[i]=l.r.ai;});
     const gnd=ground;ground=null;
     postMessage({n,now,la,lo,brg,f,wx,wy,alt,ri,day,seq,ai,gr,ground:gnd},[la.buffer,lo.buffer,brg.buffer,f.buffer,wx.buffer,wy.buffer,alt.buffer,ri.buffer,day.buffer,seq.buffer,ai.buffer,gr.buffer]);}
+  /* the take-off queue and landing tables depend only on the timetable, the runways and the UTC day,
+     so they're kept in this browser (IndexedDB) and reused on the next visit that day */
+  const TV="q1";
+  function fp(D,RW){let h=2166136261;const add=t=>{for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619);}};
+    add(TV+"|"+Math.floor(Date.now()/864e5)+"|"+(D.id||"")+"|"+(D.captured||"")+"|"+D.rot.length+"|"+JSON.stringify(D.news||[]).length);for(let i=0;i<D.rot.length;i+=97)add(JSON.stringify(D.rot[i]));
+    const rw=(RW&&RW.rw)||{},ks=Object.keys(rw);add(ks.length+"|");for(let i=0;i<ks.length;i+=7)add(ks[i]+JSON.stringify(rw[ks[i]]));return TV+"-"+(h>>>0).toString(36)+"-"+D.rot.length;}
+  function idb(fn){return new Promise(res=>{try{if(typeof indexedDB==="undefined"){res(null);return;}const r=indexedDB.open("echo-live-calc",1);
+    r.onupgradeneeded=()=>r.result.createObjectStore("t");r.onerror=()=>res(null);
+    r.onsuccess=()=>{const db=r.result;try{fn(db,v=>{res(v);db.close();});}catch(_){res(null);db.close();}};}catch(_){res(null);}});}
+  const cacheGet=key=>Promise.race([idb((db,done)=>{const q=db.transaction("t").objectStore("t").get("tables");q.onsuccess=()=>done(q.result&&q.result.key===key?q.result:null);q.onerror=()=>done(null);}),
+    new Promise(r=>setTimeout(()=>r(null),2500))]);
+  const cachePut=(key,t)=>idb((db,done)=>{const tx=db.transaction("t","readwrite");tx.objectStore("t").put({key,d:t.d,a:t.a,h:t.h},"tables");tx.oncomplete=()=>done(true);tx.onerror=()=>done(false);});
+  async function init(m){
+    C=CORE(m.data,m.rw);lastScan=0;let key=null,t=null;
+    try{key=fp(m.data,m.rw);t=await cacheGet(key);}catch(_){t=null;}
+    if(t&&t.d&&t.d.length===C.ROT.length*4)C.setDly({d:t.d,a:t.a,h:t.h});
+    else{postMessage({stage:"Working out the take-off queues…"});C.buildDly();t=C.dlyTable();C.setDly(t);if(key)cachePut(key,t);}
+    postMessage({dly:{d:t.d,a:t.a,h:t.h}});
+    if(m.wind&&Object.keys(m.wind).length)C.setWind(m.wind);
+    postMessage({stage:"Placing the planes…"});
+    ready=true;place(pending!=null?pending:m.now);pending=null;}
   onmessage=e=>{const m=e.data;
-    if(m.data){C=CORE(m.data,m.rw);lastScan=0;place(m.now);
-      setTimeout(()=>{C.buildDly();const t=C.dlyTable();C.setDly(t);postMessage({dly:t});lastScan=0;},30);}
+    if(m.data){init(m);}
+    else if(m.now&&C&&!ready){pending=m.now;}
     else if(m.ground&&C){C.setGround(m.ground);}
     else if(m.wind&&C){C.setWind(m.wind);lastScan=0;}
     else if(m.stats!=null&&C){postMessage({stats:C.dayStats(m.stats)});}
@@ -1050,7 +1144,7 @@ const divDot=d=>`<i class="dvdot" style="background:${d.color}"></i>`;
 function curDiv(){if(!S.filter.size)return null;for(const d of DIVS())if(S.filter.size===d.count&&[...S.filter].every(i=>i>=d.first&&i<d.first+d.count))return d;return null;}
 function setDiv(code){S.filter.clear();const d=DIVS().find(x=>x.code===code);if(d)for(let i=d.first;i<d.first+d.count;i++)S.filter.add(i);
   updateCount();redraw();}
-const S={type:null,n:0,P:null,sel:null,follow:false,filter:new Set(),col:"airline",view:"home",leg:null,off:0,ground:{},net:null,me:null,d3:false,day:null,ly:{night:true,rain:false,heat:false,ground:false,light:false,ud:"km",ua:"ft",us:"kts"}};
+const S={type:null,n:0,P:null,sel:null,follow:false,filter:new Set(),col:"airline",view:"home",leg:null,off:0,ground:{},net:null,me:null,d3:false,day:null,ly:{night:true,rain:false,heat:false,ground:false,light:false,dis:true,ud:"km",ua:"ft",us:"kts"}};
 /* ?embed: just the map, for putting one airline (or a division) on another site */
 const QS=new URLSearchParams(location.search),EMBED=QS.has("embed");
 /* units, picked in Map layers and kept with the other map settings */
@@ -1148,7 +1242,7 @@ const HEAT_ON=["interpolate",["linear"],["zoom"],2.4,0,3.2,1];
 M.on("load",()=>{
   const g=document.createElement("canvas");g.width=g.height=48;const x=g.getContext("2d");x.translate(24,24);x.scale(2.6,2.6);x.fillStyle="#fff";x.fill(PLANE);
   M.addImage("plane",x.getImageData(0,0,48,48),{sdf:true});
-  for(const s of ["rwy","night","net","netap","trail","route","routeend","aps","ground","parked","me","heatpts","p0","p1","p2","p3","day","dayap","labels","sel"])M.addSource(s,{type:"geojson",data:FC([])});
+  for(const s of ["rwy","night","net","netap","trail","route","routeend","aps","ground","parked","me","heatpts","p0","p1","p2","p3","day","dayap","labels","sel","dis"])M.addSource(s,{type:"geojson",data:FC([])});
   const L=(o,before)=>M.addLayer(o,before);
   /* runways (real) and the taxiway beside them (laid out), drawn to scale once you're close */
   L({id:"apron",type:"fill",source:"rwy",minzoom:RWZ+1,filter:["==",["get","k"],"ap"],paint:{"fill-color":"rgba(150,130,210,.13)","fill-outline-color":"rgba(170,150,230,.3)"}});
@@ -1180,6 +1274,9 @@ M.on("load",()=>{
   for(const k of PL)L({id:k,type:"symbol",source:k,layout:{"icon-image":"plane","icon-rotate":["get","b"],"icon-rotation-alignment":"map","icon-allow-overlap":true,"icon-ignore-placement":true,
     "icon-size":["interpolate",["linear"],["zoom"],0,["*",["coalesce",["get","s"],1],.17],2,["*",["coalesce",["get","s"],1],.22],4,["*",["coalesce",["get","s"],1],.3],6,["*",["coalesce",["get","s"],1],.42],9,["*",["coalesce",["get","s"],1],.56],11,["*",["coalesce",["get","s"],1],.48],13,["*",["coalesce",["get","s"],1],.42],14,["*",["coalesce",["get","s"],1],.5],16,["*",["coalesce",["get","s"],1],1.1]]},
     paint:{"icon-color":["get","c"],"icon-halo-color":"rgba(10,12,28,.75)","icon-halo-width":["interpolate",["linear"],["zoom"],3,0,4,1.2]}});
+  /* disrupted airports: a ring over the planes (under the pins), amber from 2 out of 5, pink from 3.5, bigger the worse it is */
+  L({id:"dis-ring",type:"circle",source:"dis",paint:{"circle-radius":["interpolate",["linear"],["zoom"],0,["+",4,["*",["get","v"],1.6]],5,["+",8,["*",["get","v"],3]],9,["+",14,["*",["get","v"],5]]],
+    "circle-color":["get","col"],"circle-opacity":.18,"circle-stroke-color":["get","col"],"circle-stroke-width":2,"circle-stroke-opacity":.9}});
   const PINL={"icon-image":"pin","icon-anchor":"bottom","icon-size":["interpolate",["linear"],["zoom"],3,.78,6,1],"icon-padding":0,"icon-allow-overlap":true,"icon-ignore-placement":true};
   L({id:"aps",type:"symbol",source:"aps",minzoom:4-ZOFF,maxzoom:PARKZ,filter:["get","hub"],layout:PINL});
   L({id:"aps-more",type:"symbol",source:"aps",minzoom:6-ZOFF,maxzoom:PARKZ,filter:["!",["get","hub"]],layout:PINL});
@@ -1316,6 +1413,7 @@ function onTap(x,y,type){
   if(S.ly.heat&&S.net==null&&M.getZoom()<2.8){M.easeTo({center:M.unproject([x,y]),zoom:M.getZoom()+2,duration:600});return;}
   const touch=type!=="mouse",i=S.net!=null?-1:nearestPlane(x,y,touch?30:14);
   if(i>=0){selectPlane(i,false);return;}
+  if(!EMBED&&S.ly.dis!==false&&ZL()<4){const a=nearestDis(x,y,touch?26:14);if(a){go("#/airport/"+a);return;}}
   if(!EMBED){const a=nearestAirport(x,y,touch?24:12);if(a){go("#/airport/"+a);return;}}
   if(S.sel){S.sel=null;S.follow=false;if(EMBED){embCard();redraw();return;}if(S.d3)flat3D();if(S.view==="flight")go("#/");redraw();}
 }
@@ -1339,7 +1437,14 @@ M.getCanvasContainer().addEventListener("mouseleave",()=>{tip.style.display="non
 /* ---------- the phone sheet: tap or drag its top to open and close ---------- */
 const body=$("body"),panel=$("panel"),head=panel.querySelector(".head"),handle=$("handle");
 const narrow=()=>innerWidth<=760;
-const SNAP=()=>[138,Math.round(innerHeight*.68),Math.round(innerHeight*.88)];
+/* the sheet never rises past the bottom of the top bar, so its handle can always be grabbed again
+   (on iPhones "88vh" counts the space behind Safari's address bar and went under the top bar) */
+const sheetMax=()=>{const t=$("top"),b=t&&getComputedStyle(t).display!=="none"?t.getBoundingClientRect().bottom:0;return Math.max(220,Math.round(innerHeight-Math.max(0,b)-8));};
+const SNAP=()=>{const m=sheetMax();return [138,Math.min(m,Math.round(innerHeight*.68)),Math.min(m,Math.round(innerHeight*.88))];};
+function sheetVars(){const s=SNAP(),r=document.documentElement.style;r.setProperty("--sheet-open",s[1]+"px");r.setProperty("--sheet-full",s[2]+"px");}
+sheetVars();addEventListener("resize",sheetVars);addEventListener("orientationchange",()=>setTimeout(sheetVars,300));
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(sheetVars);
+if(window.ResizeObserver&&$("top"))new ResizeObserver(sheetVars).observe($("top"));
 function sheet(state){if(!narrow())return;panel.classList.toggle("open",state==="open");panel.classList.toggle("full",state==="full");
   handle.setAttribute("aria-label",state?"Collapse panel":"Expand panel");handle.setAttribute("aria-expanded",String(!!state));}
 const sheetState=()=>panel.classList.contains("full")?"full":panel.classList.contains("open")?"open":null;
@@ -1414,16 +1519,39 @@ function delayList(){
   const wxAdd=c=>{const w=WINDC[c];if(!w)return 0;const k=w[3];return (k>=95?2:(k>=71&&k<=77)||k===85||k===86||k===56||k===57||k===66||k===67?1.5:k===45||k===48?1:0)+(w[1]>25?1:0);};
   const out=[];for(const [c,v] of m){if(v.dn+v.inb<12||!AP[c])continue;const q=v.dn?v.dw/v.dn:0,h=v.inb?v.hold/v.inb:0,x=wxAdd(c);
     const d=Math.min(5,q/1.6+x),a=Math.min(5,h*7+x);out.push({c,d,a,q,h,n:v.dn+v.inb,s:Math.max(d,a)+(v.dn+v.inb)/1e4});}
-  out.sort((x,y)=>y.s-x.s);DLYW={t,list:out.slice(0,15)};loadWind(out.slice(0,40).map(x=>x.c));return DLYW.list;}
+  out.sort((x,y)=>y.s-x.s);DLYW={t,list:out.slice(0,15),all:out};loadWind(out.slice(0,40).map(x=>x.c));return DLYW.list;}
 const ixCol=v=>v<2?"var(--teal)":v<3.5?"#f5c542":"#ff5b8a";
+const wxAddOf=c=>{const w=WINDC[c];if(!w)return 0;const k=w[3];return (k>=95?2:(k>=71&&k<=77)||k===85||k===86||k===56||k===57||k===66||k===67?1.5:k===45||k===48?1:0)+(w[1]>25?1:0);};
+function delayOf(c){if(!S.P||!AP[c])return null;const P=S.P,now=nowMin();let dw=0,dn=0,hold=0,inb=0;
+  for(let i=0;i<S.n;i++){const f=P.f[i];if(!(P.gr[i]&&f<.5)&&!(f>.8&&f<=1))continue;const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)continue;
+    if(P.gr[i]){if(l.from===c){dw+=C.dly(l);dn++;}}else if(l.to===c){inb++;if(C.holding(l,now))hold++;}}
+  const q=dn?dw/dn:0,h=inb?hold/inb:0,x=wxAddOf(c),d=Math.min(5,q/1.6+x),a=Math.min(5,h*7+x),all=(delayList(),DLYW.all||[]),k=all.findIndex(z=>z.c===c);
+  return {c,d,a,q,h,dn,inb,n:dn+inb,rank:k>=0?k+1:null,of:all.length};}
+/* the airport page's disruption section (also what a tap on an airport pin opens) */
+function apDisBlock(code){const x=delayOf(code);if(!x)return "";const v=Math.max(x.d,x.a);loadWind([code]);
+  const w=WINDC[code],wx=w?wxLine(code):"",bad=wxAddOf(code);
+  return `<section class="ap-ds"><div class="ap-ds-h"><i style="background:${ixCol(v)}"></i><b>${disWord(v)}</b><span>${x.rank?`${ordinal(x.rank)} most disrupted of ${fmtN(x.of)}`:x.n?"quieter than the busy airports":"nothing waiting or landing now"}</span></div>
+    <div class="ap-ds-g"><div><small>${SV(IC.dep)} Take-offs</small><b style="color:${ixCol(x.d)}">${x.d.toFixed(1)}<em>/5</em></b><span>${fmtN(x.dn)} waiting · about ${x.q.toFixed(1)} min in the queue</span></div>
+      <div><small>${SV(IC.arr)} Landings</small><b style="color:${ixCol(x.a)}">${x.a.toFixed(1)}<em>/5</em></b><span>${fmtN(x.inb)} on the way in · ${Math.round(x.h*100)}% holding</span></div></div>
+    ${wx?`<p class="ap-ds-w"><span class="dl-w">${wx}</span>${bad?`<span class="ap-ds-bad">adds ${bad.toFixed(1)} to both</span>`:""}</p>`:`<p class="ap-ds-w">${w===null?"Weather loading…":""}</p>`}
+    <button type="button" class="link" data-go="#/disruptions/${code}">Compare with other airports ›</button></section>`;}
+const disWord=v=>v<.5?"Calm":v<2?"Running smoothly":v<3.5?"Some delays":"Heavily disrupted";
+/* the disruptions on the map (Map layers → Disruptions): the 40 worst airports at 2 out of 5 or more */
+let DISL=[];
+function disMap(){if(!MREADY||EMBED||!S.P)return;const src=M.getSource("dis");if(!src)return;
+  if(S.ly.dis===false){DISL=[];src.setData(FC([]));return;}
+  delayList();DISL=(DLYW.all||[]).filter(x=>AP[x.c]&&Math.max(x.d,x.a)>=2).slice(0,40);
+  src.setData(FC(DISL.map(x=>{const v=Math.max(x.d,x.a);return PT(AP[x.c].lo,AP[x.c].la,{c:x.c,v,col:v<3.5?"#f5c542":"#ff5b8a"});})));}
+function nearestDis(x,y,r){let best=null,bd=r*r;for(const d of DISL){const a=AP[d.c],q=M.project([a.lo,a.la]),e=(q.x-x)**2+(q.y-y)**2;if(e<bd){bd=e;best=d.c;}}return best;}
 function wxIcon(w){if(!w||w[3]==null)return "";const c=w[3],n=w[4]===0;return SV(c<=1?(n?IC.moon:IC.sun):c<=3?IC.cloud:c<=48?IC.fog:c>=95?IC.storm:(c>=71&&c<=77)||c===85||c===86?IC.snow:IC.rain);}
 const tempTxt=t=>t==null?"":S.ly.ud==="mi"?`${Math.round(t*9/5+32)}°F`:`${Math.round(t)}°C`;
 function wxLine(c){const w=WINDC[c];if(!w)return "";return `<span>${wxIcon(w)}${tempTxt(w[2])}</span><span><svg viewBox="0 0 24 24" aria-hidden="true" style="transform:rotate(${(w[0]+180)%360}deg)">${IC.wind}</svg>${String(w[0]).padStart(3,"0")}° ${w[1]} kts</span>`;}
-function delaysBody(){const L=delayList();if(!L.length)return S.P?`<p class="wdg-e">No queues anywhere right now.</p>`:"";
-  return L.map(x=>`<button type="button" class="tk dl" data-go="#/airport/${x.c}"><span class="dl-ap"><span>${esc(AP[x.c].city||AP[x.c].name)}</span><span class="chip">${x.c}</span></span>
+const dlRow=x=>`<button type="button" class="tk dl" data-go="#/airport/${x.c}"><span class="dl-ap"><span>${esc(AP[x.c].city||AP[x.c].name)}</span><span class="chip">${x.c}</span></span>
     <span class="dl-ix">${SV(IC.dep)}<i style="background:${ixCol(x.d)}"></i><b>${x.d.toFixed(1)}</b></span><span class="dl-w">${wxLine(x.c)}</span>
     <span class="dl-ix">${SV(IC.arr)}<i style="background:${ixCol(x.a)}"></i><b>${x.a.toFixed(1)}</b></span>
-    <span class="dl-why">Take-offs wait ${x.q.toFixed(1)} min · ${Math.round(x.h*100)}% of arrivals holding</span></button>`).join("");}
+    <span class="dl-why">Take-offs wait ${x.q.toFixed(1)} min · ${Math.round(x.h*100)}% of arrivals holding</span></button>`;
+function delaysBody(){const L=delayList();if(!L.length)return S.P?`<p class="wdg-e">No queues anywhere right now.</p>`:"";
+  return L.map(dlRow).join("");}
 /* the airports with the most planes on the ground at this moment (taxiing, parked or just landed), counted every 30 seconds */
 let BUSY={t:0,list:[]};
 function busyList(){
@@ -1438,7 +1566,31 @@ function busyBody(){const L=busyList();if(!L.length)return "";
 function liveLinks(){return `<div class="lv">
   <button type="button" class="lv-b" data-go="#/tracked">${SV(IC.people)}<span>Most tracked flights</span><span class="live">LIVE</span><i aria-hidden="true">›</i></button>
   <button type="button" class="lv-b" data-go="#/disruptions">${SV(IC.dep)}<span>Airport disruptions</span><span class="live">LIVE</span><i aria-hidden="true">›</i></button>
-  <button type="button" class="lv-b" data-go="#/records">${SV('<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4v3h-4z"/>')}<span>Today's records</span><span class="live">LIVE</span><i aria-hidden="true">›</i></button></div>`;}
+  <button type="button" class="lv-b" data-go="#/records">${SV('<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4v3h-4z"/>')}<span>Today's records</span><span class="live">LIVE</span><i aria-hidden="true">›</i></button>
+  <button type="button" class="lv-b" data-go="#/news">${SV('<path d="M5 5h11v14H6a1 1 0 0 1-1-1zM16 9h3v8.5a1.5 1.5 0 0 1-3 0M8 9h5M8 12.5h5M8 16h3"/>')}<span>Echo news</span><i aria-hidden="true">›</i></button></div>`;}
+/* Echo news: the same stories the Discord bot posts (new airlines, routes, records, busiest-airport changes,
+   the weekly digest and monthly report), newest first. Kept by Supabase as the bot queues them (echo_news). */
+const mdLite=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br>");
+const siteHash=u=>{const m=/^https:\/\/echoflightslive\.github\.io\/?(#\/.*)?$/.exec(String(u||""));return m?(m[1]||"#/"):"";};
+async function renderNews(){S.view="news";
+  body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Echo news</h2></div><p class="note" id="nw-note">Loading the latest stories…</p><div id="nw"></div>`;
+  $("bk").onclick=()=>go("#/");sheet("open");
+  let L=null;try{L=await rpc("echo_news_get",{n:80},10000);}catch(_){L=null;}
+  if(S.view!=="news"||!$("nw"))return;
+  if(!L){$("nw-note").textContent="The news couldn't be loaded just now. Try again in a minute.";return;}
+  if(!L.length){$("nw-note").innerHTML=`No stories yet. They appear here when a new timetable lands: new airlines, routes, records and more. Changes in the current timetable are on <a href="#/new">What's new</a>.`;return;}
+  $("nw-note").textContent="The stories posted to the Echo Discord, newest first.";
+  const dayOf=t=>new Date(t).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}),today=dayOf(Date.now()),yest=dayOf(Date.now()-864e5);
+  let html="",last="";
+  for(const x of L){const e=x.e||{},d=dayOf(x.at);
+    if(d!==last){last=d;html+=`<p class="nw-day">${d===today?"Today":d===yest?"Yesterday":esc(d)}</p>`;}
+    const col=e.color!=null?"#"+Number(e.color).toString(16).padStart(6,"0"):"",go=siteHash(e.url),tag=go?"button":"div";
+    const f=(e.fields||[]).filter(z=>z&&z.name&&z.value).slice(0,9);
+    html+=`<${tag}${go?` type="button" data-go="${esc(go)}"`:""} class="nw"${col?` style="--nc:${col}"`:""}>${e.title?`<h3>${mdLite(e.title)}</h3>`:""}${e.description?`<p>${mdLite(e.description)}</p>`:""}
+      ${f.length?`<dl>${f.map(z=>`<div><dt>${mdLite(z.name)}</dt><dd>${mdLite(z.value)}</dd></div>`).join("")}</dl>`:""}
+      <span class="nw-t">${new Date(x.at).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}${x.kind?` · ${esc(x.kind)}`:""}</span></${tag}>`;}
+  $("nw").innerHTML=html;
+  $("nw").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));}
 /* today's records: right now from the planes on the map, today from the timetable (UTC day), worked out once a day */
 let RECDAY={k:null};
 function recDay(){const day=Math.floor(nowMin()/1440);if(RECDAY.k===day)return RECDAY;if(worker&&RECDAY.ask!==day){RECDAY.ask=day;worker.postMessage({stats:day});}return null;}
@@ -1468,11 +1620,31 @@ function renderTracked(){S.view="tracked";
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Most tracked flights</h2><span class="live">LIVE</span></div>
   <p class="note">The flights opened most on Echo Live today and yesterday. Counts only; nobody is identified.</p><div class="lvl">${trackedBody()}</div>`;
   $("bk").onclick=()=>go("#/");body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));sheet("open");}
-function renderDisruptions(){S.view="disrupt";
+let DSEL=null,DSQ="";
+const dsFold=t=>String(t||"").normalize("NFD").replace(/\p{M}/gu,"").toLowerCase();
+function dsMatches(q){q=dsFold(q).trim();if(!q)return [];const Q=q.toUpperCase(),out=[],seen=new Set(),add=c=>{if(!seen.has(c)&&AP[c]&&APROT[c]){seen.add(c);out.push(c);}};
+  if(AP[Q])add(Q);
+  for(const c of APLIST)if(c.startsWith(Q))add(c);
+  for(const c of APLIST){const a=AP[c];if(dsFold(a.city).startsWith(q)||dsFold(a.name).startsWith(q))add(c);}
+  for(const c of APLIST){const a=AP[c];if(dsFold(a.city).includes(q)||dsFold(a.name).includes(q))add(c);}
+  return out.sort((x,y)=>(x===Q?-1:y===Q?1:0)||(APROT[y].length-APROT[x].length)).slice(0,6);}
+function dsCard(c){const x=delayOf(c);if(!x)return "";const v=Math.max(x.d,x.a);loadWind([c]);
+  return `<div class="ds-card">${dlRow(x)}<p class="ds-sum"><b style="color:${ixCol(v)}">${disWord(v)}</b> · ${x.rank?`${ordinal(x.rank)} most disrupted of ${fmtN(x.of)} busy airports`:x.n?`quieter than the busy airports listed`:`no planes waiting or landing right now`} · ${fmtN(x.dn)} waiting to take off, ${fmtN(x.inb)} on the way in${WINDC[c]===null?" · weather loading…":""}</p></div>`;}
+const ordinal=n=>n+(n%100>=11&&n%100<=13?"th":["th","st","nd","rd"][n%10]||"th");
+function renderDisruptions(sel){S.view="disrupt";if(sel!==undefined)DSEL=sel&&AP[sel]?sel:null;
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Airport disruptions</h2><span class="live">LIVE</span></div>
   <p class="note">From 0 (calm) to 5 for take-offs ${SV(IC.dep)} and landings ${SV(IC.arr)}: how long departures wait in the queue, how many arrivals are holding, and the real weather there now (storms, snow, fog and strong wind, from Open-Meteo).</p>
-  <div class="lvl">${delaysBody()}</div>`;
-  $("bk").onclick=()=>go("#/");body.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));sheet("open");}
+  <label class="search ds-q"><span class="sr" hidden>Airport</span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13l5 5"/></svg>
+    <input id="dsq" type="search" autocomplete="off" spellcheck="false" placeholder="Any airport: code or city" aria-label="Check any airport's disruption status" value="${esc(DSQ)}"></label>
+  <div id="ds-hits"></div><div id="ds-sel">${DSEL?dsCard(DSEL):""}</div>
+  ${DSEL?`<p class="nw-day">Most disrupted now</p>`:""}<div class="lvl">${delaysBody()}</div>`;
+  const bind=el=>el.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  const hits=()=>{const L=dsMatches(DSQ);$("ds-hits").innerHTML=L.length&&!(DSEL&&L[0]===DSEL&&L.length===1)?`<ul class="rows ds-list">${L.map(c=>`<li><button type="button" class="row two" data-ds="${c}"><span class="fn">${c}</span><span><span class="rt">${esc(AP[c].city||AP[c].name)}</span><span class="sub">${esc(AP[c].name)}</span></span></button></li>`).join("")}</ul>`:DSQ.trim()&&!L.length?`<p class="note">No Echo airport matches that.</p>`:"";
+    $("ds-hits").querySelectorAll("[data-ds]").forEach(b=>b.onclick=()=>{DSQ="";history.replaceState(null,"","#/disruptions/"+b.dataset.ds);renderDisruptions(b.dataset.ds);});};
+  const q=$("dsq");q.oninput=()=>{DSQ=q.value;hits();};
+  q.onkeydown=e=>{if(e.key==="Enter"){const L=dsMatches(DSQ);if(L[0]){DSQ="";history.replaceState(null,"","#/disruptions/"+L[0]);renderDisruptions(L[0]);}}};
+  if(DSQ)hits();
+  $("bk").onclick=()=>go("#/");bind(body);sheet("open");}
 /* install: Chrome and Edge offer it through beforeinstallprompt; on an iPhone it's Share → Add to Home Screen */
 let INSTALL=null;
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();INSTALL=e;if(S.view==="home")renderHome();});
@@ -1716,6 +1888,7 @@ function renderAirport(code){
   <div class="bar"><h2>${code} ${esc(a.city||a.name)}</h2><span style="font-size:13px;color:var(--muted)">${localTime(code,now)}</span></div>
   <p class="note">${esc(a.name)}, ${esc(country(a.cc))}. ${al.size} Echo airline${al.size===1?" flies":"s fly"} here. Times are local. <button type="button" class="link" id="fav">${star(isFavAp(code))}${isFavAp(code)?"Favourite":"Add to favourites"}</button></p>
   <p class="note rwyuse" id="rwyuse" data-ap="${code}">${rwyText(code)}</p>
+  <div id="ap-ds" data-ap="${code}">${apDisBlock(code)}</div>
   <div id="hourc"></div>
   <div class="acts" style="padding-bottom:6px"><div class="seg" role="tablist" style="box-shadow:none;background:var(--paper2)"><button type="button" data-t="dep" aria-pressed="true">Departures</button><button type="button" data-t="arr" aria-pressed="false">Arrivals</button></div></div>
   <ul class="rows" id="apl"></ul>
@@ -1839,8 +2012,9 @@ function route(){
   if(p[0]==="airport"){renderAirport((p[1]||"").toUpperCase());return;}
   if(p[0]==="reg"){renderReg(p[1]||"");return;}
   if(p[0]==="tracked"){renderTracked();return;}
-  if(p[0]==="disruptions"){renderDisruptions();return;}
+  if(p[0]==="disruptions"){renderDisruptions((p[1]||"").toUpperCase()||null);return;}
   if(p[0]==="records"){renderRecords();return;}
+  if(p[0]==="news"){renderNews();return;}
   if(p[0]==="flight"){
     const r=ROT[+p[2]],now=nowMin(),fn=+((p[1]||"").match(/\d+$/)||[])[0];let cand=[];
     if(r&&(r.fn===fn||r.ifn===fn||r.cfn===fn||r.cifn===fn))cand=C.legsAround(r,now-60,now+2880).filter(l=>l.fn===fn);
@@ -1876,7 +2050,8 @@ let GIDX=null,GIDXP=null,GNB=48;const GPEND=[];const GLOAD=new Map();
    zoom into or open. Kept for an hour in this browser so a reload doesn't ask again. */
 const WINDC={};
 function applyWind(o){if(!Object.keys(o).length)return;Object.assign(WINDC,o);C.setWind(o);if(worker)worker.postMessage({wind:o});
-  TRC.clear();sendNow();redraw();if(S.view==="disrupt"){DLYW.t=0;renderDisruptions();}if(S.view==="airport"&&$("rwyuse"))$("rwyuse").textContent=rwyText($("rwyuse").dataset.ap);}
+  TRC.clear();sendNow();redraw();if(S.view==="disrupt"){DLYW.t=0;if(document.activeElement&&document.activeElement.id==="dsq"){const e=$("ds-sel");if(e&&DSEL)e.innerHTML=dsCard(DSEL);}else renderDisruptions();}if(S.view==="airport"&&$("rwyuse"))$("rwyuse").textContent=rwyText($("rwyuse").dataset.ap);
+  if(S.view==="airport"&&$("ap-ds")){const e=$("ap-ds");e.innerHTML=apDisBlock(e.dataset.ap);e.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));}}
 function loadWind(codes){
   codes=codes.filter(c=>AP[c]&&!(c in WINDC));if(!codes.length)return;codes.forEach(c=>WINDC[c]=null);
   for(let i=0;i<codes.length;i+=100){const part=codes.slice(i,i+100);
@@ -1884,9 +2059,23 @@ function loadWind(codes){
       .then(r=>r.ok?r.json():null).then(j=>{if(!j)return;const o={};(Array.isArray(j)?j:[j]).forEach((x,k)=>{const cu=x&&x.current;if(cu&&cu.wind_direction_10m!=null&&cu.wind_speed_10m!=null)o[part[k]]=[Math.round(cu.wind_direction_10m),Math.round(cu.wind_speed_10m),cu.temperature_2m,cu.weather_code,cu.is_day];});
         applyWind(o);try{const v=JSON.parse(localStorage.getItem("echo_wind2")||"null");const keep=v&&Date.now()-v.t<36e5?v:{t:Date.now(),w:{}};Object.assign(keep.w,o);localStorage.setItem("echo_wind2",JSON.stringify(keep));}catch(_){}})
       .catch(()=>{part.forEach(c=>{if(WINDC[c]===null)delete WINDC[c];});});}}   // asked again next time it's wanted
+/* before the planes are first placed: the busiest 100 airports' wind, from this browser's copy (under an
+   hour old) or asked for, waiting at most 2.5 seconds, so each flight's path is worked out once, with it */
+const windList=()=>Object.keys(APROT).sort((a,b)=>APROT[b].length-APROT[a].length).slice(0,100);
+async function firstWind(){let w={};
+  try{const v=JSON.parse(localStorage.getItem("echo_wind2")||"null");if(v&&Date.now()-v.t<36e5&&v.w)w=v.w;}catch(_){}
+  const want=windList().filter(c=>AP[c]&&!w[c]);if(want.length<20)return w;
+  const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),2500);
+  try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${want.map(c=>AP[c].la.toFixed(3)).join(",")}&longitude=${want.map(c=>AP[c].lo.toFixed(3)).join(",")}&current=wind_speed_10m,wind_direction_10m,temperature_2m,weather_code,is_day&wind_speed_unit=kn`,{signal:ctl.signal});
+    const j=r.ok?await r.json():null,o={};
+    if(j)(Array.isArray(j)?j:[j]).forEach((x,k)=>{const cu=x&&x.current;if(cu&&cu.wind_direction_10m!=null&&cu.wind_speed_10m!=null)o[want[k]]=[Math.round(cu.wind_direction_10m),Math.round(cu.wind_speed_10m),cu.temperature_2m,cu.weather_code,cu.is_day];});
+    if(Object.keys(o).length){Object.assign(w,o);try{const v=JSON.parse(localStorage.getItem("echo_wind2")||"null");const keep=v&&Date.now()-v.t<36e5?v:{t:Date.now(),w:{}};Object.assign(keep.w,o);localStorage.setItem("echo_wind2",JSON.stringify(keep));}catch(_){}}}
+  catch(_){}finally{clearTimeout(tm);}
+  return w;}
 function startWind(){
-  try{const v=JSON.parse(localStorage.getItem("echo_wind2")||"null");if(v&&Date.now()-v.t<36e5&&v.w)applyWind(v.w);}catch(_){}
-  loadWind(Object.keys(APROT).sort((a,b)=>APROT[b].length-APROT[a].length).slice(0,100));}
+  /* only what the worker doesn't have yet (the first placement already used the wind it was given) */
+  try{const v=JSON.parse(localStorage.getItem("echo_wind2")||"null");if(v&&Date.now()-v.t<36e5&&v.w){const o={};for(const c in v.w)if(JSON.stringify(WINDC[c])!==JSON.stringify(v.w[c]))o[c]=v.w[c];applyWind(o);}}catch(_){}
+  loadWind(windList());}
 const rwyName=t=>/^\d[LRC]?$/.test(t)?"0"+t:t;
 function rwyText(code){const u=C.rwyUse(code);if(!u||!u.d.length)return "";
   return `Taking off ${u.d.map(rwyName).join(", ")} · Landing ${u.a.map(rwyName).join(", ")}${u.w?` · Wind ${String(u.w[0]).padStart(3,"0")}° at ${u.w[1]} kt`:""}`;}
@@ -1976,7 +2165,7 @@ function dockSync(){const lyOpen=!$("layers").hidden;document.querySelector('#do
   document.querySelector('#dock [data-dk="camera"]').setAttribute("aria-pressed",String(!!CAM.on));}
 const lyBox=(k,label,small)=>`<label class="ly"><input type="checkbox" data-lx="${k}"${S.ly[k]?" checked":""}> ${label}${small?` <small>${small}</small>`:""}</label>`;
 function popWeather(){const top=busyList().slice(0,5).map(x=>x[0]);loadWind(top);
-  return `<p class="ly-h">Weather</p>${lyBox("rain","Rain radar","real-world weather")}${lyBox("clouds","Clouds","NASA satellite, last full day")}${lyBox("night","Day and night")}
+  return `<p class="ly-h">Weather</p>${lyBox("rain","Rain radar","real-world weather")}${lyBox("clouds","Clouds","NASA satellite, last full day")}${lyBox("night","Day and night")}${lyBox("dis","Disruptions","rings round busy airports")}
   <p>Planes take off and land into the live wind at each airport, and runway lights come on after dark.</p>
   ${top.length?`<div class="wx">${top.map(c=>`<b>${c}</b><span>${esc(AP[c].city||"")}</span><span class="dl-w" style="justify-content:flex-end">${wxLine(c)||"—"}</span>`).join("")}</div>`:""}`;}
 function popFilters(){const cd=curDiv(),ds=DIVS();
@@ -2040,8 +2229,11 @@ function savePic(caption,name){
   M.triggerRepaint();}
 $("cam-tour").onchange=()=>{CAM.next=performance.now()+75000;};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&CAM.on)camStop();});setTimeout(dockSync,600);
+const TSZ={s:.9,n:1,l:1.15,x:1.3};
+function applyTextSize(){const z=EMBED?1:(TSZ[S.ly.ts]||1);document.documentElement.style.setProperty("--tz",String(z));
+  document.querySelectorAll("[data-ts]").forEach(b=>b.setAttribute("aria-pressed",String((S.ly.ts||"n")===b.dataset.ts)));}
 function syncLayers(){
-  document.querySelectorAll("[data-ly]").forEach(b=>b.checked=!!S.ly[b.dataset.ly]);
+  document.querySelectorAll("[data-ly]").forEach(b=>b.checked=!!S.ly[b.dataset.ly]);applyTextSize();
   document.querySelectorAll("[data-un]").forEach(b=>b.setAttribute("aria-pressed",String((S.ly["u"+b.dataset.un]||Object.keys(UN[b.dataset.un])[0])===b.dataset.v)));
   $("legs").innerHTML=`<span>0</span><span>${fmtAlt(20000).replace(/ \S+$/,"")}</span><span>${fmtAlt(40000)}</span>`;
   if(EMBED)return;
@@ -2049,7 +2241,9 @@ function syncLayers(){
   pushAcct();
 }
 (()=>{if(EMBED)return;try{const v=JSON.parse(localStorage.getItem("echo_layers")||"null");if(v)Object.assign(S.ly,v);}catch(_){}})();
-document.querySelectorAll("[data-ly]").forEach(b=>b.onchange=()=>{S.ly[b.dataset.ly]=b.checked;syncLayers();if(b.dataset.ly==="rain")setRain(b.checked);if(b.dataset.ly==="clouds")setClouds(b.checked);if(b.dataset.ly==="ground"&&S.view==="airport")route();if(b.dataset.ly==="light")applyTheme();redraw();});
+document.querySelectorAll("[data-ly]").forEach(b=>b.onchange=()=>{S.ly[b.dataset.ly]=b.checked;syncLayers();if(b.dataset.ly==="rain")setRain(b.checked);if(b.dataset.ly==="clouds")setClouds(b.checked);if(b.dataset.ly==="ground"&&S.view==="airport")route();if(b.dataset.ly==="light")applyTheme();if(b.dataset.ly==="dis")disMap();redraw();});
+document.querySelectorAll("[data-ts]").forEach(b=>b.onclick=()=>{S.ly.ts=b.dataset.ts;syncLayers();});
+applyTextSize();
 document.querySelectorAll("[data-un]").forEach(b=>b.onclick=()=>{S.ly["u"+b.dataset.un]=b.dataset.v;syncLayers();
   if(D&&!["search","card"].includes(S.view)){renderAirport.keep=true;try{route();}finally{renderAirport.keep=false;}}});
 /* light or dark map: the base map, plane colours and the text drawn on the map */
@@ -2740,26 +2934,20 @@ function admAirlines(box){
   };paint();
 }
 
-/* Discord: the three webhook channels, test posts, and whether the bot's minute job is running.
+/* Discord: the three webhook channels (news, bulletins, alerts), test posts, and whether the bot's minute job is running.
    Saved webhook addresses never come back to the page; Supabase only says whether one is set. */
-const BOT_URL="https://lqdgdkksdccpeorxedbl.supabase.co/functions/v1/echo-bot";
-const HOOKS=[["daily","Morning post","Every day at 13:00 UTC: flights in the air, today's records and the busiest airport."],
-  ["alerts","Disruption alerts","Bad weather on top of busy queues at one of the 150 busiest airports. Two at a time at most, and once every 6 hours per airport."],
-  ["news","What's new","When a new timetable lands, and when you change Route or Airline of the week."]];
+const HOOKS=[["news","News","New airlines, departures and renames, new airports, new and cut routes, fleet milestones, airlines with a new busiest airport, leaderboard and division changes, all-time records and anniversaries. Posted by itself when a new timetable lands."],
+  ["daily","Bulletins","Echo today, the day's records and a weather watch for tomorrow, every day at 7:45 PM Central. The weekend ahead on Fridays at noon Central, the week in Echo on Mondays, a monthly report on the 1st and the year in review on 31 December."],
+  ["alerts","Disruption alerts","Bad weather on top of busy queues at one of the 150 busiest airports. Two at a time at most, and once every 6 hours per airport. Each alert is edited to say all clear once the weather has passed."]];
 async function admDiscord(box){
   let s;try{s=await adm("echo_admin_discord_get");}catch(e){admFail(box,e);return;}
   const st=s.state||{},errs=st.errs||{},run=st.last&&Date.now()-st.last<5*6e4;
   box.innerHTML=`<div class="card"><p><b>Bot</b>: ${run?`<span class="ok">running</span>, last check ${ago(st.last)}`:st.last?`<span class="bad">stopped</span>, last check ${ago(st.last)}`:`<span class="muted">hasn't run yet</span>`}</p>
-    <p class="muted">${s.stats_at?`Records last counted ${ago(s.stats_at)}.`:"Records start counting once a webhook is saved or the bot is added to the server."}${s.tracks?` ${fmtN(s.tracks)} flight${s.tracks===1?"":"s"} being tracked.`:""}</p></div>
+    <p class="muted">${s.stats_at?`Records last counted ${ago(s.stats_at)}.`:"Records start counting a few minutes after a webhook is saved."} Everything posts by itself; there's nothing to type in Discord.</p></div>
     ${HOOKS.map(([k,n,d])=>`<div class="card"><p><b>${n}</b> · ${s[k]?`<span class="ok">connected</span>`:`<span class="muted">not set</span>`}</p><p class="muted">${d}</p>
       ${errs[k]?`<p class="bad">Last post failed ${ago(errs[k].at)}: ${esc(/404/.test(errs[k].msg)?"Discord says this webhook doesn't exist any more. Make a new one and save it here.":errs[k].msg)}</p>`:""}
       <label class="f" for="dh-${k}">${s[k]?"Swap in a different webhook":"Webhook address"}</label><input id="dh-${k}" type="url" autocomplete="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/…">
       <div class="row2"><button type="button" class="btn prim" data-hs="${k}">Save</button>${s[k]?`<button type="button" class="btn" data-ht="${k}">Send a test post</button><button type="button" class="btn" data-hr="${k}">Remove</button>`:""}<span id="dm-${k}" class="muted"></span></div></div>`).join("")}
-    <h3>Slash commands</h3>
-    <div class="card"><p>/flight, /airport, /airline, /records and /track work once the server's devs have made the Discord app and put its keys in Supabase. The address Discord needs for it:</p>
-      <p><code style="font-size:12px;word-break:break-all">${BOT_URL}</code></p>
-      <div class="row2"><button type="button" class="btn" id="dc-copy">Copy address</button><a class="btn" href="${BOT_URL}?job=register" target="_blank" rel="noopener">Register the commands ↗</a></div>
-      <p class="muted" style="margin-top:8px">Register again whenever the commands change. It's safe to press more than once.</p></div>
     <p class="muted">In Discord: channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL.</p>`;
   const msg=(k,t)=>$("dm-"+k).innerHTML=t;
   box.querySelectorAll("[data-hs]").forEach(b=>b.onclick=async()=>{const k=b.dataset.hs,u=$("dh-"+k).value.trim();
@@ -2775,7 +2963,6 @@ async function admDiscord(box){
         if(t&&t.k===k&&t.at>=t0-2000){msg(k,t.ok?`<span class="ok">Posted.</span> Check the channel.`:`<span class="bad">Didn't go through: ${esc(/404/.test(t.msg)?"Discord says this webhook doesn't exist any more.":t.msg)}</span>`);b.disabled=false;return;}}
       msg(k,`<span class="bad">No answer from the bot yet.</span> If it says stopped above, its minute job isn't running.`);}catch(e){msg(k,`<span class="bad">${esc(e.message)}</span>`);}
     b.disabled=false;});
-  $("dc-copy").onclick=async()=>{try{await navigator.clipboard.writeText(BOT_URL);toast("Address copied");}catch(_){toast("Select the address and copy it.");}};
 }
 
 function admAccounts(box){
@@ -2796,6 +2983,7 @@ function admAccounts(box){
 /* ---------- start ---------- */
 let worker=null,lastFlightPaint=0,lastHome=0;
 function onPositions(m){
+  if(m.stage){const l=$("loadtxt");if(l)l.textContent=m.stage;return;}
   if(m.dly){C.setDly(m.dly);return;}
   if(m.stats){RECDAY=m.stats;if(S.view==="records")renderRecords();return;}
   const first=!S.P;S.P=m;S.n=m.n;if(m.ground){S.ground=m.ground;if(S.view==="airport"&&!first)groundList();}updateCount();
@@ -2848,14 +3036,17 @@ async function start(){
     const src=`const mod=${mod.toString()};const CORE=${CORE.toString()};(${WORKER.toString()})();`;
     worker=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
     worker.onmessage=e=>onPositions(e.data);
-    worker.postMessage({data:D,rw:RWD,now:nowMin()});setTimeout(startWind,0);
+    let w0={};try{w0=await firstWind();}catch(_){w0={};}
+    for(const c in w0)if(!AP[c])delete w0[c];
+    if(Object.keys(w0).length){Object.assign(WINDC,w0);C.setWind(w0);}
+    worker.postMessage({data:D,rw:RWD,now:nowMin(),wind:w0});setTimeout(startWind,0);
     D.rot=null;   // the worker has its own copy and the page keeps the parsed routes (C.ROT): the raw rows aren't needed here any more
   }catch(e){
     /* no workers (very old browsers): do the same work here */
     const ctx=new Function("postMessage","CORE","mod",`let onmessage;(${WORKER.toString().replace(/^function WORKER\(\)\{/,"").replace(/\}$/,"")});return m=>onmessage({data:m});`);
     const send=ctx(m=>onPositions(m),CORE,mod);worker={postMessage:send};send({data:D,rw:RWD,now:nowMin()});setTimeout(startWind,0);
   }
-  setInterval(pulse,4000);
+  setInterval(pulse,4000);setInterval(disMap,30000);setTimeout(disMap,8000);
   setTimebar(tbOpen);setInterval(timeLabel,10000);
   setInterval(checkWatch,15000);checkWatch();
   syncLayers();if(S.ly.rain)setRain(true);if(MREADY)setClouds(!!S.ly.clouds);
@@ -2867,7 +3058,9 @@ async function start(){
    kept in echo_profiles (their own row only; no names or addresses), so they
    follow them between devices. Everything works the same signed out. */
 var ACC={c:null,u:null,t:0,pulled:false};   /* var: pushAcct may run before this line */
-const accName=u=>{const m=(u&&u.user_metadata)||{};return m.full_name||m.name||m.global_name||m.user_name||m.preferred_username||"";};
+/* the name to show: Discord's display name first (Supabase keeps it in custom_claims.global_name; its
+   full_name and name are the Discord username), then the provider's full name */
+const accName=u=>{const m=(u&&u.user_metadata)||{},cc=m.custom_claims||{};return cc.global_name||m.global_name||m.full_name||m.name||m.user_name||m.preferred_username||"";};
 const accMsg=(t,err)=>{const e=$("auth-m");e.textContent=t||"";e.className="msg"+(err?" err":"");};
 function accErr(e,who){
   const m=String((e&&e.message)||e||"");
@@ -2880,13 +3073,20 @@ function accErr(e,who){
   if(/fetch|network/i.test(m))return "Couldn't reach the sign-in service. Check your connection.";
   return m||"Something went wrong. Try again.";
 }
+/* the account's picture (Discord avatar, Google photo), if it has one; only https addresses */
+const accPic=u=>{const m=(u&&u.user_metadata)||{},x=String(m.avatar_url||m.picture||"");if(!/^https:\/\//.test(x))return "";
+  return /cdn\.discordapp\.com/.test(x)&&!/[?&]size=/.test(x)?x+(x.includes("?")?"&":"?")+"size=128":x;};
+const picImg=(src,fail)=>{const i=document.createElement("img");i.src=src;i.alt="";i.referrerPolicy="no-referrer";i.decoding="async";i.onerror=fail;return i;};
 function paintAcct(){
   const b=$("acct"),u=ACC.u;
-  if(u){const n=accName(u);b.textContent=(n||"✓").trim().charAt(0).toUpperCase();b.classList.add("in");b.setAttribute("aria-label","Your account"+(n?": "+n:""));}
+  if(u){const n=accName(u),pic=accPic(u),letter=()=>{b.textContent=(n||"✓").trim().charAt(0).toUpperCase();};
+    if(pic&&!(b.firstChild&&b.firstChild.tagName==="IMG"&&b.firstChild.src===pic)){b.textContent="";b.appendChild(picImg(pic,letter));}else if(!pic)letter();
+    b.classList.add("in");b.setAttribute("aria-label","Your account"+(n?": "+n:""));}
   else{b.textContent="Sign in";b.classList.remove("in");b.removeAttribute("aria-label");}
   $("auth-out").hidden=!!u;$("auth-in").hidden=!u;
   if(u){const n=accName(u),p=(u.app_metadata&&u.app_metadata.provider)||"email";
-    $("auth-who").textContent=`${n?`Signed in as ${n}`:"Signed in"} with ${p==="google"?"Google":p==="discord"?"Discord":"email"}. ${FAV.al.length} favourite airline${FAV.al.length===1?"":"s"} and ${FAV.ap.length} airport${FAV.ap.length===1?"":"s"} saved to your account.`;}
+    const w=$("auth-who"),pic=accPic(u);w.textContent=`${n?`Signed in as ${n}`:"Signed in"} with ${p==="google"?"Google":p==="discord"?"Discord":"email"}. ${FAV.al.length} favourite airline${FAV.al.length===1?"":"s"} and ${FAV.ap.length} airport${FAV.ap.length===1?"":"s"} saved to your account.`;
+    if(pic)w.prepend(picImg(pic,e=>e.target.remove()));}
 }
 const openAuth=()=>{accMsg("");$("auth-new").hidden=true;paintAcct();$("auth").hidden=false;};
 const closeAuth=()=>{$("auth").hidden=true;};
