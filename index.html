@@ -1071,15 +1071,38 @@ function WORKER(){
 }
 
 /* ---------- loading the timetable ----------
-   The browser keeps a copy (IndexedDB). On each visit it asks Supabase for the
-   fingerprints of the parts and downloads only the ones that changed. If
+   The browser keeps a copy (IndexedDB), one compressed record per part with a small
+   index of their fingerprints, so it fits on phones with little room (a single 35 MB
+   record didn't always save, and those visitors downloaded everything on every visit).
+   On each visit it asks Supabase for the fingerprints of the parts and downloads only
+   the ones that changed. If
    Supabase can't be reached the saved copy is used, and failing that the
    data.json beside this page (plus data-2.json etc. when data.json lists them in
    "more": GitHub's web upload stops at 25MB, so the timetable comes in pieces). */
 const idb=(()=>{let p=null;const open=()=>p||(p=new Promise((res,rej)=>{try{const r=indexedDB.open("echo-live",1);
   r.onupgradeneeded=()=>r.result.createObjectStore("parts");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}}));
   const tx=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction("parts",mode),s=t.objectStore("parts");const out=fn(s);t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out);t.onerror=()=>rej(t.error);}));
-  return {get:k=>tx("readonly",s=>s.get(k)),put:(k,v)=>tx("readwrite",s=>{s.put(v,k);}),del:k=>tx("readwrite",s=>{s.delete(k);})};})();
+  return {get:k=>tx("readonly",s=>s.get(k)),put:(k,v)=>tx("readwrite",s=>{s.put(v,k);}),del:k=>tx("readwrite",s=>{s.delete(k);}),
+    getMany:ks=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction("parts","readonly"),s=t.objectStore("parts"),out=new Array(ks.length);
+      ks.forEach((k,i)=>{const r=s.get(k);r.onsuccess=()=>{out[i]=r.result;};});t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);}))};})();
+/* idb.get hands back the request itself when there is no such record: that means "nothing saved" */
+const idbVal=x=>(typeof IDBRequest!=="undefined"&&x instanceof IDBRequest)?undefined:x;
+/* parts are kept gzip-compressed where the browser can do it (about a quarter of the size), plain JSON text otherwise */
+const CZ=typeof CompressionStream!=="undefined"&&typeof DecompressionStream!=="undefined";
+async function zipPart(v){const t=JSON.stringify(v);if(!CZ)return t;return await new Response(new Blob([t]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();}
+async function unzipPart(x){if(typeof x==="string")return JSON.parse(x);if(x instanceof ArrayBuffer)return JSON.parse(await new Response(new Blob([x]).stream().pipeThrough(new DecompressionStream("gzip"))).text());return x;}
+/* saves the parts that changed, one at a time, and the index after every 25 (so a closed tab keeps
+   what it managed); when the browser runs out of room it stops, and the rest is fetched next visit */
+async function savePieces(keys,gone,have,parts,old){
+  try{if(old)await idb.del("all");
+    const ix0=idbVal(await idb.get("ix")),ix=ix0&&ix0.h?ix0:{h:{}};
+    for(const k of gone){delete ix.h[k];try{await idb.del("p:"+k);}catch(_){}}
+    let n=0;
+    for(const k of keys){if(parts[k]==null)continue;
+      try{await idb.put("p:"+k,await zipPart(parts[k]));ix.h[k]=have[k];}catch(e){break;}
+      if(++n%25===0)await idb.put("ix",ix);}
+    await idb.put("ix",ix);
+  }catch(_){}}
 async function rpc(fn,body,ms){
   const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),ms||15000);
   try{const r=await fetch(`${SB_URL}/rest/v1/rpc/${fn}`,{method:"POST",signal:ctl.signal,headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify(body||{})});
@@ -1088,11 +1111,16 @@ function assemble(base,parts){
   const keys=Object.keys(parts).filter(k=>k.startsWith("rot:")).sort();const rot=[].concat(...keys.map(k=>parts[k]));
   return Object.assign({},base,{rot});}
 async function loadData(note){
-  let saved=null;try{saved=await idb.get("all");}catch(_){}
+  /* the saved copy: the index and its pieces (or, from before 17 October, everything in one record) */
+  let have={},parts={},old=false;
+  try{const ix=idbVal(await idb.get("ix"));
+    if(ix&&ix.h){const ks=Object.keys(ix.h),vals=await idb.getMany(ks.map(k=>"p:"+k));
+      for(let i=0;i<ks.length;i++){if(vals[i]==null)continue;try{parts[ks[i]]=await unzipPart(vals[i]);have[ks[i]]=ix.h[ks[i]];}catch(_){}}}
+    else{const a=idbVal(await idb.get("all"));if(a&&a.hash&&a.parts){have=Object.assign({},a.hash);parts=Object.assign({},a.parts);old=true;}}}catch(_){have={};parts={};}
+  const saved=parts.base?{hash:Object.assign({},have),parts:Object.assign({},parts)}:null;
   try{
     const meta=await rpc("echo_meta",{},8000);
     if(!meta||!meta.base)throw new Error("Supabase has no timetable yet");
-    const have=(saved&&saved.hash)||{},parts=Object.assign({},saved&&saved.parts);
     const need=Object.keys(meta).filter(k=>have[k]!==meta[k]);
     if(need.length){
       note(saved?`Updating ${need.length} part${need.length===1?"":"s"} of the timetable…`:"Downloading the timetable…");
@@ -1100,8 +1128,8 @@ async function loadData(note){
       const got=await Promise.all(groups.map(g=>rpc("echo_parts",{keys:g},60000)));
       got.forEach(o=>Object.entries(o).forEach(([k,x])=>{parts[k]=x.v;have[k]=x.h;}));
     }
-    for(const k of Object.keys(parts))if(!(k in meta)){delete parts[k];delete have[k];}
-    if(need.length)idb.put("all",{hash:have,parts}).catch(()=>{});
+    const gone=Object.keys(parts).filter(k=>!(k in meta));for(const k of gone){delete parts[k];delete have[k];}
+    if(need.length||gone.length||old)savePieces(old?Object.keys(parts):need,gone,have,parts,old);
     return {D:assemble(parts.base,parts),src:"Supabase"};
   }catch(e){
     console.info("[Echo Live] Supabase:",e&&e.message);
