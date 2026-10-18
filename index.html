@@ -438,6 +438,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:#fff}
 .ap-ds{margin:2px 12px 12px;padding:10px 12px;background:var(--card);border:1px solid var(--rule);border-radius:8px}
 .ap-ds-h{display:flex;align-items:center;gap:8px;font-size:14px}.ap-ds-h i{width:10px;height:10px;border-radius:50%;flex:none}.ap-ds-h span{margin-left:auto;color:var(--muted);font-size:12.5px;text-align:right}
 .ap-ds-g{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 6px}
+.ap-ds-g .usu{display:block;font-style:normal;color:var(--muted);font-size:11.5px;margin-top:1px}
 .ap-ds-g small{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:12px}.ap-ds-g small svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .ap-ds-g b{display:block;font:700 22px/1.2 var(--mono)}.ap-ds-g b em{font-style:normal;font-size:13px;color:var(--muted);margin-left:2px}
 .ap-ds-g span{display:block;font-size:12.5px;color:var(--muted)}
@@ -1017,8 +1018,36 @@ function CORE(D,RW){
 /* ---------- the background worker ----------
    Every 30 seconds it finds every leg in the air; every few seconds it moves
    them along. The page only receives the finished positions. */
+/* ---------- disruption: the same sums on the site and in the Discord bot ----------
+   From the timetable around now: departures booked from 30 minutes ago to 30 ahead and landings from
+   20 ago to 40 ahead, counted per airport and minute. A runway lets a departure go every 1.5 minutes
+   (more runways, shorter gaps; a busy minute spreads over up to 10) and takes about 2.5 landings a
+   minute; past that the landings hold. Echo books its flights on :00, :05, :10…, so the big hubs queue
+   all day: every airport is compared with its own whole day ("usually"), and the score out of 5 is
+   how much worse than usual it is now, plus the weather. Each airport's sums are [wait, departures,
+   holds, landings]. */
+function DISQ(){
+  const box=(P,c)=>P[c]||(P[c]=[0,0,0,0]);
+  /* dq, aq: {"code|minute": flights}; rw(code) gives [departure runways, arrival runways] */
+  const sums=(dq,aq,rw)=>{const P={};
+    for(const k in dq){const c=k.slice(0,k.indexOf("|")),n=dq[k],v=box(P,c),W=Math.min(10,n*1.5/Math.max(1,rw(c)[0]));v[0]+=W*(n-1)/2;v[1]+=n;}
+    for(const k in aq){const c=k.slice(0,k.indexOf("|")),n=aq[k],v=box(P,c);v[2]+=Math.max(0,n-Math.max(2,Math.round(Math.max(1,rw(c)[1])*2.5)));v[3]+=n;}
+    return P;};
+  const merge=(P,Q)=>{for(const c in Q){const v=box(P,c);for(let i=0;i<4;i++)v[i]+=Q[c][i];}return P;};
+  /* each airport's usual wait (minutes) and share of landings holding, over a whole day (airports with 48 flights or more) */
+  const usual=P=>{const o={};for(const c in P){const v=P[c];if(v[1]+v[3]<48)continue;
+    o[c]=[Math.round((v[1]?v[0]/v[1]:0)*100)/100,Math.round((v[3]?v[2]/v[3]:0)*1000)/1000];}return o;};
+  /* weather adds to both: thunderstorms 2, snow or freezing rain 1.5, fog 1, wind over 25 kt 1 */
+  const wxAdd=w=>{if(!w)return 0;const k=w[3];return (k>=95?2:(k>=71&&k<=77)||k===85||k===86||k===56||k===57||k===66||k===67?1.5:k===45||k===48?1:0)+(w[1]>25?1:0);};
+  /* bad weather hurts more where the runways are usually full: up to twice as much at a hub where nearly every landing holds */
+  const wxScale=(x,uh)=>x*(1+(uh||0));
+  /* an airport now (v) against its usual day (u), plus the weather (x): 6 minutes' extra wait or half the landings more holding is 5 out of 5 */
+  const score=(v,u,x)=>{const q=v[1]?v[0]/v[1]:0,h=v[3]?v[2]/v[3]:0,uq=u?u[0]:null,uh=u?u[1]:null,w=wxScale(x,uh);
+    return {q,h,uq,uh,dn:v[1],an:v[3],n:v[1]+v[3],d:Math.min(5,Math.max(0,(q-(uq||0))/1.2)+w),a:Math.min(5,Math.max(0,(h-(uh||0))*8)+w),wxAdd:w};};
+  return {sums,merge,usual,wxAdd,wxScale,score,MIN:24};}
+
 function WORKER(){
-  let C=null,legs=[],lastScan=0,ground=null;
+  let C=null,legs=[],lastScan=0,ground=null,dis=null,AIR=[];const DQ=DISQ();
   let ready=false,pending=null;
   function scan(now){
     /* a flight is on the map from pushback to parking: up to about 25 minutes either side of the flight itself */
@@ -1026,6 +1055,11 @@ function WORKER(){
     const keep=new Set(out.map(l=>l.key));C.prune(keep);
     /* an aircraft that isn't flying is parked where its last flight landed */
     ground={};for(const [ac,[,ap]] of last){if(!air.has(ac))(ground[ap]=ground[ap]||[]).push(ac);}
+    /* the queues: departures booked 30 minutes either side of now, landings from 20 before to 40 after */
+    const dq={},aq={},bump=(m,k)=>{m[k]=(m[k]||0)+1;},rw=c=>{const u=C.rwyUse(c);return u?[u.d.length,u.a.length]:[0,0];};
+    for(const l of out){if(AIR[l.r.ai]&&AIR[l.r.ai].hidden)continue;const dm=l.t-now,am=l.t+l.dur-now;
+      if(dm>=-30&&dm<30)bump(dq,l.from+"|"+Math.round(mod(l.t,1440)));if(am>=-20&&am<40)bump(aq,l.to+"|"+Math.round(mod(l.t+l.dur,1440)));}
+    dis=DQ.sums(dq,aq,rw);
     legs=out;lastScan=now;}
   function place(now,fast){
     /* the scan covers the next 30 minutes; live it is refreshed every 30 seconds for the parked planes */
@@ -1038,8 +1072,8 @@ function WORKER(){
       la[i]=a[0];lo[i]=a[1];brg[i]=a[2];f[i]=fr;
       wx[i]=(a[1]+180)/360*256;const sn=Math.sin(Math.max(-85.05,Math.min(85.05,a[0]))*Math.PI/180);wy[i]=(.5-Math.log((1+sn)/(1-sn))/(4*Math.PI))*256;
       const e=C.est(l,fr);alt[i]=e.alt;gr[i]=e.ground?1:0;ri[i]=l.r.i;day[i]=l.day;seq[i]=l.seq;ai[i]=l.r.ai;});
-    const gnd=ground;ground=null;
-    postMessage({n,now,la,lo,brg,f,wx,wy,alt,ri,day,seq,ai,gr,ground:gnd},[la.buffer,lo.buffer,brg.buffer,f.buffer,wx.buffer,wy.buffer,alt.buffer,ri.buffer,day.buffer,seq.buffer,ai.buffer,gr.buffer]);}
+    const gnd=ground,dq=dis;ground=null;dis=null;
+    postMessage({n,now,la,lo,brg,f,wx,wy,alt,ri,day,seq,ai,gr,ground:gnd,dis:dq},[la.buffer,lo.buffer,brg.buffer,f.buffer,wx.buffer,wy.buffer,alt.buffer,ri.buffer,day.buffer,seq.buffer,ai.buffer,gr.buffer]);}
   /* the take-off queue and landing tables depend only on the timetable, the runways and the UTC day,
      so they're kept in this browser (IndexedDB) and reused on the next visit that day */
   const TV="q1";
@@ -1053,7 +1087,7 @@ function WORKER(){
     new Promise(r=>setTimeout(()=>r(null),2500))]);
   const cachePut=(key,t)=>idb((db,done)=>{const tx=db.transaction("t","readwrite");tx.objectStore("t").put({key,d:t.d,a:t.a,h:t.h},"tables");tx.oncomplete=()=>done(true);tx.onerror=()=>done(false);});
   async function init(m){
-    C=CORE(m.data,m.rw);lastScan=0;let key=null,t=null;
+    C=CORE(m.data,m.rw);AIR=m.data.airlines||[];lastScan=0;let key=null,t=null;
     try{key=fp(m.data,m.rw);t=await cacheGet(key);}catch(_){t=null;}
     if(t&&t.d&&t.d.length===C.ROT.length*4)C.setDly({d:t.d,a:t.a,h:t.h});
     else{postMessage({stage:"Working out the take-off queues…"});C.buildDly();t=C.dlyTable();C.setDly(t);if(key)cachePut(key,t);}
@@ -1067,6 +1101,7 @@ function WORKER(){
     else if(m.ground&&C){C.setGround(m.ground);}
     else if(m.wind&&C){C.setWind(m.wind);lastScan=0;}
     else if(m.stats!=null&&C){postMessage({stats:C.dayStats(m.stats)});}
+    else if(m.hide&&C){AIR.forEach((a,i)=>{if(a)a.hidden=m.hide.includes(i);});lastScan=0;}
     else if(m.now&&C){if(m.rescan)lastScan=0;place(m.now,m.fast);}};
 }
 
@@ -1436,6 +1471,10 @@ function nearestPlane(x,y,r){
     let d=P.lo[i]-c.lng;d-=Math.round(d/360)*360;if(Math.abs(d)>dlo)continue;
     const q=M.project([c.lng+d,P.la[i]]),e=(q.x-x)**2+(q.y-y)**2;if(e<bd||(e<bd*1.6&&i===si)){bd=e;best=i;}}
   return best;}
+function nearestParked(x,y,r){
+  if(!PARKED.length||M.getZoom()<PARKZ)return -1;let best=-1,bd=r*r;
+  for(let k=0;k<PARKED.length;k++){const q=M.project([PARKED[k][1],PARKED[k][0]]),e=(q.x-x)**2+(q.y-y)**2;if(e<bd){bd=e;best=PARKED[k][2];}}
+  return best;}
 function nearestAirport(x,y,r){
   const z=ZL();if(z<4)return null;
   const {c,dla,dlo}=nearAround(x,y+15,r+20);let best=null,bd=r*r;
@@ -1447,6 +1486,7 @@ function onTap(x,y,type){
   if(S.ly.heat&&S.net==null&&M.getZoom()<2.8){M.easeTo({center:M.unproject([x,y]),zoom:M.getZoom()+2,duration:600});return;}
   const touch=type!=="mouse",i=S.net!=null?-1:nearestPlane(x,y,touch?30:14);
   if(i>=0){selectPlane(i,false);return;}
+  if(!EMBED&&S.net==null){const ac=nearestParked(x,y,touch?26:12);if(ac>=0&&ACL[ac]){go("#/reg/"+encodeURIComponent(ACL[ac][1]));return;}}
   if(!EMBED&&S.ly.dis!==false&&ZL()<4){const a=nearestDis(x,y,touch?26:14);if(a){go("#/airport/"+a);return;}}
   if(!EMBED){const a=nearestAirport(x,y,touch?24:12);if(a){go("#/airport/"+a);return;}}
   if(S.sel){S.sel=null;S.follow=false;if(EMBED){embCard();redraw();return;}if(S.d3)flat3D();if(S.view==="flight")go("#/");redraw();}
@@ -1463,7 +1503,9 @@ const tip=$("tip");
 let hovT=0;
 M.on("mousemove",e=>{if(!MREADY||!D||!S.P||S.net!=null||matchMedia("(hover:none)").matches)return;const now=performance.now();if(now-hovT<40)return;hovT=now;
   const i=nearestPlane(e.point.x,e.point.y,10);
-  if(i<0){tip.style.display="none";M.getCanvas().style.cursor="";return;}
+  if(i<0){const ac=EMBED?-1:nearestParked(e.point.x,e.point.y,10);
+    if(ac>=0&&ACL[ac]){tip.textContent=`${ACL[ac][1]}  ${MODELS[ACL[ac][0]]} · parked`;tip.style.left=e.point.x+"px";tip.style.top=e.point.y+"px";tip.style.display="block";M.getCanvas().style.cursor="pointer";return;}
+    tip.style.display="none";M.getCanvas().style.cursor="";return;}
   const l=C.legAt(S.P.ri[i],S.P.day[i],S.P.seq[i]);if(!l)return;
   tip.textContent=`${AL[S.P.ai[i]].code}${l.fn}  ${l.from}–${l.to}`;tip.style.left=e.point.x+"px";tip.style.top=e.point.y+"px";tip.style.display="block";M.getCanvas().style.cursor="pointer";});
 M.getCanvasContainer().addEventListener("mouseleave",()=>{tip.style.display="none";});
@@ -1543,31 +1585,26 @@ function trackedBody(){loadTracked();if(!TRK.list)return `<p class="wdg-e">Loadi
     return `<button type="button" class="tk" data-go="#/flight/${encodeURIComponent(a.code+l.fn)}/${l.r.i}"><span class="tk-1"><span class="rk">${k+1}.</span>${esc(a.code)}${l.fn}${reg?`<span class="chip">${esc(reg)}</span>`:""}${ICAO[m]?`<span class="chip ty">${esc(ICAO[m])}</span>`:""}<span class="tk-n">${fmtN(x.n)}${SV(IC.people)}</span></span>
       <span class="tk-2">${esc(AP[l.from].city||l.from)}<span class="chip">${l.from}</span>– ${esc(AP[l.to].city||l.to)}<span class="chip">${l.to}</span></span></button>`;}).join("");}
 /* airport delays: how long take-offs wait in the queue and how many arrivals are holding, as 0 to 5 */
-let DLYW={t:0,list:[]};
+let DLYW={t:0,list:[]},DISW=null,USUAL=null;const DQS=DISQ();
+/* every airport's usual day, worked out by the Discord bot once a day (a few KB), so the site and the bot agree */
+async function loadUsual(){try{const u=await rpc("echo_dis_usual",{},8000);if(u&&typeof u==="object"){USUAL=u;DLYW.t=0;}}catch(_){}}
 function delayList(){
-  if(!S.P)return [];const t=Date.now();if(t-DLYW.t<60000&&DLYW.list.length)return DLYW.list;
-  const P=S.P,now=nowMin(),m=new Map(),get=c=>{let v=m.get(c);if(!v)m.set(c,v={dw:0,dn:0,hold:0,inb:0});return v;};
-  for(let i=0;i<S.n;i++){const f=P.f[i];if(!(P.gr[i]&&f<.5)&&!(f>.8&&f<=1))continue;const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)continue;
-    if(P.gr[i]){const v=get(l.from);v.dw+=C.dly(l);v.dn++;}else{const v=get(l.to);v.inb++;if(C.holding(l,now))v.hold++;}}
-  /* weather adds to both: thunderstorms 2, snow or freezing rain 1.5, fog 1, wind over 25 kt 1 */
-  const wxAdd=c=>{const w=WINDC[c];if(!w)return 0;const k=w[3];return (k>=95?2:(k>=71&&k<=77)||k===85||k===86||k===56||k===57||k===66||k===67?1.5:k===45||k===48?1:0)+(w[1]>25?1:0);};
-  const out=[];for(const [c,v] of m){if(v.dn+v.inb<12||!AP[c])continue;const q=v.dn?v.dw/v.dn:0,h=v.inb?v.hold/v.inb:0,x=wxAdd(c);
-    const d=Math.min(5,q/1.6+x),a=Math.min(5,h*7+x);out.push({c,d,a,q,h,n:v.dn+v.inb,s:Math.max(d,a)+(v.dn+v.inb)/1e4});}
+  if(!S.P||!DISW)return [];const t=Date.now();if(t-DLYW.t<60000&&DLYW.list.length)return DLYW.list;
+  const out=[];for(const c in DISW){const v=DISW[c];if(v[1]+v[3]<DQS.MIN||!AP[c])continue;
+    const x=DQS.score(v,USUAL&&USUAL[c],wxAddOf(c));x.s=Math.max(x.d,x.a)+x.n/1e4;out.push(Object.assign(x,{c}));}
   out.sort((x,y)=>y.s-x.s);DLYW={t,list:out.slice(0,15),all:out};loadWind(out.slice(0,40).map(x=>x.c));return DLYW.list;}
 const ixCol=v=>v<2?"var(--teal)":v<3.5?"#f5c542":"#ff5b8a";
-const wxAddOf=c=>{const w=WINDC[c];if(!w)return 0;const k=w[3];return (k>=95?2:(k>=71&&k<=77)||k===85||k===86||k===56||k===57||k===66||k===67?1.5:k===45||k===48?1:0)+(w[1]>25?1:0);};
-function delayOf(c){if(!S.P||!AP[c])return null;const P=S.P,now=nowMin();let dw=0,dn=0,hold=0,inb=0;
-  for(let i=0;i<S.n;i++){const f=P.f[i];if(!(P.gr[i]&&f<.5)&&!(f>.8&&f<=1))continue;const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)continue;
-    if(P.gr[i]){if(l.from===c){dw+=C.dly(l);dn++;}}else if(l.to===c){inb++;if(C.holding(l,now))hold++;}}
-  const q=dn?dw/dn:0,h=inb?hold/inb:0,x=wxAddOf(c),d=Math.min(5,q/1.6+x),a=Math.min(5,h*7+x),all=(delayList(),DLYW.all||[]),k=all.findIndex(z=>z.c===c);
-  return {c,d,a,q,h,dn,inb,n:dn+inb,rank:k>=0?k+1:null,of:all.length};}
+const wxAddOf=c=>DQS.wxAdd(WINDC[c]);
+function delayOf(c){if(!S.P||!AP[c])return null;const v=(DISW&&DISW[c])||[0,0,0,0],x=DQS.score(v,USUAL&&USUAL[c],wxAddOf(c)),all=(delayList(),DLYW.all||[]),k=all.findIndex(z=>z.c===c);
+  return Object.assign(x,{c,rank:k>=0?k+1:null,of:all.length});}
+const usualTxt=(u,f)=>u==null?"":` <i class="usu">usually ${f(u)}</i>`;
 /* the airport page's disruption section (also what a tap on an airport pin opens) */
 function apDisBlock(code){const x=delayOf(code);if(!x)return "";const v=Math.max(x.d,x.a);loadWind([code]);
-  const w=WINDC[code],wx=w?wxLine(code):"",bad=wxAddOf(code);
-  return `<section class="ap-ds"><div class="ap-ds-h"><i style="background:${ixCol(v)}"></i><b>${disWord(v)}</b><span>${x.rank?`${ordinal(x.rank)} most disrupted of ${fmtN(x.of)}`:x.n?"quieter than the busy airports":"nothing waiting or landing now"}</span></div>
-    <div class="ap-ds-g"><div><small>${SV(IC.dep)} Take-offs</small><b style="color:${ixCol(x.d)}">${x.d.toFixed(1)}<em>/5</em></b><span>${fmtN(x.dn)} waiting · about ${x.q.toFixed(1)} min in the queue</span></div>
-      <div><small>${SV(IC.arr)} Landings</small><b style="color:${ixCol(x.a)}">${x.a.toFixed(1)}<em>/5</em></b><span>${fmtN(x.inb)} on the way in · ${Math.round(x.h*100)}% holding</span></div></div>
-    ${wx?`<p class="ap-ds-w"><span class="dl-w">${wx}</span>${bad?`<span class="ap-ds-bad">adds ${bad.toFixed(1)} to both</span>`:""}</p>`:`<p class="ap-ds-w">${w===null?"Weather loading…":""}</p>`}
+  const w=WINDC[code],wx=w?wxLine(code):"",bad=x.wxAdd;
+  return `<section class="ap-ds"><div class="ap-ds-h"><i style="background:${ixCol(v)}"></i><b>${disWord(v)}</b><span>${x.rank?`${ordinal(x.rank)} most disrupted of ${fmtN(x.of)}`:x.n?"too quiet to rate":"nothing leaving or landing now"}</span></div>
+    <div class="ap-ds-g"><div><small>${SV(IC.dep)} Take-offs</small><b style="color:${ixCol(x.d)}">${x.d.toFixed(1)}<em>/5</em></b><span>${fmtN(x.dn)} leaving this hour · about ${x.q.toFixed(1)} min in the queue${usualTxt(x.uq,u=>u.toFixed(1))}</span></div>
+      <div><small>${SV(IC.arr)} Landings</small><b style="color:${ixCol(x.a)}">${x.a.toFixed(1)}<em>/5</em></b><span>${fmtN(x.an)} landing this hour · ${Math.round(x.h*100)}% holding${usualTxt(x.uh,u=>Math.round(u*100)+"%")}</span></div></div>
+    ${wx?`<p class="ap-ds-w"><span class="dl-w">${wx}</span>${bad?`<span class="ap-ds-bad">adds ${Math.min(5,bad).toFixed(1)} to both</span>`:""}</p>`:`<p class="ap-ds-w">${w===null?"Weather loading…":""}</p>`}
     <button type="button" class="link" data-go="#/disruptions/${code}">Compare with other airports ›</button></section>`;}
 const disWord=v=>v<.5?"Calm":v<2?"Running smoothly":v<3.5?"Some delays":"Heavily disrupted";
 /* the disruptions on the map (Map layers → Disruptions): the 40 worst airports at 2 out of 5 or more */
@@ -1583,7 +1620,7 @@ function wxLine(c){const w=WINDC[c];if(!w)return "";return `<span>${wxIcon(w)}${
 const dlRow=x=>`<button type="button" class="tk dl" data-go="#/airport/${x.c}"><span class="dl-ap"><span>${esc(AP[x.c].city||AP[x.c].name)}</span><span class="chip">${x.c}</span></span>
     <span class="dl-ix">${SV(IC.dep)}<i style="background:${ixCol(x.d)}"></i><b>${x.d.toFixed(1)}</b></span><span class="dl-w">${wxLine(x.c)}</span>
     <span class="dl-ix">${SV(IC.arr)}<i style="background:${ixCol(x.a)}"></i><b>${x.a.toFixed(1)}</b></span>
-    <span class="dl-why">Take-offs wait ${x.q.toFixed(1)} min · ${Math.round(x.h*100)}% of arrivals holding</span></button>`;
+    <span class="dl-why">Take-offs wait ${x.q.toFixed(1)} min${x.uq!=null?` (usually ${x.uq.toFixed(1)})`:""} · ${Math.round(x.h*100)}% of arrivals holding${x.uh!=null?` (usually ${Math.round(x.uh*100)}%)`:""}</span></button>`;
 function delaysBody(){const L=delayList();if(!L.length)return S.P?`<p class="wdg-e">No queues anywhere right now.</p>`:"";
   return L.map(dlRow).join("");}
 /* the airports with the most planes on the ground at this moment (taxiing, parked or just landed), counted every 30 seconds */
@@ -1639,11 +1676,11 @@ function dsMatches(q){q=dsFold(q).trim();if(!q)return [];const Q=q.toUpperCase()
   for(const c of APLIST){const a=AP[c];if(dsFold(a.city).includes(q)||dsFold(a.name).includes(q))add(c);}
   return out.sort((x,y)=>(x===Q?-1:y===Q?1:0)||(APROT[y].length-APROT[x].length)).slice(0,6);}
 function dsCard(c){const x=delayOf(c);if(!x)return "";const v=Math.max(x.d,x.a);loadWind([c]);
-  return `<div class="ds-card">${dlRow(x)}<p class="ds-sum"><b style="color:${ixCol(v)}">${disWord(v)}</b> · ${x.rank?`${ordinal(x.rank)} most disrupted of ${fmtN(x.of)} busy airports`:x.n?`quieter than the busy airports listed`:`no planes waiting or landing right now`} · ${fmtN(x.dn)} waiting to take off, ${fmtN(x.inb)} on the way in${WINDC[c]===null?" · weather loading…":""}</p></div>`;}
+  return `<div class="ds-card">${dlRow(x)}<p class="ds-sum"><b style="color:${ixCol(v)}">${disWord(v)}</b> · ${x.rank?`${ordinal(x.rank)} most disrupted of ${fmtN(x.of)} busy airports`:x.n?`too quiet to rate (fewer than 24 flights this hour)`:`nothing leaving or landing right now`} · ${fmtN(x.dn)} leaving this hour, ${fmtN(x.an)} landing${WINDC[c]===null?" · weather loading…":""}</p></div>`;}
 const ordinal=n=>n+(n%100>=11&&n%100<=13?"th":["th","st","nd","rd"][n%10]||"th");
 function renderDisruptions(sel){S.view="disrupt";if(sel!==undefined)DSEL=sel&&AP[sel]?sel:null;
   body.innerHTML=`<button type="button" class="back" id="bk">‹ All airlines</button><div class="bar"><h2>Airport disruptions</h2><span class="live">LIVE</span></div>
-  <p class="note">From 0 (calm) to 5 for take-offs ${SV(IC.dep)} and landings ${SV(IC.arr)}: how long departures wait in the queue, how many arrivals are holding, and the real weather there now (storms, snow, fog and strong wind, from Open-Meteo).</p>
+  <p class="note">From 0 (calm) to 5 for take-offs ${SV(IC.dep)} and landings ${SV(IC.arr)}: how much longer departures wait in the queue and how many more arrivals hold than on a normal day at that airport, plus the real weather there now (storms, snow, fog and strong wind, from Open-Meteo). A hub that is always busy only scores when it's busier than usual.</p>
   <label class="search ds-q"><span class="sr" hidden>Airport</span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13l5 5"/></svg>
     <input id="dsq" type="search" autocomplete="off" spellcheck="false" placeholder="Any airport: code or city" aria-label="Check any airport's disruption status" value="${esc(DSQ)}"></label>
   <div id="ds-hits"></div><div id="ds-sel">${DSEL?dsCard(DSEL):""}</div>
@@ -2098,17 +2135,20 @@ function wantGround(codes){
 /* aircraft parked between flights, as a count at each airport */
 /* is the sun more than 4 degrees below the horizon there (at the map's time) */
 function nightAt(la,lo){const s=sunAt(nowMin()*6e4),e=Math.asin(Math.sin(la*D2R)*Math.sin(s.lat*D2R)+Math.cos(la*D2R)*Math.cos(s.lat*D2R)*Math.cos((lo-s.lon)*D2R))/D2R;return e<-4?1:0;}
+let PARKED=[];   // the parked planes drawn at their stands: [lat, lon, aircraft], so they can be tapped
 function feedGround(){
-  const fs=[],pk=[];
+  const fs=[],pk=[];PARKED=[];
   if(S.ly.ground&&ZL()>=2.5)for(const c in S.ground){const a=AP[c];if(!a)continue;
     const list=S.filter.size?S.ground[c].filter(ac=>S.filter.has(ACAI[ac])):S.ground[c];if(list.length)fs.push(PT(a.lo,a.la,{n:list.length}));}
   /* close in, every parked plane at its stand (one per stand: busy hubs have more planes than stands) */
-  if(M.getZoom()>=PARKZ){const ok=inView(),b=M.getBounds(),pad=.15;
-    for(const c in S.ground){const a=AP[c];if(!a||a.la<b.getSouth()-pad||a.la>b.getNorth()+pad||!ok(a.la,a.lo)&&!ok(a.la,a.lo+pad)&&!ok(a.la,a.lo-pad))continue;
+  if(M.getZoom()>=PARKZ){const b=M.getBounds(),pad=.15,mid=(b.getWest()+b.getEast())/2,half=(b.getEast()-b.getWest())/2+pad;
+    /* an airport counts as in view when its stands could be (stands sit up to about 15 km from the airport's own point,
+       so close in the airport's point itself can be off screen while its planes are on it) */
+    for(const c in S.ground){const a=AP[c];if(!a||a.la<b.getSouth()-pad||a.la>b.getNorth()+pad)continue;let d=a.lo-mid;d-=Math.round(d/360)*360;if(Math.abs(d)>half)continue;
       const used=new Set();
       for(const ac of S.ground[c]){const ai=ACAI[ac];if(ai==null||AL[ai].hidden||(S.filter.size&&!S.filter.has(ai))||(S.type!=null&&ACL[ac]&&ACL[ac][0]!==S.type))continue;
         const q=C.standPos(c,ac);if(!q||used.has(q[3]))continue;used.add(q[3]);
-        pk.push({type:"Feature",properties:{c:AL[ai].mc,b:Math.round(q[2]),ac},geometry:{type:"Point",coordinates:[q[1],q[0]]}});}}}
+        pk.push({type:"Feature",properties:{c:AL[ai].mc,b:Math.round(q[2]),ac},geometry:{type:"Point",coordinates:[q[1],q[0]]}});PARKED.push([q[0],q[1],ac]);}}}
   M.getSource("ground").setData(FC(fs));M.getSource("parked").setData(FC(pk));
   /* runways of the airports in view */
   const rf=[];
@@ -2935,7 +2975,7 @@ function admAirlines(box){
     $("ax-p").onchange=e=>paint(e.target.value);
     box.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>paint(b.dataset.ed));
     if(!a)return;
-    const msg=t=>$("ax-m").innerHTML=t,done=async()=>{try{await admSave("overrides",Object.keys(ov).length?ov:null);applyOverrides();redraw();updateCount();msg(`<span class="ok">Saved.</span>`);paint(sel);}catch(e){msg(`<span class="bad">${esc(e.message)}</span>`);}};
+    const msg=t=>$("ax-m").innerHTML=t,done=async()=>{try{await admSave("overrides",Object.keys(ov).length?ov:null);applyOverrides();if(worker)worker.postMessage({hide:AL.map((a,i)=>a.hidden?i:-1).filter(i=>i>=0)});redraw();updateCount();msg(`<span class="ok">Saved.</span>`);paint(sel);}catch(e){msg(`<span class="bad">${esc(e.message)}</span>`);}};
     $("ax-s").onclick=()=>{const y={},n=$("ax-n").value.trim(),e=$("ax-e").value.trim().toLowerCase();
       if(n&&n!==a._orig.name)y.name=n;if(!$("ax-cd").checked)y.color=$("ax-c").value.toUpperCase();if(e)y.eu=e;if($("ax-h").checked)y.hidden=true;
       if(Object.keys(y).length)ov[sel]=y;else delete ov[sel];done();};
@@ -2995,7 +3035,7 @@ function onPositions(m){
   if(m.stage){const l=$("loadtxt");if(l)l.textContent=m.stage;return;}
   if(m.dly){C.setDly(m.dly);return;}
   if(m.stats){RECDAY=m.stats;if(S.view==="records")renderRecords();return;}
-  const first=!S.P;S.P=m;S.n=m.n;if(m.ground){S.ground=m.ground;if(S.view==="airport"&&!first)groundList();}updateCount();
+  const first=!S.P;S.P=m;S.n=m.n;if(m.ground){S.ground=m.ground;if(S.view==="airport"&&!first)groundList();}if(m.dis){DISW=m.dis;DLYW.t=0;}updateCount();
   if(first){$("loading")&&$("loading").remove();route();}
   else if(S.view==="home"&&performance.now()-lastHome>30000){lastHome=performance.now();renderHome();}
   if(S.sel&&S.follow&&MREADY){const i=selIndex();if(i>=0){if(S.d3)view3D(i,false);else M.easeTo({center:[S.P.lo[i],S.P.la[i]],pitch:0,bearing:0,duration:800});}}
@@ -3042,7 +3082,7 @@ async function start(){
   if(EMBED)setupEmbed();else hitOnce("visit","");
   resize();note("Placing the planes…");
   try{
-    const src=`const mod=${mod.toString()};const CORE=${CORE.toString()};(${WORKER.toString()})();`;
+    const src=`const mod=${mod.toString()};const CORE=${CORE.toString()};const DISQ=${DISQ.toString()};(${WORKER.toString()})();`;
     worker=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
     worker.onmessage=e=>onPositions(e.data);
     let w0={};try{w0=await firstWind();}catch(_){w0={};}
@@ -3052,9 +3092,10 @@ async function start(){
     D.rot=null;   // the worker has its own copy and the page keeps the parsed routes (C.ROT): the raw rows aren't needed here any more
   }catch(e){
     /* no workers (very old browsers): do the same work here */
-    const ctx=new Function("postMessage","CORE","mod",`let onmessage;(${WORKER.toString().replace(/^function WORKER\(\)\{/,"").replace(/\}$/,"")});return m=>onmessage({data:m});`);
-    const send=ctx(m=>onPositions(m),CORE,mod);worker={postMessage:send};send({data:D,rw:RWD,now:nowMin()});setTimeout(startWind,0);
+    const ctx=new Function("postMessage","CORE","mod","DISQ",`let onmessage;(${WORKER.toString().replace(/^function WORKER\(\)\{/,"").replace(/\}$/,"")});return m=>onmessage({data:m});`);
+    const send=ctx(m=>onPositions(m),CORE,mod,DISQ);worker={postMessage:send};send({data:D,rw:RWD,now:nowMin()});setTimeout(startWind,0);
   }
+  loadUsual();setInterval(loadUsual,6*36e5);
   setInterval(pulse,4000);setInterval(disMap,30000);setTimeout(disMap,8000);
   setTimebar(tbOpen);setInterval(timeLabel,10000);
   setInterval(checkWatch,15000);checkWatch();
