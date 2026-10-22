@@ -1230,7 +1230,7 @@ const divShort=d=>d.name.replace(/^Echo /,"");
    pelita_air_int_l, 中国南方航空 stays as it is). Checked against the alliance's directory. */
 const euSlug=n=>String(n||"").toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu,"_").replace(/^_+|_+$/g,"");   // marks kept, as in Hindi
 const euOf=ai=>AL[ai].eu||euSlug(AL[ai].name);   // same-named airlines in a division get a uid suffix on the alliance site
-const euLink=ai=>`https://echounitedalliances.github.io/#/d/${divOf(ai).code}/${euOf(ai)}`;
+const euLink=ai=>`https://echoalliances.com/#/d/${divOf(ai).code}/${euOf(ai)}`;
 const divDot=d=>`<i class="dvdot" style="background:${d.color}"></i>`;
 function curDiv(){if(!S.filter.size)return null;for(const d of DIVS())if(S.filter.size===d.count&&[...S.filter].every(i=>i>=d.first&&i<d.first+d.count))return d;return null;}
 function setDiv(code){S.filter.clear();const d=DIVS().find(x=>x.code===code);if(d)for(let i=d.first;i<d.first+d.count;i++)S.filter.add(i);
@@ -1419,8 +1419,8 @@ function draw(){
   if(!apsDone&&APLIST.length){apsDone=true;M.getSource("aps").setData(FC(APLIST.map(c=>PT(AP[c].lo,AP[c].la,{c,hub:!!AP[c].hub}))));}
   feedGround();feedMe();feedNet();feedDay();
   if(!S.P)return;
-  const P=S.P,si=selIndex(),fs=[[],[],[],[]],hp=[];
-  for(let i=0;i<S.n;i++){if(i===si||!shown(i))continue;
+  const P=S.P,si=selIndex(),fs=[[],[],[],[]],hp=[],near=planeArea();
+  for(let i=0;i<S.n;i++){if(i===si||!shown(i)||!near(P.la[i],P.lo[i]))continue;
     fs[i&3].push({type:"Feature",properties:{c:colOf(i),b:Math.round(P.brg[i]),ri:P.ri[i],day:P.day[i],seq:P.seq[i],s:szOf(P.ri[i])},geometry:{type:"Point",coordinates:[P.lo[i],P.la[i]]}});
     if(S.ly.heat&&!P.gr[i])hp.push({type:"Feature",properties:{},geometry:{type:"Point",coordinates:[P.lo[i],P.la[i]]}});}
   PL.forEach((k,j)=>M.getSource(k).setData(FC(fs[j])));M.getSource("heatpts").setData(FC(hp));
@@ -1447,6 +1447,34 @@ function draw(){
   M.getSource("sel").setData(FC(sel));M.getSource("route").setData(FC(rt));M.getSource("routeend").setData(FC(ends));
   feedView();
 }
+/* which planes the map is given: those in view and a wide margin round it. Zoomed out on the globe,
+   the half of the earth facing you (plus a band past the edge); closer in, the view and one and a half
+   views more on every side. Handing the map all 100,000-odd planes every few seconds was most of the drawing
+   work, and the ones behind the globe or off the screen were never seen. FED remembers what was
+   handed over, so moving past it tops the map up straight away. */
+let FED=null,fedT=0;
+function planeArea(){
+  if(!MREADY)return ()=>true;
+  const c=M.getCenter(),z=M.getZoom();
+  if(z<3&&M.getPitch()>5){FED={h:true,all:true,lat:c.lat,lng:c.lng};return ()=>true;}   // the globe tilted: the view runs past the far edge, so everything
+  if(z<3){const la0=c.lat*D2R,s0=Math.sin(la0),c0=Math.cos(la0),lo0=c.lng;
+    FED={h:true,lat:c.lat,lng:c.lng};
+    return (la,lo)=>{const r=la*D2R;return s0*Math.sin(r)+c0*Math.cos(r)*Math.cos((lo-lo0)*D2R)>-.26;};}   // within 105 degrees of the middle
+  const b=M.getBounds();let w=b.getWest(),e=b.getEast(),s=b.getSouth(),n=b.getNorth();
+  const dx=Math.max(4,(e-w)*1.5),dy=Math.max(3,(n-s)*1.5);   /* one and a half views more on every side: zooming out two steps is already covered */w-=dx;e+=dx;s-=dy;n+=dy;
+  const all=e-w>=360,pr=(la,lo)=>{if(la<s||la>n)return false;if(all)return true;let x=lo;while(x<w)x+=360;while(x>w+360)x-=360;return x<=e;};
+  FED={h:false,pr};return pr;}
+/* has the view moved past what the map was given? */
+function pastFed(){
+  if(!FED||!MREADY)return false;
+  const c=M.getCenter(),z=M.getZoom();
+  if(FED.h){if(FED.all)return M.getPitch()<=5&&z<3;   // was tilted, now flat: hand over just the facing half again
+    if(z>=3)return Math.sin(c.lat*D2R)*Math.sin(FED.lat*D2R)+Math.cos(c.lat*D2R)*Math.cos(FED.lat*D2R)*Math.cos((c.lng-FED.lng)*D2R)<.5;   // zoomed in from the globe: fine unless you've gone 60 degrees round
+    const r=D2R,d=Math.sin(c.lat*r)*Math.sin(FED.lat*r)+Math.cos(c.lat*r)*Math.cos(FED.lat*r)*Math.cos((c.lng-FED.lng)*r);return d<Math.cos(30*r);}
+  if(z<3)return true;
+  const b=M.getBounds(),w=b.getWest(),e=b.getEast(),s=Math.max(-85,b.getSouth()),n=Math.min(85,b.getNorth());
+  return !(FED.pr(s,w)&&FED.pr(n,e)&&FED.pr(s,e)&&FED.pr(n,w)&&FED.pr(c.lat,c.lng));}
+M.on("move",()=>{const t=performance.now();if(t-fedT<120)return;fedT=t;if(pastFed())redraw();});
 /* what depends on where you're looking: flight numbers and trails, only for planes in view */
 const TRC=new Map(),TRAILMIN={6:6.5,7:3.5,8:2,9:1.2,10:.8};   // minutes of trail at each zoom: about 60 px behind each plane
 function inView(){const b=M.getBounds(),w=b.getWest(),e=b.getEast(),s=b.getSouth(),n=b.getNorth();
@@ -1469,7 +1497,7 @@ function feedView(){
       const c=colOf(i);for(let q=0;q<6;q++)tr.push(LN([pts[q],pts[q+1]],{c,o:.08+.5*q/6,w:1+q*.35}));}}
   M.getSource("labels").setData(FC(lab));M.getSource("trail").setData(FC(tr));
 }
-M.on("moveend",()=>{clearTimeout(viewT);viewT=setTimeout(()=>{feedView();feedGround();},60);});
+M.on("moveend",()=>{clearTimeout(viewT);viewT=setTimeout(()=>{if(pastFed()||(FED&&FED.h&&M.getZoom()>=3))redraw();feedView();feedGround();},60);});   // zoomed in from the globe: slim down to the view
 M.on("dragstart",e=>{if(CAM.on&&e.originalEvent)camStop();if(S.follow){S.follow=false;if(S.view==="flight")renderFlight();}});
 /* the 3D view: tilted behind the plane, turned to its heading, following it */
 function view3D(i,first){
@@ -2295,7 +2323,7 @@ function savePic(caption,name){
     const ew=g.measureText("ECHO ").width;g.font=`italic ${28*k}px 'Bodoni Moda',Georgia,serif`;g.fillStyle="#c4a1ff";g.fillText("Live",x0+ew,y0);
     g.font=`600 ${14*k}px 'DM Sans',system-ui,sans-serif`;g.fillStyle="rgba(236,232,247,.9)";g.textAlign="right";
     g.fillText(caption,w-24*k,y0);g.font=`500 ${11*k}px 'DM Sans',system-ui,sans-serif`;g.fillStyle="rgba(196,161,255,.85)";
-    g.fillText(`${new Date(nowMin()*6e4).toISOString().slice(0,16).replace("T"," ")} UTC · echoflightslive.github.io · map © OpenStreetMap`,w-24*k,y0-22*k);
+    g.fillText(`${new Date(nowMin()*6e4).toISOString().slice(0,16).replace("T"," ")} UTC · live.echoalliances.com · map © OpenStreetMap`,w-24*k,y0-22*k);
     c.toBlob(b=>{if(!b){toast("Couldn't save the picture here.");return;}const u=URL.createObjectURL(b),x=document.createElement("a");x.href=u;x.download=`echo-live-${String(name||"map").replace(/[^a-z0-9-]+/gi,"-").toLowerCase()}.png`;document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);toast("Picture saved.");},"image/png");
   }catch(e){toast("Couldn't save the picture here.");}});
   M.triggerRepaint();}
@@ -2512,7 +2540,7 @@ async function shareCard(i){
   g.fillStyle="#efe9fb";g.font="500 26px 'DM Sans',sans-serif";
   g.fillText(`Departed ${localTime(l.from,l.t)} · arrives ${localTime(l.to,l.t+l.dur)}${dayTag(l.to,l.t+l.dur,l.from,l.t)} local · ${dur(l.t+l.dur-now)} to go`,64,525);
   g.fillStyle="#a7a3ae";g.fillText(`${acName(l.r.ac)}${acReg(l.r.ac)?" · "+acReg(l.r.ac):""}`,64,570);
-  g.textAlign="right";g.fillStyle="#8a8691";g.font="500 22px 'DM Sans',sans-serif";g.fillText("echoflightslive.github.io",W2-64,590);g.textAlign="left";
+  g.textAlign="right";g.fillStyle="#8a8691";g.font="500 22px 'DM Sans',sans-serif";g.fillText("live.echoalliances.com",W2-64,590);g.textAlign="left";
   const blob=await new Promise(r=>c.toBlob(r,"image/png")),url=URL.createObjectURL(blob),name=`${a.code}${l.fn}-${l.from}-${l.to}.png`;
   S.view="card";
   body.innerHTML=`<button type="button" class="back" id="bk">‹ Back to the flight</button><div class="bar"><h2>Share card</h2></div>
@@ -2794,7 +2822,7 @@ function renderDivs(){
 }
 
 /* ---------- embedding ---------- */
-const SITE="https://echoflightslive.github.io/";
+const SITE="https://live.echoalliances.com/";
 const embedSrc=ai=>`${SITE}?embed&div=${divOf(ai).code}&airline=${encodeURIComponent(euOf(ai))}`;
 const embedCode=ai=>`<iframe src="${embedSrc(ai)}" width="100%" height="460" style="border:0;border-radius:10px" loading="lazy" title="${AL[ai].name.replace(/"/g,"&quot;")} on Echo Live"></iframe>`;
 let EMB={ai:-1};
