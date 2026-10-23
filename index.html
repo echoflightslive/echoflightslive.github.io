@@ -405,9 +405,9 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
 #loading{position:fixed;inset:0;z-index:1200;background:#060507;color:#ece2ff;font:15px var(--ui);overflow:hidden;transition:opacity .5s ease}
 #loading.done{opacity:0;pointer-events:none}
 .ix-stage{position:absolute;left:50%;top:50%;width:900px;height:620px;margin:-310px 0 0 -450px;transform:scale(var(--ix,1))}
-.ix-top{position:absolute;left:20px;right:20px;top:14px;display:flex;justify-content:space-between;align-items:center}
-.ix-eyebrow{font-weight:700;font-size:max(13px,calc(10px / var(--ix,1)));letter-spacing:.18em;text-transform:uppercase;color:#a7a3ae}
-.ix-air{display:flex;align-items:center;gap:9px;height:max(30px,calc(24px / var(--ix,1)));padding:0 13px;border-radius:999px;border:1px solid #3a3841;font-weight:700;font-size:max(12px,calc(9px / var(--ix,1)));letter-spacing:.16em;color:#f3f1ec}
+.ix-top{position:absolute;left:24px;right:24px;top:20px;display:flex;justify-content:space-between;align-items:center;gap:16px}   /* in the window's corners, not on the stage */
+.ix-eyebrow{font-weight:700;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#a7a3ae}
+.ix-air{display:flex;align-items:center;gap:9px;height:30px;padding:0 13px;border-radius:999px;border:1px solid #3a3841;font-weight:700;font-size:12px;margin-left:auto;letter-spacing:.16em;color:#f3f1ec}
 .ix-air i{width:8px;height:8px;border-radius:50%;background:#ff7b3e;animation:ix-blink 1.1s steps(2,start) 3.5s infinite;visibility:visible}
 @keyframes ix-blink{to{visibility:hidden}}
 .ix-rack{position:absolute;left:130px;top:52px;width:640px;transform:rotate(-7deg);display:flex;flex-direction:column;gap:8px}
@@ -439,7 +439,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
 .ix-dots i{width:max(10px,calc(7px / var(--ix,1)));height:max(10px,calc(7px / var(--ix,1)));border-radius:50%;animation:ix-dot 1.35s ease-in-out infinite}
 @keyframes ix-dot{0%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-7px);opacity:1}}
 #loadtxt{color:#a7a3ae;font-size:max(15px,calc(14px / var(--ix,1)));max-width:760px;text-align:center}   /* never smaller than 14px on screen, even scaled down on a phone */
-.ix-flash{position:absolute;inset:0;background:#c4a1ff;opacity:0;pointer-events:none;animation:ix-flash .5s ease-out 3.28s}
+.ix-flash{position:absolute;inset:0;z-index:2;background:#c4a1ff;opacity:0;pointer-events:none;animation:ix-flash .5s ease-out 3.28s}
 @keyframes ix-flash{0%{opacity:.16}100%{opacity:0}}
 .ix-fadein{opacity:0;animation:ix-fade .5s ease forwards}
 @keyframes ix-fade{to{opacity:1}}
@@ -447,6 +447,8 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
 #loading.ix-plain{background:transparent;pointer-events:none}
 #loading.ix-plain .ix-stage>*:not(.ix-foot){display:none}
 #loading.ix-plain .ix-foot{opacity:1;animation:none}
+#loading.ix-plain .ix-top,#loading.ix-plain .ix-flash{display:none}
+@media (max-width:560px){.ix-eyebrow{display:none}}
 @media (prefers-reduced-motion:reduce){.ix-strip,.ix-flash{display:none}.ix-row,.ix-dots i,.ix-air i{animation:none}
   .ix-bars i,.ix-echo,.ix-live,.ix-swoosh path,.ix-call,.ix-foot,.ix-fadein{animation-duration:.01ms!important;animation-delay:0s!important}}
 #toast{position:fixed;z-index:1300;left:50%;bottom:30px;transform:translateX(-50%);background:var(--cream);color:var(--on-accent);border:0;padding:9px 16px;border-radius:999px;font-weight:500;display:none}
@@ -644,19 +646,20 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
 <div id="tip"></div>
 <a id="emb" target="_blank" rel="noopener"></a>
 <div id="emcard" hidden></div>
-<div id="loading" role="status" aria-live="polite"><div class="ix-stage">
+<div id="loading" role="status" aria-live="polite">
 <div class="ix-top"><span class="ix-eyebrow ix-fadein" style="animation-delay:.1s">Echo United Alliances · Nine divisions</span><span class="ix-air ix-fadein" style="animation-delay:3.5s"><i></i>ON AIR</span></div>
+<div class="ix-flash" aria-hidden="true"></div>
+<div class="ix-stage">
 <div class="ix-rack" aria-hidden="true"><div class="ix-strip" style="animation-delay:0.15s,2.30s"><b style="background:#7D34FF"></b><span><em>01</em><strong>KYRA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.28s,2.35s"><b style="background:#D3FF4A"></b><span><em>02</em><strong>AEGIS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.41s,2.40s"><b style="background:#E76FFF"></b><span><em>03</em><strong>ELYSIUM</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.54s,2.45s"><b style="background:#82FDFF"></b><span><em>04</em><strong>PROXIMA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.67s,2.50s"><b style="background:#5EFF94"></b><span><em>05</em><strong>RHEA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.80s,2.55s"><b style="background:#FF7B3E"></b><span><em>06</em><strong>VILIS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.93s,2.60s"><b style="background:#EBA09D"></b><span><em>07</em><strong>AURA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:1.06s,2.65s"><b style="background:#7F9FF2"></b><span><em>08</em><strong>ELION</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:1.19s,2.70s"><b style="background:#FDECD8"></b><span><em>09</em><strong>EOS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div></div>
 <div class="ix-row" aria-label="Echo Live" role="img"><div class="ix-bars" aria-hidden="true"><i style="height:150px;background:#7D34FF;animation-delay:2.75s"></i><i style="height:118px;background:#D3FF4A;animation-delay:2.79s"></i><i style="height:136px;background:#E76FFF;animation-delay:2.83s"></i><i style="height:96px;background:#82FDFF;animation-delay:2.87s"></i><i style="height:142px;background:#5EFF94;animation-delay:2.91s"></i><i style="height:108px;background:#FF7B3E;animation-delay:2.95s"></i><i style="height:128px;background:#EBA09D;animation-delay:2.99s"></i><i style="height:88px;background:#7F9FF2;animation-delay:3.03s"></i><i style="height:120px;background:#FDECD8;animation-delay:3.07s"></i></div><span class="ix-echo" aria-hidden="true">ECHO</span><span class="ix-livew" aria-hidden="true"><span class="ix-live">Live</span><svg class="ix-swoosh" viewBox="0 0 230 30" width="230" height="30"><path pathLength="1" d="M4 20 C 60 4, 140 30, 226 8" fill="none" stroke="#c4a1ff" stroke-width="5" stroke-linecap="round"/></svg></span></div>
 <p class="ix-call" aria-hidden="true">“Echo Live, you are cleared to all nine divisions.”</p>
 <div class="ix-foot"><div class="ix-dots" aria-hidden="true"><i style="background:#7D34FF;animation-delay:0.00s"></i><i style="background:#D3FF4A;animation-delay:0.11s"></i><i style="background:#E76FFF;animation-delay:0.22s"></i><i style="background:#82FDFF;animation-delay:0.33s"></i><i style="background:#5EFF94;animation-delay:0.44s"></i><i style="background:#FF7B3E;animation-delay:0.55s"></i><i style="background:#EBA09D;animation-delay:0.66s"></i><i style="background:#7F9FF2;animation-delay:0.77s"></i><i style="background:#FDECD8;animation-delay:0.88s"></i></div><span id="loadtxt">Loading the timetables…</span></div>
-<div class="ix-flash" aria-hidden="true"></div>
 </div></div>
 <script>
 /* the loading stage is drawn 900x620 and scaled to fit the window; embedded maps skip the show */
 (function(){var L=document.getElementById("loading");if(!L)return;
   if(/[?&]embed(=|&|$)/.test(location.search))L.classList.add("ix-plain");
-  var fit=function(){var s=Math.min(innerWidth/900,innerHeight/620,1.25);L.style.setProperty("--ix",String(Math.max(.3,s)));};
+  var fit=function(){var s=Math.min(innerWidth/900,innerHeight/620);L.style.setProperty("--ix",String(Math.max(.3,s)));};
   fit();addEventListener("resize",fit);window.__introAt=performance.now();})();
 </script>
 <div id="toast" role="status"></div>
