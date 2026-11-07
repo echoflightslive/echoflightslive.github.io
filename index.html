@@ -399,7 +399,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
 @keyframes flap{0%{transform:rotateX(90deg);opacity:.2}100%{transform:none;opacity:1}}
 .tv-note{margin:1.4vh 0 0;font:13px var(--ui);color:#6f7286}
 @media (prefers-reduced-motion:reduce){.tv-g i.flip{animation:none}}
-/* the loading screen: nine flight strips, one per Echo division, slap into a rack and fly off,
+/* the loading screen: ten flight strips, one per Echo division, slap into a rack and fly off,
    leaving their colours as bars; ECHO lands with a thump, Live sharpens in, the tower clears us.
    Drawn on a 900x620 stage scaled to the window (the script under it), so phones get the same scene. */
 #loading{position:fixed;inset:0;z-index:1200;background:#060507;color:#ece2ff;font:15px var(--ui);overflow:hidden;transition:opacity .5s ease}
@@ -411,18 +411,18 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
 .ix-air i{width:8px;height:8px;border-radius:50%;background:#ff7b3e;animation:ix-blink 1.1s steps(2,start) 3.5s infinite;visibility:visible}
 @keyframes ix-blink{to{visibility:hidden}}
 .ix-rack{position:absolute;left:130px;top:52px;width:640px;transform:rotate(-7deg);display:flex;flex-direction:column;gap:8px}
-.ix-strip{height:50px;display:flex;align-items:stretch;background:#f3f1ec;border-radius:4px;color:#120d1b;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.45);transform:translateX(1500px) rotate(5deg);animation:ix-in .55s cubic-bezier(.2,1.35,.4,1) forwards,ix-out .42s cubic-bezier(.6,0,.9,.4) forwards}
+.ix-strip{height:46px;display:flex;align-items:stretch;background:#f3f1ec;border-radius:4px;color:#120d1b;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.45);transform:translateX(1500px) rotate(5deg);animation:ix-in .55s cubic-bezier(.2,1.35,.4,1) forwards,ix-out .42s cubic-bezier(.6,0,.9,.4) forwards}
 .ix-strip b{width:54px;flex:none;box-shadow:inset -1px 0 0 rgba(0,0,0,.18)}
 .ix-strip span{flex:1;display:flex;align-items:center;gap:18px;padding:0 20px;border-left:1px solid #d8d4dc}
 .ix-strip em{font-style:normal;font-weight:700;font-size:13px;color:#5c5864;width:22px}
-.ix-strip strong{font:400 30px/1 Anton,Impact,sans-serif;letter-spacing:.02em;flex:1}
+.ix-strip strong{font:400 28px/1 Anton,Impact,sans-serif;letter-spacing:.02em;flex:1}
 .ix-strip small{font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5c5864}
 @keyframes ix-in{to{transform:none}}
 @keyframes ix-out{from{transform:none}to{transform:translateX(-1900px) rotate(-4deg)}}
 .ix-row{position:absolute;left:0;right:0;top:160px;display:flex;justify-content:center;align-items:flex-end;gap:26px;animation:ix-shake .34s linear 3.3s}
 @keyframes ix-shake{0%,100%{transform:none}20%{transform:translate(-7px,3px)}40%{transform:translate(6px,-4px)}60%{transform:translate(-4px,2px)}80%{transform:translate(3px,-1px)}}
-.ix-bars{display:flex;align-items:flex-end;gap:6px;height:150px}
-.ix-bars i{width:13px;border-radius:2px;transform:scaleY(0);transform-origin:50% 100%;animation:ix-bar .5s cubic-bezier(.2,1.5,.4,1) forwards}
+.ix-bars{display:flex;align-items:flex-end;gap:5px;height:150px}
+.ix-bars i{width:12px;border-radius:2px;transform:scaleY(0);transform-origin:50% 100%;animation:ix-bar .5s cubic-bezier(.2,1.5,.4,1) forwards}
 @keyframes ix-bar{to{transform:scaleY(1)}}
 .ix-echo{font:400 160px/.94 Anton,Impact,sans-serif;color:#ece2ff;opacity:0;transform:scale(1.7);animation:ix-slam .42s cubic-bezier(.2,1.5,.45,1) 3.05s forwards}
 @keyframes ix-slam{to{opacity:1;transform:none}}
@@ -558,6 +558,50 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
   #cam{left:10px;right:10px;width:auto;bottom:calc(14px + env(safe-area-inset-bottom))}
 }
 
+/* ---------- Ask Echo: the assistant ---------- */
+#dock button[data-dk="ask"][hidden]{display:none}
+#ask{position:fixed;z-index:960;right:18px;bottom:96px;width:392px;max-height:min(640px,calc(100vh - 190px));display:flex;flex-direction:column;
+  background:var(--paper);border:1px solid var(--rule);border-radius:14px;box-shadow:0 18px 44px rgba(0,0,0,.6)}
+#ask[hidden]{display:none}
+.ask-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 12px 10px 16px;border-bottom:1px solid var(--rule)}
+.ask-t{font:400 23px/1 var(--display);text-transform:uppercase;letter-spacing:.02em;color:var(--lav);white-space:nowrap}
+.ask-t em{font:italic 400 25px/1 var(--serif);text-transform:none;letter-spacing:0;color:var(--kyra);margin-left:3px}
+.ask-tag{margin-left:10px;font:700 10px var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid #3a3841;border-radius:999px;padding:3px 8px;vertical-align:5px}
+.ask-hb{display:flex;align-items:center;gap:8px}
+#ask-x{background:none;border:0;color:#c8c6d0;font-size:24px;line-height:1;padding:2px 6px}
+#ask-log{flex:1;min-height:120px;overflow-y:auto;padding:14px 14px 10px;display:flex;flex-direction:column;gap:12px;overscroll-behavior:contain}
+.ask-m{max-width:90%;font-size:14.5px;line-height:1.5;overflow-wrap:anywhere}
+.ask-m.me{align-self:flex-end;background:var(--paper2);border:1px solid var(--rule);border-radius:12px 12px 3px 12px;padding:7px 11px;white-space:pre-wrap}
+.ask-m.ai{align-self:flex-start}
+.ask-m.ai p{margin:0 0 6px}.ask-m.ai p:last-child{margin:0}
+.ask-m.ai ul{margin:2px 0 6px;padding-left:18px}.ask-m.ai li{margin:1px 0}
+.ask-m.err{color:#ffb38f}
+.ask-m b{color:var(--lav);font-weight:700}
+.ask-ln{background:none;border:0;padding:0;color:var(--kyra-ink);font:inherit;text-decoration:underline;text-decoration-color:rgba(196,161,255,.45);text-underline-offset:3px;cursor:pointer}
+.ask-ln:hover{text-decoration-color:var(--kyra)}
+.ask-wait{align-self:flex-start;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.ask-wait .ask-dots{display:inline-flex;gap:4px;padding:4px 0}
+.ask-dots i{width:6px;height:6px;border-radius:50%;background:var(--kyra);animation:ix-dot 1.2s ease-in-out infinite}
+.ask-dots i:nth-child(2){animation-delay:.15s}.ask-dots i:nth-child(3){animation-delay:.3s}
+.ask-hi{color:var(--muted);font-size:14px}
+.ask-hi p{margin:0 0 12px}
+.ask-try{display:flex;flex-direction:column;align-items:flex-start;gap:7px}
+.ask-try button{border:1px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 13px;font:500 13.5px var(--ui);text-align:left}
+.ask-try button:hover{border-color:var(--kyra)}
+#ask-f{display:flex;gap:8px;align-items:flex-end;padding:10px 12px 8px;border-top:1px solid var(--rule)}
+#ask-q{flex:1;resize:none;min-height:40px;max-height:132px;border:1px solid var(--rule);border-radius:10px;background:var(--card);color:var(--ink);font:15px/1.4 var(--ui);padding:9px 11px}
+#ask-q:focus{outline:none;border-color:var(--kyra)}
+#ask-go{flex:none;height:40px}
+#ask-go:disabled{opacity:.5}
+.ask-foot{margin:0;padding:0 14px 10px;font-size:11.5px;color:var(--muted)}
+#ask.mini .ask-h{border-bottom:0;cursor:pointer}
+#ask.mini #ask-log,#ask.mini #ask-f,#ask.mini .ask-foot,#ask.mini #ask-new{display:none}
+@media (max-width:760px){
+  #ask{left:8px;right:8px;width:auto;bottom:calc(8px + env(safe-area-inset-bottom));max-height:calc(100% - var(--ask-top,70px) - 16px);z-index:1100}
+  #ask.mini{bottom:auto;top:var(--ask-top,70px)}
+}
+@media (prefers-reduced-motion:reduce){.ask-dots i{animation:none}}
+
 .tb-days{display:flex;gap:4px;overflow-x:auto;margin:6px 0 2px;scrollbar-width:none}
 .tb-days::-webkit-scrollbar{display:none}
 .tb-days button{flex:none;border:1px solid var(--rule);background:var(--paper2);color:var(--muted);border-radius:999px;padding:2px 9px;font:500 11.5px var(--ui)}
@@ -636,6 +680,7 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
   <button type="button" data-dk="filters" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5h17l-6.5 7.6v5.9l-4 2v-7.9z"/></svg><span>Filters</span></button>
   <button type="button" data-dk="playback" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M3.6 3.4v4.4H8"/><path d="M12 7.6V12l3 2"/></svg><span>Playback</span></button>
   <button type="button" data-dk="camera" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8h3.2l1.6-2.5h7.4L17.3 8h3.2v11h-17z"/><circle cx="12" cy="13.3" r="3.6"/></svg><span>Camera</span></button>
+  <button type="button" data-dk="ask" aria-expanded="false" aria-controls="ask" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 5.2h15a1 1 0 0 1 1 1v8.6a1 1 0 0 1-1 1H10.6l-4.6 3.6v-3.6H4.5a1 1 0 0 1-1-1V6.2a1 1 0 0 1 1-1z"/><path d="M8 9.4h8M8 12.3h5"/></svg><span>Ask</span></button>
 </nav>
 <div id="cam" hidden role="region" aria-label="Airport camera">
   <div class="cam-k">Airport camera</div>
@@ -644,16 +689,23 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
   <div class="cam-acts"><label><input type="checkbox" id="cam-tour"> Tour the busiest airports</label><span><button type="button" class="btn" id="cam-pic">Save picture</button> <button type="button" class="btn" id="cam-x">Exit</button></span></div>
 </div>
 <div id="tip"></div>
+<section id="ask" hidden aria-label="Ask Echo">
+  <header class="ask-h" id="ask-h"><div><span class="ask-t">Ask<em>Echo</em></span><span class="ask-tag">Testing</span></div>
+    <div class="ask-hb"><button type="button" class="link" id="ask-new">New chat</button><button type="button" id="ask-x" aria-label="Close Ask Echo">×</button></div></header>
+  <div id="ask-log" aria-live="polite"></div>
+  <form id="ask-f"><textarea id="ask-q" rows="1" placeholder="Ask about a flight, airport or airline" aria-label="Your question" maxlength="1500"></textarea><button class="btn prim" id="ask-go">Ask</button></form>
+  <p class="ask-foot">Answers come from the same timetable as the map. Only you and Chai can see this while it's tested.</p>
+</section>
 <a id="emb" target="_blank" rel="noopener"></a>
 <div id="emcard" hidden></div>
 <div id="loading" role="status" aria-live="polite">
-<div class="ix-top"><span class="ix-eyebrow ix-fadein" style="animation-delay:.1s">Echo United Alliances · Nine divisions</span><span class="ix-air ix-fadein" style="animation-delay:3.5s"><i></i>ON AIR</span></div>
+<div class="ix-top"><span class="ix-eyebrow ix-fadein" style="animation-delay:.1s">Echo United Alliances · Ten divisions</span><span class="ix-air ix-fadein" style="animation-delay:3.5s"><i></i>ON AIR</span></div>
 <div class="ix-flash" aria-hidden="true"></div>
 <div class="ix-stage">
-<div class="ix-rack" aria-hidden="true"><div class="ix-strip" style="animation-delay:0.15s,2.30s"><b style="background:#7D34FF"></b><span><em>01</em><strong>KYRA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.28s,2.35s"><b style="background:#D3FF4A"></b><span><em>02</em><strong>AEGIS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.41s,2.40s"><b style="background:#E76FFF"></b><span><em>03</em><strong>ELYSIUM</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.54s,2.45s"><b style="background:#82FDFF"></b><span><em>04</em><strong>PROXIMA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.67s,2.50s"><b style="background:#5EFF94"></b><span><em>05</em><strong>RHEA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.80s,2.55s"><b style="background:#FF7B3E"></b><span><em>06</em><strong>VILIS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.93s,2.60s"><b style="background:#EBA09D"></b><span><em>07</em><strong>AURA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:1.06s,2.65s"><b style="background:#7F9FF2"></b><span><em>08</em><strong>ELION</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:1.19s,2.70s"><b style="background:#FDECD8"></b><span><em>09</em><strong>EOS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div></div>
-<div class="ix-row" aria-label="Echo Live" role="img"><div class="ix-bars" aria-hidden="true"><i style="height:150px;background:#7D34FF;animation-delay:2.75s"></i><i style="height:118px;background:#D3FF4A;animation-delay:2.79s"></i><i style="height:136px;background:#E76FFF;animation-delay:2.83s"></i><i style="height:96px;background:#82FDFF;animation-delay:2.87s"></i><i style="height:142px;background:#5EFF94;animation-delay:2.91s"></i><i style="height:108px;background:#FF7B3E;animation-delay:2.95s"></i><i style="height:128px;background:#EBA09D;animation-delay:2.99s"></i><i style="height:88px;background:#7F9FF2;animation-delay:3.03s"></i><i style="height:120px;background:#FDECD8;animation-delay:3.07s"></i></div><span class="ix-echo" aria-hidden="true">ECHO</span><span class="ix-livew" aria-hidden="true"><span class="ix-live">Live</span><svg class="ix-swoosh" viewBox="0 0 230 30" width="230" height="30"><path pathLength="1" d="M4 20 C 60 4, 140 30, 226 8" fill="none" stroke="#c4a1ff" stroke-width="5" stroke-linecap="round"/></svg></span></div>
-<p class="ix-call" aria-hidden="true">“Echo Live, you are cleared to all nine divisions.”</p>
-<div class="ix-foot"><div class="ix-dots" aria-hidden="true"><i style="background:#7D34FF;animation-delay:0.00s"></i><i style="background:#D3FF4A;animation-delay:0.11s"></i><i style="background:#E76FFF;animation-delay:0.22s"></i><i style="background:#82FDFF;animation-delay:0.33s"></i><i style="background:#5EFF94;animation-delay:0.44s"></i><i style="background:#FF7B3E;animation-delay:0.55s"></i><i style="background:#EBA09D;animation-delay:0.66s"></i><i style="background:#7F9FF2;animation-delay:0.77s"></i><i style="background:#FDECD8;animation-delay:0.88s"></i></div><span id="loadtxt">Loading the timetables…</span></div>
+<div class="ix-rack" aria-hidden="true"><div class="ix-strip" style="animation-delay:0.15s,2.30s"><b style="background:#7D34FF"></b><span><em>01</em><strong>KYRA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.28s,2.35s"><b style="background:#FF456A"></b><span><em>02</em><strong>AEGIS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.41s,2.40s"><b style="background:#E76FFF"></b><span><em>03</em><strong>ELYSIUM</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.54s,2.45s"><b style="background:#8DFCFC"></b><span><em>04</em><strong>LIOR</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.67s,2.50s"><b style="background:#5EFF94"></b><span><em>05</em><strong>RHEA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.80s,2.55s"><b style="background:#FF7B3E"></b><span><em>06</em><strong>VILIS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:0.93s,2.60s"><b style="background:#EBA09D"></b><span><em>07</em><strong>AURA</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:1.06s,2.65s"><b style="background:#7F9FF2"></b><span><em>08</em><strong>ELION</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:1.19s,2.70s"><b style="background:#FDECD8"></b><span><em>09</em><strong>EOS</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div><div class="ix-strip" style="animation-delay:1.32s,2.75s"><b style="background:#FAE246"></b><span><em>10</em><strong>UZURI</strong><small>Echo division</small><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="transform:rotate(90deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#120d1b"/></svg></span></div></div>
+<div class="ix-row" aria-label="Echo Live" role="img"><div class="ix-bars" aria-hidden="true"><i style="height:150px;background:#7D34FF;animation-delay:2.75s"></i><i style="height:118px;background:#FF456A;animation-delay:2.79s"></i><i style="height:136px;background:#E76FFF;animation-delay:2.83s"></i><i style="height:96px;background:#8DFCFC;animation-delay:2.87s"></i><i style="height:142px;background:#5EFF94;animation-delay:2.91s"></i><i style="height:108px;background:#FF7B3E;animation-delay:2.95s"></i><i style="height:128px;background:#EBA09D;animation-delay:2.99s"></i><i style="height:88px;background:#7F9FF2;animation-delay:3.03s"></i><i style="height:120px;background:#FDECD8;animation-delay:3.07s"></i><i style="height:104px;background:#FAE246;animation-delay:3.11s"></i></div><span class="ix-echo" aria-hidden="true">ECHO</span><span class="ix-livew" aria-hidden="true"><span class="ix-live">Live</span><svg class="ix-swoosh" viewBox="0 0 230 30" width="230" height="30"><path pathLength="1" d="M4 20 C 60 4, 140 30, 226 8" fill="none" stroke="#c4a1ff" stroke-width="5" stroke-linecap="round"/></svg></span></div>
+<p class="ix-call" aria-hidden="true">“Echo Live, you are cleared to all ten divisions.”</p>
+<div class="ix-foot"><div class="ix-dots" aria-hidden="true"><i style="background:#7D34FF;animation-delay:0.00s"></i><i style="background:#FF456A;animation-delay:0.11s"></i><i style="background:#E76FFF;animation-delay:0.22s"></i><i style="background:#8DFCFC;animation-delay:0.33s"></i><i style="background:#5EFF94;animation-delay:0.44s"></i><i style="background:#FF7B3E;animation-delay:0.55s"></i><i style="background:#EBA09D;animation-delay:0.66s"></i><i style="background:#7F9FF2;animation-delay:0.77s"></i><i style="background:#FDECD8;animation-delay:0.88s"></i><i style="background:#FAE246;animation-delay:0.99s"></i></div><span id="loadtxt">Loading the timetables…</span></div>
 </div></div>
 <script>
 /* the loading stage is drawn 900x620 and scaled to fit the window; embedded maps skip the show */
@@ -1283,7 +1335,7 @@ async function loadData(note){
 let RWD=null,D=null,C=null,AP={},AL=[],ROT=[],MODELS=[],ACL=[],SRC="";
 /* Echo divisions: airlines are numbered division by division (Kyra first) */
 /* the order divisions are shown in; the data keeps its own order so airline numbers (and links) never move */
-const DIV_ORDER=["kyra","aegis","elysium","proxima","rhea","vilis","aura","elion","eos"];
+const DIV_ORDER=["kyra","aegis","elysium","proxima","rhea","vilis","aura","elion","eos","uzuri"];   /* "proxima" is Echo Lior: the code stayed when it was renamed, so old links still work */
 let DIVS_SORTED=null,DIVS_SRC=null;
 const DIVS=()=>{if(!(D&&D.divs))return [{code:"kyra",name:"Echo Kyra",color:"#7D34FF",first:0,count:AL.length,captured:D&&D.captured,missing:[]}];
   if(DIVS_SRC!==D.divs){const r=c=>{const k=DIV_ORDER.indexOf(c);return k<0?99:k;};DIVS_SRC=D.divs;DIVS_SORTED=D.divs.map((d,i)=>[d,i]).sort((x,y)=>r(x[0].code)-r(y[0].code)||x[1]-y[1]).map(x=>x[0]);}
@@ -2348,7 +2400,194 @@ document.querySelectorAll("#dock [data-dk]").forEach(b=>b.onclick=()=>{const k=b
   if(k==="settings"){popClose();$("lybtn").click();dockSync();}
   else if(k==="playback"){popClose();setTimebar($("timebar").hidden);dockSync();}
   else if(k==="camera"){popClose();if(CAM.on)camStop();else camStart(camPick());}
+  else if(k==="ask"){popClose();askShow(!ASK.open||$("ask").classList.contains("mini"));}
   else popOpen(k);});
+/* ---------- Ask Echo: the assistant ----------
+   While it's tested only two accounts can use it (Supabase's echo_can_ask: Charan GOP signed in with
+   Google, Chai with Discord). The conversation goes to the echo-ask function, which holds the AI key,
+   checks who's asking and keeps a daily cap. When the AI wants a fact it asks this page, and the page
+   answers from the same timetable and positions the map shows, so the two never disagree. */
+const ASK={on:false,open:false,busy:false,msgs:[],links:new Map(),left:null};
+async function checkAsk(){
+  let ok=false;if(ACC.c&&ACC.u&&!EMBED){try{const {data}=await ACC.c.rpc("echo_can_ask");ok=data===true;}catch(_){}}
+  ASK.on=ok;const b=document.querySelector('#dock [data-dk="ask"]');if(b)b.hidden=!ok;if(!ok&&ASK.open)askShow(false);}
+function askTop(){document.documentElement.style.setProperty("--ask-top",(TOPH()+8)+"px");}
+function askShow(on){
+  ASK.open=on;const el=$("ask");el.hidden=!on;el.classList.remove("mini");
+  const b=document.querySelector('#dock [data-dk="ask"]');if(b)b.setAttribute("aria-expanded",String(on));
+  if(on){askTop();if(!$("ask-log").children.length)askHello();if(!narrow())setTimeout(()=>$("ask-q").focus(),60);}}
+/* on a phone, showing something on the map tucks the chat into a bar at the top */
+function askMini(){if(narrow()&&ASK.open){askTop();$("ask").classList.add("mini");}}
+function askHello(){
+  const L=delayList(),bad=L.length?L[0].c:null;
+  const tries=["Which airports are most disrupted right now?","Compare the ten divisions",bad?`What's going on at ${bad}?`:"What's the busiest airport this week?"];
+  $("ask-log").innerHTML=`<div class="ask-hi"><p>Ask about any Echo flight, airport, airline or division, live or on the timetable.</p><div class="ask-try">${tries.map(t=>`<button type="button">${esc(t)}</button>`).join("")}</div></div>`;
+  $("ask-log").querySelectorAll(".ask-try button").forEach(b=>b.onclick=()=>askSend(b.textContent));}
+
+/* answers: plain text with **bold**, "- " lists and paragraphs; flight numbers, airports and
+   registrations the AI looked up become links that open them on the map */
+function askHtml(t){
+  const keys=[...ASK.links.keys()].sort((a,b)=>b.length-a.length).map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+  const rx=keys.length?new RegExp(`(^|[^A-Za-z0-9-])(${keys.join("|")})(?![A-Za-z0-9])`,"g"):null;
+  const inl=s=>{let x=esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+    if(rx)x=x.replace(rx,(m,pre,k)=>`${pre}<button type="button" class="ask-ln" data-ask-go="${esc(ASK.links.get(k))}">${k}</button>`);return x;};
+  const out=[];let list=null;
+  String(t||"").split(/\n/).forEach(line=>{const m=line.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)$/);
+    if(m){if(!list){list=[];out.push(list);}list.push(m[1]);}else{list=null;if(line.trim())out.push(line.replace(/^#+\s*/,""));}});
+  return out.map(x=>Array.isArray(x)?`<ul>${x.map(i=>`<li>${inl(i)}</li>`).join("")}</ul>`:`<p>${inl(x)}</p>`).join("");}
+function askAdd(kind,text){const log=$("ask-log"),hi=log.querySelector(".ask-hi");if(hi)hi.remove();
+  const d=document.createElement("div");d.className="ask-m "+kind;
+  if(kind==="me")d.textContent=text;else d.innerHTML=askHtml(text);
+  d.querySelectorAll("[data-ask-go]").forEach(b=>b.onclick=()=>{askMini();go(b.dataset.askGo);});
+  log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
+function askWait(){const d=document.createElement("div");d.className="ask-wait";d.innerHTML=`<span class="ask-dots" aria-label="Thinking"><i></i><i></i><i></i></span>`;
+  $("ask-log").appendChild(d);$("ask-log").scrollTop=$("ask-log").scrollHeight;return d;}
+const ASKSTEP={search:i=>`Searching for “${i.query||""}”`,flight:i=>`Looking up ${i.number||"the flight"}`,airport:i=>`Checking ${(i.code||"").toUpperCase()}`,
+  airline:i=>`Looking up ${i.name||"the airline"}`,between:i=>`Finding flights ${(i.from||"").toUpperCase()} to ${(i.to||"").toUpperCase()}`,aircraft:i=>`Finding ${(i.registration||"").toUpperCase()}`,
+  divisions:()=>"Comparing the divisions",rankings:()=>"Ranking",show_on_map:()=>"Opening it on the map"};
+function askStep(w,u){const s=document.createElement("span");s.textContent=(ASKSTEP[u.name]||(()=>"Working"))(u.input||{})+"…";w.insertBefore(s,w.lastChild);$("ask-log").scrollTop=$("ask-log").scrollHeight;}
+
+function askCtx(){const parts=[];
+  if(S.off)parts.push(`The map's time slider is moved ${dur(Math.abs(S.off))} ${S.off>0?"ahead":"back"}, and every tool answers for that moment.`);
+  else parts.push("The map is showing live.");
+  const h=decodeURIComponent(location.hash||"");if(h&&h!=="#/")parts.push(`The person has ${h} open on the site.`);
+  return parts.join(" ");}
+async function askCall(){
+  const {data}=await ACC.c.auth.getSession();const t=data&&data.session&&data.session.access_token;if(!t)throw new Error("signin");
+  const r=await fetch(`${SB_URL}/functions/v1/echo-ask`,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+t},
+    body:JSON.stringify({messages:ASK.msgs,context:askCtx()})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||("HTTP "+r.status));
+  if(typeof j.left==="number")ASK.left=j.left;return j;}
+const askErr=e=>({signin:"Sign in again to use Ask Echo.",not_allowed:"This account can't use Ask Echo while it's being tested.",
+  not_set_up:"Ask Echo isn't switched on yet: the AI key still needs adding in Supabase.",cap:"That's today's limit. It resets at midnight UTC.",
+  ai_error:"The AI didn't answer properly. Try again in a moment.",ai_unreachable:"The AI couldn't be reached. Try again in a moment."})[e&&e.message]||"Something went wrong. Try again.";
+/* the history sent each time: the last few questions with their answers, never cut mid-exchange */
+function askTrim(){while(ASK.msgs.length>2&&(ASK.msgs.length>36||JSON.stringify(ASK.msgs).length>90000)){
+  let k=1;while(k<ASK.msgs.length&&!(ASK.msgs[k].role==="user"&&typeof ASK.msgs[k].content==="string"))k++;if(k>=ASK.msgs.length)break;ASK.msgs=ASK.msgs.slice(k);}}
+async function askSend(text){
+  text=String(text||"").trim();if(ASK.busy||!text||!D)return;ASK.busy=true;$("ask-go").disabled=true;
+  askAdd("me",text);const keep=ASK.msgs.length;ASK.msgs.push({role:"user",content:text});const w=askWait();
+  try{
+    for(let round=0;;round++){
+      const res=await askCall();const parts=Array.isArray(res.content)?res.content:[];
+      ASK.msgs.push({role:"assistant",content:parts});
+      const uses=parts.filter(p=>p.type==="tool_use"),txt=parts.filter(p=>p.type==="text").map(p=>p.text).join("\n").trim();
+      if(res.stop_reason!=="tool_use"||!uses.length){w.remove();askAdd("ai",txt||"I couldn't find an answer to that.");break;}
+      if(round>=7){w.remove();ASK.msgs.length=keep;askAdd("ai err","That took too many steps. Try a narrower question.");break;}
+      const results=[];
+      for(const u of uses){askStep(w,u);let o;
+        try{o=ASKT[u.name]?ASKT[u.name](u.input||{}):{error:"There's no such tool."};}catch(e){o={error:"That lookup failed: "+String((e&&e.message)||e).slice(0,120)};}
+        results.push({type:"tool_result",tool_use_id:u.id,content:JSON.stringify(o).slice(0,10000)});}
+      ASK.msgs.push({role:"user",content:results});
+    }
+  }catch(e){w.remove();ASK.msgs.length=keep;askAdd("ai err",askErr(e));}
+  finally{ASK.busy=false;$("ask-go").disabled=false;askTrim();}}
+
+/* ---------- what the assistant can look up ---------- */
+const pcount=n=>{let c=0;while(n){c+=n&1;n>>=1;}return c;};
+const apOut=c=>AP[c]?`${c} ${AP[c].city||AP[c].name}`:c;
+const linkAp=c=>{if(AP[c])ASK.links.set(c,"#/airport/"+c);return c;};
+function alShort(i){const a=AL[i];return {name:a.name,code:a.code,division:divShort(divOf(i)),aircraft:a.aircraft,flights_a_week:a.flights,in_air_now:counts().c[i]};}
+function legOut(l){
+  const r=l.r,a=AL[r.ai],now=nowMin(),end=l.t+l.dur,fn=a.code+l.fn;linkAp(l.from);linkAp(l.to);
+  ASK.links.set(fn,`#/flight/${encodeURIComponent(fn)}/${r.i}`);
+  let status;if(now<l.t-30)status="scheduled, leaves in "+dur(l.t-now);else if(now>end+90)status="landed "+dur(now-end)+" ago";
+  else{const s=liveStatus(l);status=s?s[0].toLowerCase():now<l.t?"at the gate":now<end?"in the air":"landed";}
+  const o={flight:fn,airline:a.name,division:divShort(divOf(r.ai)),from:apOut(l.from),to:apOut(l.to),departs:localTime(l.from,l.t)+" local",
+    arrives:localTime(l.to,end)+dayTag(l.to,end,l.from,l.t)+" local",duration:dur(l.dur),status,aircraft:acName(r.ac),runs:weekdaysOf(r,l.seq)};
+  const reg=acReg(r.ac);if(reg){o.registration=reg;ASK.links.set(reg.toUpperCase(),"#/reg/"+encodeURIComponent(reg));}
+  if(l.seq===1||l.seq===2)o.note=`a stopover leg of ${a.code}${r.fn} ${r.A}–${r.B}–${r.C}`;
+  const i=findPlane(r.i,l.day,l.seq);
+  if(i>=0){const p=plane(i);if(!p.ground){const e=C.est(l,p.f);o.altitude_ft=Math.round(e.alt/100)*100;o.speed_kts=e.spd;o.flown=Math.round(p.f*100)+"%";}}
+  return o;}
+function alFind(q){q=String(q||"").trim();const ql=q.toLowerCase(),Q=q.toUpperCase(),all=AL.map((a,i)=>i).filter(i=>!AL[i].hidden);
+  let m=all.filter(i=>AL[i].name.toLowerCase()===ql);if(!m.length)m=all.filter(i=>AL[i].code.toUpperCase()===Q);
+  if(!m.length&&ql.length>=2)m=all.filter(i=>AL[i].name.toLowerCase().includes(ql));return m;}
+let ASKWK=null;   // weekly departures per airport and flights per route, worked out once
+function askWeek(){if(ASKWK&&ASKWK.rot===ROT)return ASKWK;const ap=new Map(),rt=new Map();
+  for(const r of ROT){if(AL[r.ai].hidden)continue;const n=pcount(r.dm);
+    const legs=[[r.A,r.B],[r.B,r.A]];if(r.C)legs.push([r.B,r.C],[r.C,r.B]);
+    for(const [f,t] of legs){ap.set(f,(ap.get(f)||0)+n);const k=f<t?f+"-"+t:t+"-"+f;let x=rt.get(k);if(!x){x={n:0,al:new Set()};rt.set(k,x);}x.n+=n;x.al.add(r.ai);}}
+  return ASKWK={rot:ROT,ap,rt};}
+const askDiv=s=>{if(!s)return null;s=String(s).toLowerCase().replace(/^echo\s+/,"");return DIVS().find(d=>d.code===s||divShort(d).toLowerCase()===s)||null;};
+const wxText=c=>{const w=WINDC[c];if(!w)return null;const k=w[3],cond=k==null?"":k<=1?"clear":k<=3?"cloudy":k<=48?"fog":k<=67?"rain":k<=77?"snow":k<=82?"showers":k>=95?"thunderstorms":"";
+  return `${cond?cond+", ":""}${w[2]!=null?Math.round(w[2])+"°C, ":""}wind ${String(w[0]).padStart(3,"0")}° at ${w[1]} kts`;};
+const ASKT={
+  search({query}){const r=results(String(query||""))||[];
+    return {results:r.slice(0,12).map(x=>x.leg?{flight:legOut(x.leg)}:x.ap?{airport:apOut(linkAp(x.ap))}:x.al!=null?{airline:alShort(x.al)}
+      :x.reg?(()=>{const ri=(REG[x.reg]||[])[0];ASK.links.set(x.reg,"#/reg/"+encodeURIComponent(x.reg));return {aircraft:x.reg,type:ri!=null?acName(ROT[ri].ac):"",airline:ri!=null?AL[ROT[ri].ai].name:""};})()
+      :x.type!=null?{aircraft_type:MODELS[x.type],in_air_now:x.up,in_fleets:x.tot}:null).filter(Boolean)};},
+  flight({number}){const q=String(number||"").toUpperCase().replace(/\s+/g,"");const ls=(results(q)||[]).filter(x=>x.leg).map(x=>x.leg);
+    return ls.length?{flights:ls.slice(0,5).map(legOut),...(ls.length>5?{more:ls.length-5}:{})}:{found:false,note:`No Echo flight ${q} runs in the next two days.`};},
+  airport({code,hours}){const c=String(code||"").toUpperCase().trim();if(!AP[c]||!APROT[c])return {found:false,note:`${c} isn't an airport any Echo airline flies to.`};
+    linkAp(c);loadWind([c]);const hr=Math.max(1,Math.min(12,+hours||3)),now=nowMin(),rs=APROT[c],legs=[];
+    rs.forEach(i=>{if(!AL[ROT[i].ai].hidden)C.legsAround(ROT[i],now-60,now+hr*60).forEach(l=>{if(l.from===c||l.to===c)legs.push(l);});});
+    const dep=legs.filter(l=>l.from===c&&l.t>=now-15&&l.t<=now+hr*60).sort((x,y)=>x.t-y.t),arr=legs.filter(l=>l.to===c&&l.t+l.dur>=now-15&&l.t+l.dur<=now+hr*60).sort((x,y)=>(x.t+x.dur)-(y.t+y.dur));
+    const row=(l,d)=>{const a=AL[l.r.ai],fn=a.code+l.fn;ASK.links.set(fn,`#/flight/${encodeURIComponent(fn)}/${l.r.i}`);
+      return {flight:fn,airline:a.name,[d?"to":"from"]:apOut(d?l.to:l.from),time:localTime(c,d?l.t:l.t+l.dur)+" local"};};
+    const by=new Map();rs.forEach(i=>{const ai=ROT[i].ai;if(!AL[ai].hidden)by.set(ai,(by.get(ai)||0)+pcount(ROT[i].dm));});
+    const x=delayOf(c),o={airport:apOut(c),name:AP[c].name,country:country(AP[c].cc),local_time:localTime(c,now),
+      echo_airlines:by.size,departures_a_week:askWeek().ap.get(c)||0,
+      top_airlines:[...by].sort((p,q)=>q[1]-p[1]).slice(0,6).map(([ai,n])=>({airline:AL[ai].name,division:divShort(divOf(ai)),flights_a_week:n})),
+      [`departures_next_${hr}h`]:{total:dep.length,first:dep.slice(0,12).map(l=>row(l,1))},[`arrivals_next_${hr}h`]:{total:arr.length,first:arr.slice(0,12).map(l=>row(l,0))}};
+    if(x){const v=Math.max(x.d,x.a);o.disruption={summary:disWord(v),take_offs:x.d.toFixed(1)+"/5",landings:x.a.toFixed(1)+"/5",queue_minutes:+x.q.toFixed(1),
+      arrivals_holding:Math.round(x.h*100)+"%",leaving_this_hour:x.dn,landing_this_hour:x.an,rank:x.rank?`${ordinal(x.rank)} most disrupted of ${x.of} busy airports`:"too quiet to rank"};}
+    const w=wxText(c);if(w)o.weather=w;return o;},
+  airline({name}){const m=alFind(name);if(!m.length)return {found:false,note:`No Echo airline called “${name}”.`};
+    if(m.length>1)return {several_match:m.slice(0,15).map(alShort),note:"Ask which one they mean if it isn't clear."};
+    const i=m[0],a=AL[i],ap=new Map();ASK.links.set(a.name,"#/airline/"+i);
+    for(const r of ROT){if(r.ai!==i)continue;const n=pcount(r.dm);[r.A,r.B,r.C].forEach(c=>{if(c)ap.set(c,(ap.get(c)||0)+n);});}
+    const o={...alShort(i),country:country(a.country),leads_its_division:!!a.lead,joined:a.joined||undefined,routes:a.routes,hubs:a.hubs,
+      fleet:(a.fleet||[]).slice(0,8).map(([mi,n])=>({type:MODELS[mi],count:n})),busiest_airports:[...ap].sort((p,q)=>q[1]-p[1]).slice(0,5).map(([c,n])=>({airport:apOut(linkAp(c)),flights_a_week:n})),
+      timetable_from:a.seen||D.captured};
+    if(a.seen)o.note=`This airline's timetable wasn't in the latest capture; it's from ${a.seen}.`;return o;},
+  between({from,to}){const a=String(from||"").toUpperCase().trim(),b=String(to||"").toUpperCase().trim();
+    if(!AP[a]||!AP[b])return {found:false,note:`${!AP[a]?a:b} isn't an airport any Echo airline flies to.`};linkAp(a);linkAp(b);
+    const out=abFlights(a,b);if(!out.length)return {found:false,note:`No Echo airline flies nonstop from ${a} to ${b}.`};
+    return {total:out.length,flights:out.slice(0,25).map(o=>{const l=o.l,r=ROT[o.x.ri],fn=AL[r.ai].code+l.fn;ASK.links.set(fn,`#/flight/${encodeURIComponent(fn)}/${r.i}`);
+      return {flight:fn,airline:AL[r.ai].name,departs:localTime(a,l.t)+" local",arrives:localTime(b,l.t+l.dur)+dayTag(b,l.t+l.dur,a,l.t)+" local",duration:dur(l.dur),aircraft:acName(r.ac),runs:weekdaysOf(r,o.x.seq)};})};},
+  aircraft({registration}){let g=String(registration||"").toUpperCase().trim();
+    if(!REG[g]){const n=g.replace(/-/g,""),k=Object.keys(REG).find(x=>x.replace(/-/g,"")===n);if(k)g=k;}
+    if(!REG[g])return {found:false,note:`No Echo aircraft registered ${g} has a route.`};
+    ASK.links.set(g,"#/reg/"+encodeURIComponent(g));const r=ROT[REG[g][0]],ac=ACL[r.ac];
+    return {registration:g,type:MODELS[ac[0]],airline:AL[r.ai].name,base:ac[2]&&ac[2]!=="EMPTY"?apOut(linkAp(ac[2])):"none set",
+      flights_last_12h_and_next_day:dayLegs(g).slice(0,14).map(legOut)};},
+  divisions(){const {c}=counts();return {captured:D.captured,divisions:DIVS().map(d=>{let ac=0,up=0,fl=0,rt=0,lead=null;
+    for(let i=d.first;i<d.first+d.count;i++){ac+=AL[i].aircraft||0;up+=c[i];fl+=AL[i].flights||0;rt+=AL[i].routes||0;if(AL[i].lead)lead=AL[i].name;}
+    return {division:divShort(d),airlines:d.count,aircraft:ac,in_air_now:up,flights_a_week:fl,routes:rt,leader:lead||undefined,captured:d.captured,
+      ...((d.missing||[]).length?{not_captured_yet:d.missing}:{})};})};},
+  rankings({kind,division}){const dv=askDiv(division),inDiv=i=>!dv||(i>=dv.first&&i<dv.first+dv.count),{c}=counts();
+    const als=AL.map((a,i)=>i).filter(i=>!AL[i].hidden&&inDiv(i)),top=(arr,f)=>arr.slice(0,10).map(f);
+    switch(kind){
+      case "airports_busiest_now":{const m=new Map(),P=S.P;if(P)for(let i=0;i<S.n;i++){if(!P.gr[i])continue;const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)continue;const k=P.f[i]<.5?l.from:l.to;m.set(k,(m.get(k)||0)+1);}
+        return {what:"planes on the ground now (taxiing, parked or just landed)",list:top([...m].sort((p,q)=>q[1]-p[1]),([k,n])=>({airport:apOut(linkAp(k)),planes:n}))};}
+      case "airports_busiest_week":return {what:"Echo departures a week",list:top([...askWeek().ap].sort((p,q)=>q[1]-p[1]),([k,n])=>({airport:apOut(linkAp(k)),departures_a_week:n}))};
+      case "airports_most_disrupted":return {what:"disruption now, 0 calm to 5",list:top(delayList(),x=>({airport:apOut(linkAp(x.c)),summary:disWord(Math.max(x.d,x.a)),take_offs:x.d.toFixed(1),landings:x.a.toFixed(1),queue_minutes:+x.q.toFixed(1),arrivals_holding:Math.round(x.h*100)+"%",weather:wxText(x.c)||undefined}))};
+      case "airlines_most_aircraft":return {division:dv?divShort(dv):"all",list:top(als.sort((p,q)=>AL[q].aircraft-AL[p].aircraft),alShort)};
+      case "airlines_most_flights":return {division:dv?divShort(dv):"all",list:top(als.sort((p,q)=>AL[q].flights-AL[p].flights),alShort)};
+      case "airlines_most_in_air":return {division:dv?divShort(dv):"all",list:top(als.sort((p,q)=>c[q]-c[p]),alShort)};
+      case "aircraft_types":{const {tot,up}=fleetTotals();return {list:top([...tot.values()].sort((p,q)=>q.n-p.n),t=>({type:MODELS[t.m],in_fleets:t.n,in_air_now:up.get(t.m)||0,airlines:t.al.length}))};}
+      case "routes_busiest":return {what:"Echo flights a week each way",list:top([...askWeek().rt].sort((p,q)=>q[1].n-p[1].n),([k,x])=>{const [p,q]=k.split("-");linkAp(p);linkAp(q);return {route:`${apOut(p)} – ${apOut(q)}`,flights_a_week:x.n,airlines:x.al.size};})};
+    }
+    return {error:"Unknown ranking."};},
+  show_on_map({kind,id,to}){const s=String(id||"").trim();askMini();
+    if(kind==="flight"){const l=((results(s)||[]).find(x=>x.leg)||{}).leg;if(!l)return {shown:false};openLeg(l);return {shown:true};}
+    if(kind==="airport"){const c=s.toUpperCase();if(!AP[c])return {shown:false};go("#/airport/"+c);return {shown:true};}
+    if(kind==="airline"){const m=alFind(s);if(!m.length)return {shown:false};go("#/airline/"+m[0]);return {shown:true};}
+    if(kind==="aircraft"){const g=s.toUpperCase();if(!REG[g])return {shown:false};go("#/reg/"+encodeURIComponent(g));return {shown:true};}
+    if(kind==="between"){go(`#/between/${s.toUpperCase()}/${String(to||"").toUpperCase()}`);return {shown:true};}
+    if(kind==="division"){const d=askDiv(s);if(!d)return {shown:false};go("#/");setTimeout(()=>{setDiv(d.code);if(S.view==="home")renderHome();},60);return {shown:true};}
+    return {shown:false};},
+};
+
+/* the panel */
+$("ask-f").addEventListener("submit",e=>{e.preventDefault();const q=$("ask-q");const t=q.value;q.value="";q.style.height="";askSend(t);});
+$("ask-q").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();$("ask-f").requestSubmit();}});
+$("ask-q").addEventListener("input",e=>{const q=e.target;q.style.height="";q.style.height=Math.min(132,q.scrollHeight+2)+"px";});
+$("ask-x").addEventListener("click",e=>{e.stopPropagation();askShow(false);});
+$("ask-new").addEventListener("click",()=>{if(ASK.busy)return;ASK.msgs=[];ASK.links.clear();askHello();$("ask-q").focus();});
+$("ask-h").addEventListener("click",e=>{if($("ask").classList.contains("mini")&&!e.target.closest("#ask-x"))$("ask").classList.remove("mini");});
+addEventListener("keydown",e=>{if(e.key==="Escape"&&ASK.open&&!e.target.closest("#auth"))askShow(false);});
 document.addEventListener("pointerdown",e=>{if(POP&&!e.target.closest("#pop,#dock"))popClose();if(!e.target.closest("#layers,#dock,#lybtn"))setTimeout(dockSync,0);});
 
 /* ---------- airport camera: a slow tilted circle round an airport; Tour moves on to the next busiest every 75 s ---------- */
@@ -2893,7 +3132,7 @@ const embedCode=ai=>`<iframe src="${embedSrc(ai)}" width="100%" height="460" sty
 let EMB={ai:-1};
 function setupEmbed(){
   document.documentElement.classList.add("embed");
-  const dv=(QS.get("div")||"").toLowerCase(),slug=(QS.get("airline")||"").toLowerCase(),d=DIVS().find(x=>x.code===dv);
+  const dv=((QS.get("div")||"").toLowerCase()).replace(/^lior$/,"proxima"),slug=(QS.get("airline")||"").toLowerCase(),d=DIVS().find(x=>x.code===dv);
   if(slug)EMB.ai=AL.findIndex((a,i)=>euOf(i)===slug&&(!d||divOf(i)===d));
   if(EMB.ai>=0){S.filter.clear();S.filter.add(EMB.ai);}else if(d)setDiv(d.code);
   const e=$("emb"),home=location.origin+location.pathname;
@@ -2968,10 +3207,11 @@ async function checkAdmin(){
   const was=!!ACC.admin;ACC.admin=false;
   if(ACC.c&&ACC.u){try{const {data}=await ACC.c.rpc("echo_is_admin");ACC.admin=data===true;}catch(_){}}
   if($("nav-admin"))$("nav-admin").hidden=!ACC.admin;
+  checkAsk();
   if(was!==ACC.admin&&D){if(S.view==="home")renderHome();else if(S.view==="admin")renderAdmin();}
 }
 async function adm(fn,args){const {data,error}=await ACC.c.rpc(fn,args||{});if(error)throw new Error(error.message);return data;}
-const ALLDIVS=[["kyra","Kyra"],["aegis","Aegis"],["elysium","Elysium"],["proxima","Proxima"],["rhea","Rhea"],["vilis","Vilis"],["aura","Aura"],["elion","Elion"],["eos","Eos"]];
+const ALLDIVS=[["kyra","Kyra"],["aegis","Aegis"],["elysium","Elysium"],["proxima","Lior"],["rhea","Rhea"],["vilis","Vilis"],["aura","Aura"],["elion","Elion"],["eos","Eos"],["uzuri","Uzuri"]];
 const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<2?"just now":m<90?m+" minutes ago":m<36*60?Math.round(m/60)+" hours ago":Math.round(m/1440)+" days ago";};
 const whenTxt=t=>t?new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"—";
 function renderAdmin(tab){
