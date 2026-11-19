@@ -547,6 +547,80 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
 .cam-ap{display:flex;align-items:baseline;gap:10px;margin:2px 0 4px}.cam-ap b{font:400 34px/1 var(--display);letter-spacing:.02em;color:var(--lav)}.cam-ap span{font:italic 400 22px/1 var(--serif);color:var(--kyra)}
 .cam-l{font:12.5px/1.5 var(--mono);color:var(--muted)}
 .cam-acts{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+/* fly mode (admins): the map becomes the view out of the plane; everything else steps aside */
+body.flying #panel,body.flying #dock,body.flying #hud,body.flying #top,body.flying #ask,body.flying #cam,body.flying #tip,body.flying .maplibregl-ctrl-top-right{display:none!important}
+#fly[hidden]{display:none}
+#fly{position:fixed;inset:0;z-index:1200;pointer-events:none}
+#fly .fly-card,#fly #fly-hop,#fly #fly-end,#fly #fly-stick,#fly #fly-thr{pointer-events:auto}
+#fly-flash{position:absolute;inset:0;background:#060507;opacity:0}
+#fly-flash.go{animation:flyfl .8s ease-out}
+@keyframes flyfl{0%{opacity:.9}100%{opacity:0}}
+#fly-me{position:absolute;left:50%;top:70%;width:min(300px,48vw);transform:translate(-50%,-50%)}
+#fly-me[hidden]{display:none}
+#fly-me svg{display:block;width:100%;height:auto;overflow:visible}
+#fly-me .rear{transform-origin:50% 60%}
+#fly-me .top{display:none;width:34%;margin:0 auto}
+#fly-me[data-v="2"] .rear{display:none}#fly-me[data-v="2"] .top{display:block}
+#fly-me .w{fill:#d6d3dc;stroke:#1a1720;stroke-width:1}
+#fly-me .t{fill:var(--t,#c4a1ff);stroke:#1a1720;stroke-width:1}
+#fly-me .f{fill:var(--f,#f3f1ec);stroke:#1a1720;stroke-width:1.2}
+#fly-me .e{fill:#8b8793;stroke:#1a1720;stroke-width:1}
+#fly-me .eh{fill:#25222b}
+#fly-me .top path{fill:var(--f,#f3f1ec);stroke:#1a1720;stroke-width:.45}
+.fly-card{position:absolute;left:18px;top:18px;width:352px;padding:12px 14px 14px;background:var(--glass);border:1px solid var(--rule);border-radius:12px}
+.fly-k{font:700 10.5px var(--ui);letter-spacing:.16em;text-transform:uppercase;color:var(--lav)}
+.fly-id{display:flex;align-items:center;gap:10px;margin-top:6px}.fly-id b{font:400 34px/1 var(--display);letter-spacing:.02em;color:var(--lav)}
+.fly-id .sw{width:30px;height:30px;flex:none}
+.fly-sub{font-size:13.5px;color:var(--muted);margin:3px 0 10px}
+.fly-btns{display:flex;flex-wrap:wrap;gap:6px}
+#fly .btn[aria-pressed="true"]{border-color:var(--kyra);color:var(--kyra-ink)}
+#fly-hop{position:absolute;left:18px;top:var(--fly-top,210px);width:352px;max-height:calc(100vh - var(--fly-top,210px) - 70px);overflow:auto;padding:12px 14px;background:var(--glass);border:1px solid var(--rule);border-radius:12px}
+#fly-hop[hidden]{display:none}
+#fly-hop:not([hidden])~.fly-l{display:none}
+body.flying #map{background:var(--fly-sky,linear-gradient(#5f8fcc,#c9dcf0))}
+#fly .fly-btns .btn{padding:6px 11px;font-size:12px;min-height:0}
+.fly-row{display:grid;grid-template-columns:1fr auto;gap:1px 10px;width:100%;text-align:left;padding:8px 10px;margin-top:7px;background:var(--card);border:1px solid var(--rule);border-radius:9px;color:var(--ink);font:14px var(--ui);cursor:pointer}
+.fly-row:hover{border-color:var(--kyra)}.fly-row b{font-weight:600}.fly-row em{font-style:normal;color:var(--muted);font-size:13px}.fly-row span{grid-column:1/-1;color:var(--muted);font-size:13px}
+.fly-tip{margin:9px 0 0;font-size:12.5px;color:var(--muted)}
+.fly-dial{position:absolute;top:50%;transform:translateY(-50%);min-width:124px;padding:10px 14px;background:var(--glass);border:1px solid var(--rule);border-radius:12px;text-align:center}
+.fly-l{left:18px}.fly-r{right:18px}
+.fly-dial small{display:block;font:700 10px var(--ui);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.fly-dial b{display:block;font:400 36px/1.1 var(--display);letter-spacing:.02em;color:var(--lav)}
+.fly-dial b i{font:500 13px var(--ui);font-style:normal;color:var(--muted);margin-left:4px;letter-spacing:0}
+.fly-dial span{display:block;font-size:13px;color:var(--muted)}
+.fly-hdg{position:absolute;top:18px;left:50%;transform:translateX(-50%);padding:8px 18px 9px;background:var(--glass);border:1px solid var(--rule);border-radius:12px;text-align:center}
+.fly-hdg b{display:block;font:400 30px/1 var(--display);letter-spacing:.04em;color:var(--lav)}
+.fly-hdg span{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:5px;font-size:13px;color:var(--muted);white-space:nowrap}
+.fly-hdg svg{width:12px;height:12px;fill:var(--kyra)}
+#fly-warn{position:absolute;top:104px;left:50%;transform:translateX(-50%);padding:7px 15px;border-radius:999px;background:#ff5b26;color:#160b06;font:700 12.5px var(--ui);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+#fly-warn.soft{background:var(--cream);color:var(--on-accent);letter-spacing:.02em;text-transform:none;font-weight:600}
+#fly-warn[hidden]{display:none}
+#fly-end{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:min(380px,calc(100vw - 32px));padding:18px 20px;background:var(--glass);border:1px solid var(--rule);border-radius:14px;text-align:center}
+#fly-end[hidden]{display:none}
+#fly-end h3{margin:0 0 6px;font:400 30px/1.1 var(--display);letter-spacing:.02em;color:var(--lav)}
+#fly-end p{margin:0 0 14px;color:var(--muted);font-size:14px}
+#fly-end .fly-btns{justify-content:center}
+.fly-keys{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);margin:0;padding:6px 14px;background:var(--glass);border:1px solid var(--rule);border-radius:999px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.fly-keys kbd{font:600 11.5px var(--ui);color:var(--ink);padding:0 4px;border:1px solid var(--rule);border-radius:4px;background:var(--card)}
+#fly-stick,#fly-thr{display:none}
+@media (pointer:coarse){
+  .fly-keys{display:none}
+  #fly-stick{display:block;position:absolute;left:16px;bottom:calc(20px + env(safe-area-inset-bottom));width:136px;height:136px;border-radius:50%;background:var(--glass);border:1px solid var(--rule);touch-action:none}
+  #fly-knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:var(--cream)}
+  #fly-thr{display:block;position:absolute;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));width:58px;height:160px;border-radius:12px;background:var(--glass);border:1px solid var(--rule);overflow:hidden;touch-action:none}
+  #fly-thrf{position:absolute;left:0;right:0;bottom:0;background:var(--kyra);opacity:.8}
+  #fly-thr small{position:absolute;left:0;right:0;top:7px;text-align:center;font:700 9.5px var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+}
+@media (max-width:760px){
+  .fly-card{left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));width:auto;padding:10px 12px 12px}
+  .fly-id b{font-size:27px}.fly-sub{margin-bottom:8px}
+  .fly-btns .btn{padding:6px 10px;font-size:13px}
+  #fly-hop{left:10px;right:10px;width:auto;max-height:50vh}
+  .fly-hdg{top:var(--fly-top,150px);padding:6px 12px}.fly-hdg b{font-size:24px}
+  #fly-warn{top:calc(var(--fly-top,150px) + 64px)}
+  .fly-dial{min-width:0;padding:7px 9px;top:46%}.fly-l{left:10px}.fly-r{right:10px}.fly-dial b{font-size:25px}.fly-dial span{font-size:11.5px}
+}
+.fc-nav.six{grid-template-columns:repeat(6,1fr)}
 .embed #dock,.embed #cam,body.camming #panel,body.camming #dock,body.camming #hud,body.camming .maplibregl-ctrl-top-right{display:none!important}
 @media (max-width:760px){
   #dock{left:8px;right:8px;transform:none;bottom:calc(146px + env(safe-area-inset-bottom));justify-content:space-between;padding:3px 4px;border-radius:18px}
@@ -687,6 +761,28 @@ a.btn.eu{display:inline-flex;align-items:center}a.btn.prim{color:var(--on-accent
   <div class="cam-ap"><b id="cam-code"></b><span id="cam-city"></span></div>
   <div class="cam-l" id="cam-l"></div>
   <div class="cam-acts"><label><input type="checkbox" id="cam-tour"> Tour the busiest airports</label><span><button type="button" class="btn" id="cam-pic">Save picture</button> <button type="button" class="btn" id="cam-x">Exit</button></span></div>
+</div>
+<div id="fly" hidden role="region" aria-label="Fly mode">
+  <div id="fly-flash"></div>
+  <div id="fly-me" aria-hidden="true">
+    <svg class="rear" viewBox="-110 -50 220 82"><path class="w" d="M-8 3.5-104 11.5-104 15-8 10zM8 3.5 104 11.5 104 15 8 10z"/><path class="w" d="M-5-14-36-11.5-36-9-5-8.5zM5-14 36-11.5 36-9 5-8.5z"/><rect class="t" x="-2.3" y="-47" width="4.6" height="36" rx="1.6"/><circle class="e" cx="-34" cy="15.5" r="7.5"/><circle class="e" cx="34" cy="15.5" r="7.5"/><circle class="eh" cx="-34" cy="15.5" r="3.5"/><circle class="eh" cx="34" cy="15.5" r="3.5"/><ellipse class="f" cx="0" cy="2" rx="10.5" ry="11"/></svg>
+    <svg class="top" viewBox="-9 -9 18 18"><path d="M0,-8 L1.3,-6.2 L1.3,-2.2 L8,2.3 L8,3.9 L1.3,2 L1.3,5.4 L3.6,7.3 L3.6,8.5 L0,7.6 L-3.6,8.5 L-3.6,7.3 L-1.3,5.4 L-1.3,2 L-8,3.9 L-8,2.3 L-1.3,-2.2 L-1.3,-6.2 Z"/></svg>
+  </div>
+  <section class="fly-card">
+    <div class="fly-k">Fly mode · admins only</div>
+    <div class="fly-id"><span id="fly-tail"></span><b id="fly-call"></b></div>
+    <div class="fly-sub" id="fly-sub"></div>
+    <div class="fly-btns"><button type="button" class="btn" id="fly-hopb">Hop</button><button type="button" class="btn" id="fly-viewb">Chase view</button><button type="button" class="btn" id="fly-apb" aria-pressed="false">Autopilot</button><button type="button" class="btn" id="fly-x">Leave</button></div>
+  </section>
+  <div id="fly-hop" hidden></div>
+  <div class="fly-hdg"><b id="fly-hdg"></b><span id="fly-dst"></span></div>
+  <div class="fly-dial fly-l"><small>Speed</small><b id="fly-spd"></b><span id="fly-thrv"></span></div>
+  <div class="fly-dial fly-r"><small>Altitude</small><b id="fly-alt"></b><span id="fly-vs"></span></div>
+  <div id="fly-warn" hidden></div>
+  <div id="fly-end" hidden></div>
+  <p class="fly-keys"><kbd>W</kbd><kbd>S</kbd> climb, descend · <kbd>A</kbd><kbd>D</kbd> bank · <kbd>Shift</kbd><kbd>Ctrl</kbd> thrust · <kbd>P</kbd> autopilot · <kbd>V</kbd> view · <kbd>H</kbd> hop · scroll to zoom · <kbd>Esc</kbd> leave</p>
+  <div id="fly-stick" aria-label="Stick: bank and climb"><i id="fly-knob"></i></div>
+  <div id="fly-thr" aria-label="Thrust"><i id="fly-thrf"></i><small>Thrust</small></div>
 </div>
 <div id="tip"></div>
 <section id="ask" hidden aria-label="Ask Echo">
@@ -1536,8 +1632,8 @@ function draw(){
   if(!apsDone&&APLIST.length){apsDone=true;M.getSource("aps").setData(FC(APLIST.map(c=>PT(AP[c].lo,AP[c].la,{c,hub:!!AP[c].hub}))));}
   feedGround();feedMe();feedNet();feedDay();
   if(!S.P)return;
-  const P=S.P,si=selIndex(),fs=[[],[],[],[]],hp=[],near=planeArea();
-  for(let i=0;i<S.n;i++){if(i===si||!shown(i)||!near(P.la[i],P.lo[i]))continue;
+  const P=S.P,si=selIndex(),fi=FLY&&FLY.on?flyIdx():-1,fs=[[],[],[],[]],hp=[],near=planeArea();
+  for(let i=0;i<S.n;i++){if(i===si||i===fi||!shown(i)||!near(P.la[i],P.lo[i]))continue;
     fs[i&3].push({type:"Feature",properties:{c:colOf(i),b:Math.round(P.brg[i]),ri:P.ri[i],day:P.day[i],seq:P.seq[i],s:szOf(P.ri[i])},geometry:{type:"Point",coordinates:[P.lo[i],P.la[i]]}});
     if(S.ly.heat&&!P.gr[i])hp.push({type:"Feature",properties:{},geometry:{type:"Point",coordinates:[P.lo[i],P.la[i]]}});}
   PL.forEach((k,j)=>M.getSource(k).setData(FC(fs[j])));M.getSource("heatpts").setData(FC(hp));
@@ -1604,8 +1700,8 @@ function feedView(){
         $("thshow").onclick=()=>{showNetwork(null);if(S.view==="airline")route();};}}
     else{th.dataset.net="";if(h)th.textContent="Traffic heatmap. Zoom in to see the planes.";}}
   const lab=[],tr=[];
-  if(zi>=6){const ok=inView(),si=selIndex();let n=0;if(TRC.size>4000){TRC.clear();C.prune(null);}
-    for(let i=0;i<S.n&&n<2500;i++){if(P.gr[i]||!shown(i)||!ok(P.la[i],P.lo[i]))continue;n++;
+  if(zi>=6){const ok=inView(),si=selIndex(),fi=FLY&&FLY.on?flyIdx():-1;let n=0;if(TRC.size>4000){TRC.clear();C.prune(null);}
+    for(let i=0;i<S.n&&n<2500;i++){if(P.gr[i]||i===fi||!shown(i)||!ok(P.la[i],P.lo[i]))continue;n++;
       const k=P.ri[i]+":"+P.day[i]+":"+P.seq[i];let t=TRC.get(k);
       if(!t){const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)continue;const m=acName(l.r.ac);t={l,d:l.dur,fn:AL[P.ai[i]].code+l.fn,ty:ICAO[m]||""};TRC.set(k,t);}
       if(zi>=7&&lab.length<500&&i!==si)lab.push(PT(P.lo[i],P.la[i],{t:zi>=9&&t.ty?`${t.fn} · ${t.ty}`:t.fn}));
@@ -1650,6 +1746,7 @@ function nearestAirport(x,y,r){
   return best;}
 function onTap(x,y,type){
   if(!MREADY)return;
+  if(FLY&&FLY.on){const i=nearestPlane(x,y,type!=="mouse"?34:16);if(i>=0&&i!==flyIdx()&&!S.P.gr[i])flyHop(i);return;}
   if(S.ly.heat&&S.net==null&&M.getZoom()<2.8){M.easeTo({center:M.unproject([x,y]),zoom:M.getZoom()+2,duration:600});return;}
   const touch=type!=="mouse",i=S.net!=null?-1:nearestPlane(x,y,touch?30:14);
   if(i>=0){selectPlane(i,false);return;}
@@ -1952,6 +2049,7 @@ const ICON={
   less:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg>',
   follow:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l5 5M9 5v4H5M20 4l-5 5M15 5v4h4M4 20l5-5M9 19v-4H5M20 20l-5-5M15 19v-4h4"/></svg>',
   share:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7.5 7.5 12 3l4.5 4.5M7 11H5v10h14V11h-2"/></svg>',
+  fly:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19.5h18"/><path d="M4.3 13.4l3.1 2.4c.4.3 1 .4 1.5.2l10.6-3.3c1-.3 1.5-1.3 1.1-2.2-.4-.8-1.3-1.1-2.1-.9l-3.6 1.1-5.2-4.6-2.1.6 2.9 5.2-3.6 1.1-2-1.5-1.6.5z"/></svg>',
   d3:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 20h19M5 15.5h14M7.3 11.5h9.4M9.2 8h5.6M12 4.5V20M7 20l3.4-15.5M17 20l-3.4-15.5"/></svg>',
   sched:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>'};
 function renderFlight(){
@@ -2014,12 +2112,13 @@ function renderFlight(){
      ${nx?`<dt>Next</dt><dd><span class="m">${esc(AL[r.ai].code)}${nx.fn}</span> ${nx.from}–${nx.to} at ${localTime(nx.from,nx.t)}</dd>`:""}
    </dl>
    <div class="acts"><button type="button" class="btn" id="wch" aria-pressed="${isWatched(l)}">${isWatched(l)?"Watching":"Watch"}</button><button type="button" class="btn" id="crd">Share card</button><button type="button" class="btn" id="shr">Copy link</button><button type="button" class="btn" id="fpic">Save picture</button>${reg?`<button type="button" class="btn" id="fday">This plane's day</button>`:""}</div>`:""}
-   <nav class="fc-nav" aria-label="Flight actions">
+   <nav class="fc-nav${ACC.admin&&!EMBED?" six":""}" aria-label="Flight actions">
      <button type="button" id="frt" aria-pressed="${!!S.froute}">${ICON.route}<span>Route</span></button>
      <button type="button" id="fmo" aria-expanded="${!!S.fmore}">${S.fmore?ICON.less:ICON.more}<span>${S.fmore?"Less info":"More info"}</span></button>
      <button type="button" id="fol" aria-pressed="${S.follow}">${ICON.follow}<span>${S.follow?"Following":"Follow"}</span></button>
      <button type="button" id="f3d" aria-pressed="${!!S.d3}">${ICON.d3}<span>3D</span></button>
      <button type="button" id="fsh">${ICON.share}<span>Share</span></button>
+     ${ACC.admin&&!EMBED?`<button type="button" id="ffly">${ICON.fly}<span>Fly</span></button>`:""}
    </nav>
   </article>`;
   $("bk").onclick=()=>{S.sel=null;S.follow=false;S.froute=false;if(S.d3)flat3D();go("#/");redraw();};
@@ -2036,6 +2135,7 @@ function renderFlight(){
   $("fol").onclick=()=>{S.follow=!S.follow;S.froute=false;if(S.follow){if(S.d3)view3D(si,false);else M.easeTo({center:[p.lo,p.la],pitch:0,bearing:0,duration:600});}renderFlight();};
   $("f3d").onclick=()=>{S.froute=false;if(S.d3)flat3D();else{S.d3=true;S.follow=true;if(narrow())sheet(null);view3D(si,true);}renderFlight();};
   $("fsh").onclick=share;
+  if($("ffly"))$("ffly").onclick=()=>flyStart(si);
   if(S.fmore){$("wch").onclick=async()=>{await toggleWatch(l);renderFlight();};
     $("crd").onclick=()=>{$("crd").textContent="Making the card…";shareCard(si);};
     $("shr").onclick=async()=>{try{await navigator.clipboard.writeText(location.href);toast("Link copied.");}catch(_){toast(location.href);}};
@@ -2633,6 +2733,211 @@ function savePic(caption,name){
   M.triggerRepaint();}
 $("cam-tour").onchange=()=>{CAM.next=performance.now()+75000;};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&CAM.on)camStop();});setTimeout(dockSync,600);
+/* ---------- fly mode (admins only for now) ----------
+   Hop into any plane on the map and fly it yourself: a chase camera behind it, a cockpit view and a
+   view from above. The plane you take over is hidden from the map while you fly it and is back on its
+   timetable when you leave; nothing is saved and nobody else sees it. The handling is simple on purpose
+   (no wind, no fuel, the ground at sea level): bank to turn, raise the nose to climb, thrust for speed,
+   and set it down gently near an airport to land. */
+var FLY={on:false,view:0,zo:0,keys:new Set(),stick:null,ap:false};
+const FLYH=["dragPan","scrollZoom","boxZoom","keyboard","doubleClickZoom","touchZoomRotate"];
+const clampN=(v,a,b)=>Math.max(a,Math.min(b,v)),wrap180=a=>mod(a+180,360)-180;
+const gcBrg=(a,o,b,p)=>{a*=D2R;b*=D2R;const dl=(p-o)*D2R;return mod(Math.atan2(Math.sin(dl)*Math.cos(b),Math.cos(a)*Math.sin(b)-Math.sin(a)*Math.cos(b)*Math.cos(dl))/D2R,360);};
+const gcKm=(a,o,b,p)=>{const x=Math.sin((b-a)*D2R/2)**2+Math.cos(a*D2R)*Math.cos(b*D2R)*Math.sin((p-o)*D2R/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(x)));};
+const flyCls=m=>/ATR|Dash 8|Q400|Saab|Twin Otter|Beech|Cessna|Caravan/i.test(m)?"prop":/CRJ|ERJ|E1[79]|E2|A220|Superjet|ARJ/.test(m)?"reg":/A380|747|777|A35|A34|A33|787|767/.test(m)?"big":"jet";
+function flyVmax(alt){const k=FLY.cls==="prop"?.62:FLY.cls==="reg"?.88:1;return k*(alt<10000?320:320+Math.min(1,(alt-10000)/25000)*170);}
+const flyVstall=()=>FLY.cls==="prop"?80:FLY.cls==="reg"?95:FLY.cls==="big"?115:105;   // with flaps out, roughly
+const flyIdx=()=>FLY.on&&FLY.k?findPlane(FLY.k.ri,FLY.k.day,FLY.k.seq):-1;
+const FLYKEEP=["la","lo","hdg","alt","spd","thr","gnd"];
+/* take over plane i where it is now: position, heading, height and speed from the timetable */
+function flyTake(i){
+  const p=plane(i),l=C.legAt(p.ri,p.day,p.seq);if(!l)return false;
+  const m=acName(l.r.ac),e=C.est(l,clampN(p.f,0,1))||{alt:0,spd:0};
+  Object.assign(FLY,{k:{ri:p.ri,day:p.day,seq:p.seq},ai:p.ai,from:l.from,to:l.to,call:AL[p.ai].code+l.fn,model:m,cls:flyCls(m),
+    la:p.la,lo:p.lo,hdg:p.brg,alt:p.ground?0:Math.max(0,e.alt||0),spd:Math.max(0,e.spd||0),pitch:0,bank:0,vs:0,gnd:!!p.ground||(e.alt||0)<5,ap:false,end:null,warn:""});
+  if(FLY.gnd){FLY.alt=0;FLY.spd=Math.min(FLY.spd,30);}
+  FLY.thr=FLY.gnd?0:clampN(FLY.spd/(flyVmax(FLY.alt)*1.06),.15,1);
+  FLY.start={};for(const k of FLYKEEP)FLY.start[k]=FLY[k];
+  wantGround([l.from,l.to]);   // real stands and taxiways at both ends, ready for the landing
+  return true;}
+function flyStart(i){
+  if(!ACC.admin||EMBED||!MREADY||!S.P||i<0)return;
+  if(PLAYING)setPlaying(false);if(CAM.on)camStop();if(ASK.open)askShow(false);popClose();
+  if(!flyTake(i))return;
+  S.sel=null;S.follow=false;S.froute=false;S.d3=false;
+  if(location.hash&&location.hash!=="#/"){history.replaceState(null,"","#/");route();}
+  if(!FLY.on){
+    FLY.on=true;FLY.view=0;FLY.zo=0;FLY.keys.clear();FLY.stick=null;
+    FLY.hs={};for(const h of FLYH){const o=M[h];if(o&&o.isEnabled){FLY.hs[h]=o.isEnabled();o.disable();}}
+    FLY.mp=M.getMaxPitch();FLY.pad=M.getPadding();try{M.setMaxPitch(85);}catch(_){}
+    try{FLY.sky=M.getSky?M.getSky():null;}catch(_){FLY.sky=null;}
+    document.body.classList.add("flying");$("fly").hidden=false;$("fly-hop").hidden=true;
+    FLY.t=performance.now();FLY.ht=0;FLY.sk=0;requestAnimationFrame(flyTick);}
+  flyPaint(true);redraw();toast(`You're flying ${FLY.call}.`);
+}
+function flyStop(){
+  if(!FLY.on)return;FLY.on=false;FLY.keys.clear();FLY.stick=null;
+  document.body.classList.remove("flying");$("fly").hidden=true;$("fly-hop").hidden=true;
+  for(const h in FLY.hs)if(FLY.hs[h]&&M[h])M[h].enable();
+  try{if(M.setSky)M.setSky(FLY.sky||undefined);}catch(_){}
+  const o={padding:FLY.pad||{top:0,bottom:0,left:0,right:0}};if(M.setRoll)o.roll=0;M.jumpTo(o);
+  M.easeTo({center:[FLY.lo,FLY.la],zoom:Math.min(M.getZoom(),7),pitch:0,bearing:0,duration:900});
+  M.once("moveend",()=>{if(!FLY.on)try{M.setMaxPitch(FLY.mp||60);}catch(_){}});
+  redraw();
+}
+function flyHop(i){
+  const fl=$("fly-flash");fl.classList.remove("go");void fl.offsetWidth;fl.classList.add("go");
+  $("fly-hop").hidden=true;
+  if(flyTake(i)){flyPaint(true);redraw();toast(`You're flying ${FLY.call}.`);}
+}
+function flyInput(){
+  const K=FLY.keys,has=(...a)=>a.some(k=>K.has(k));
+  let roll=(has("arrowright","d")?1:0)-(has("arrowleft","a")?1:0),pitch=(has("arrowup","w")?1:0)-(has("arrowdown","s")?1:0);
+  const thr=(has("shift","e","+","=")?1:0)-(has("control","q","-","_")?1:0);
+  if(FLY.stick){roll=FLY.stick.x;pitch=-FLY.stick.y;}
+  return {roll,pitch,thr};}
+function flyStep(dt){
+  const F=FLY,inp=flyInput();
+  if(F.ap&&(inp.roll||inp.pitch||inp.thr)){F.ap=false;flyPaint(true);}   // touching the controls hands the plane back to you
+  let tb=inp.roll*35,tp=inp.pitch*14;
+  if(F.ap){const d=AP[F.to];if(d){tb=clampN(wrap180(gcBrg(F.la,F.lo,d.la,d.lo)-F.hdg)*1.5,-25,25);}else tb=0;
+    const want=clampN((F.apAlt-F.alt)*1.5,-1800,1800);tp=2*Math.asin(clampN(want/(Math.max(F.spd,60)*101.27),-.24,.24))/D2R;
+    F.thr=clampN(F.thr+clampN((F.apSpd-F.spd)*.01,-.2,.2)*dt,.05,1);}
+  F.thr=clampN(F.thr+inp.thr*.4*dt,0,1);
+  if(F.gnd){
+    F.bank=0;F.pitch=0;F.vs=0;
+    if(F.spd>.5)F.hdg=mod(F.hdg+inp.roll*Math.min(25,3+F.spd*.5)*(F.spd>80?.25:1)*dt,360);
+    const a=F.thr>.03?.07*(F.thr*flyVmax(0)*1.1-F.spd):-(F.spd>60?5:3);
+    F.spd=Math.max(0,F.spd+a*dt);
+    if(F.spd>=flyVstall()+15&&inp.pitch>.2){F.gnd=false;F.pitch=7;F.alt=3;}   // rotate and lift off
+  }else{
+    F.bank+=clampN(tb-F.bank,-45*dt,45*dt);
+    const vst=flyVstall(),stall=F.spd<vst;if(stall)tp=Math.min(tp,-10);
+    F.pitch+=clampN(tp-F.pitch,-10*dt,10*dt);
+    if(F.alt>=43000&&F.pitch>0)F.pitch=Math.max(0,F.pitch-20*dt);
+    const a=.045*(F.thr*flyVmax(F.alt)*1.06-F.spd)-19.07*Math.sin(F.pitch*D2R)*.6-Math.abs(F.bank)*.012;
+    F.spd=Math.max(0,F.spd+a*dt);
+    F.vs=F.spd*101.27*Math.sin(F.pitch*.5*D2R)-(stall?(vst-F.spd)*25:0);   // the flight path is about half the nose angle
+    F.alt=Math.min(43500,F.alt+F.vs/60*dt);
+    F.hdg=mod(F.hdg+1091*Math.tan(F.bank*D2R)/Math.max(F.spd,90)*dt,360);   // rate of turn from bank and speed
+    if(F.alt<=0)flyTouch();
+  }
+  flyMove(F.spd*.514444*dt);
+  F.warn=F.gnd?"":F.spd<flyVstall()?"stall":F.spd>flyVmax(F.alt)*1.04?"over":F.alt<2500&&F.vs<-2200?"pull":"";
+}
+/* along the great circle the plane is pointing on; the heading follows it round */
+function flyMove(m){if(m<=0)return;const F=FLY,d=m/6371000,h=F.hdg*D2R,a=F.la*D2R,o=F.lo*D2R;
+  const a2=Math.asin(clampN(Math.sin(a)*Math.cos(d)+Math.cos(a)*Math.sin(d)*Math.cos(h),-1,1));
+  const o2=o+Math.atan2(Math.sin(h)*Math.sin(d)*Math.cos(a),Math.cos(d)-Math.sin(a)*Math.sin(a2));
+  const back=Math.atan2(Math.sin(o-o2)*Math.cos(a),Math.cos(a2)*Math.sin(a)-Math.sin(a2)*Math.cos(a)*Math.cos(o-o2));
+  F.la=a2/D2R;F.lo=mod(o2/D2R+180,360)-180;F.hdg=mod(back/D2R+180,360);}
+/* wheels on the ground: a landing if it's gentle and near an airport, otherwise it's over */
+function flyTouch(){
+  const F=FLY,vs=F.vs;F.alt=0;let best=null,bd=1e9;
+  for(const c of APLIST){const a=AP[c];if(!a||Math.abs(a.la-F.la)>.3)continue;const d=gcKm(F.la,F.lo,a.la,a.lo);if(d<bd){bd=d;best=c;}}
+  F.gnd=true;F.vs=0;
+  if(!best||bd>5||vs<-1500||Math.abs(F.bank)>15||F.pitch<-6){F.end={crash:true,ap:best,km:bd,vs};F.spd=0;F.pitch=0;F.bank=0;F.ap=false;flyPaint(true);return;}
+  F.pitch=0;F.bank=0;F.thr=0;F.ap=false;
+  F.end={land:true,ap:best,vs,word:vs>-150?"Butter":vs>-400?"Smooth landing":vs>-800?"Firm landing":"Hard landing"};flyPaint(true);}
+function flyCam(){
+  const F=FLY,h=innerHeight;let z=15.4-.8*Math.log2(Math.max(F.alt,120)/120)+F.zo,pitch=74,roll=0,top=Math.round(h*.4);
+  if(F.view===1){z+=.9;pitch=clampN(80+F.pitch*.6,55,85);roll=F.bank;top=Math.round(h*.05);}
+  else if(F.view===2){z-=.6;pitch=0;top=0;}
+  const o={center:[F.lo,F.la],zoom:clampN(z,1.5,16),bearing:F.hdg,pitch,padding:{top,bottom:0,left:0,right:0}};
+  if(M.setRoll)o.roll=roll;
+  M.jumpTo(o);}
+function flyMe(){
+  const F=FLY,el=$("fly-me");if(F.view===1||(F.end&&F.end.crash)){el.hidden=true;return;}
+  el.hidden=false;const h=innerHeight,top=F.view===2?0:Math.round(h*.4);el.style.top=(top+(h-top)/2)+"px";el.dataset.v=String(F.view);
+  const r=el.querySelector(".rear");if(r)r.style.transform=`translateY(${(-F.pitch*1.6).toFixed(1)}px) rotate(${F.bank.toFixed(1)}deg)`;}
+/* the sky behind the horizon: day, dusk or night where the plane is */
+function flySky(){if(!M.setSky)return;
+  const s=sunAt(nowMin()*6e4),el=Math.asin(clampN(Math.sin(FLY.la*D2R)*Math.sin(s.lat*D2R)+Math.cos(FLY.la*D2R)*Math.cos(s.lat*D2R)*Math.cos((FLY.lo-s.lon)*D2R),-1,1))/D2R;
+  const k=el>3?["#6f9fd8","#cfe0f2","#e3ebf4"]:el>-6?["#2d3060","#e59a73","#b98a86"]:["#04050c","#1b1f3a","#10132a"];
+  document.documentElement.style.setProperty("--fly-sky",`linear-gradient(${k[0]} 0%,${k[0]} 20%,${k[1]} 46%,${k[2]} 60%)`);
+  try{M.setSky({"sky-color":k[0],"horizon-color":k[1],"fog-color":k[2],"sky-horizon-blend":.6,"horizon-fog-blend":.6,"fog-ground-blend":.8,"atmosphere-blend":["interpolate",["linear"],["zoom"],0,1,5,1,7,0]});}catch(_){}}
+function flyTick(t){
+  if(!FLY.on)return;
+  let dt=Math.min(.5,Math.max(0,(t-FLY.t)/1000));FLY.t=t;FLY.fps=FLY.fps?FLY.fps*.95+(dt>0?.05/dt:0):60;
+  while(dt>1e-4&&!(FLY.end&&FLY.end.crash)&&FLY.on){const h=Math.min(.05,dt);flyStep(h);dt-=h;}   // small steps, so a slow phone flies at the same pace
+  flyCam();flyMe();
+  if(t-FLY.ht>120){FLY.ht=t;flyPaint(false);}
+  if(t-FLY.sk>20000){FLY.sk=t;flySky();}
+  requestAnimationFrame(flyTick);}
+const pad3=n=>String(Math.round(n)%360).padStart(3,"0");
+function flyNum(k,x){const [v,u]=uv(k,x);return `${fmtN(k==="a"&&u==="m"?Math.round(v/10)*10:Math.round(v))}<i>${u}</i>`;}
+function flyPaint(full){
+  const F=FLY;if(!F.on)return;
+  if(full){
+    $("fly-call").textContent=F.call;$("fly-sub").textContent=`${ICAO[F.model]||F.model} · ${F.from} to ${F.to}`;
+    $("fly-tail").innerHTML=tailSVG(F.ai,"");
+    const v=AL[F.ai].liv,me=$("fly-me");me.style.setProperty("--t",v?v.t:AL[F.ai].color);me.style.setProperty("--f",v?v.f:"#f3f1ec");
+    $("fly-apb").setAttribute("aria-pressed",String(!!F.ap));$("fly-apb").textContent=F.ap?`Autopilot to ${F.to}`:"Autopilot";
+    $("fly-viewb").textContent=["Chase view","Cockpit view","View from above"][F.view];
+    const end=$("fly-end");
+    if(!F.end)end.hidden=true;
+    else{end.hidden=false;const E=F.end;
+      end.innerHTML=E.crash?`<h3>That didn't end well</h3><p>${E.ap&&E.km<5?`Came down too hard at ${esc(E.ap)}.`:E.ap?`Came down ${fmtDist(E.km)} from ${esc(E.ap)}, away from the runway.`:"Came down away from any airport."}</p>
+          <div class="fly-btns"><button type="button" class="btn prim" data-fe="again">Try again</button><button type="button" class="btn" data-fe="hop">Hop to a plane nearby</button><button type="button" class="btn" data-fe="x">Leave</button></div>`
+        :`<h3>${esc(E.word)} at ${esc(E.ap)}</h3><p>Touched down at ${fmtN(Math.round(-E.vs))} ft a minute. Add thrust and hold climb past ${flyVstall()+15} kts to take off again.</p>
+          <div class="fly-btns"><button type="button" class="btn prim" data-fe="ok">Keep going</button><button type="button" class="btn" data-fe="hop">Hop to a plane nearby</button><button type="button" class="btn" data-fe="x">Leave</button></div>`;
+      end.querySelectorAll("[data-fe]").forEach(b=>b.onclick=()=>{const k=b.dataset.fe;
+        if(k==="again"){for(const q of FLYKEEP)F[q]=F.start[q];F.pitch=0;F.bank=0;F.vs=0;F.end=null;flyPaint(true);}
+        else if(k==="ok"){F.end=null;flyPaint(true);}else if(k==="hop"){F.end=null;flyPaint(true);flyHopList();}else flyStop();});}
+    flyLayout();}
+  $("fly-spd").innerHTML=flyNum("s",F.spd);$("fly-thrv").textContent=`Thrust ${Math.round(F.thr*100)}%`;$("fly-thrf").style.height=(F.thr*100).toFixed(1)+"%";
+  $("fly-alt").innerHTML=flyNum("a",Math.max(0,F.alt));
+  const ms=S.ly.ua==="m";$("fly-vs").textContent=F.gnd?"On the ground":`${F.vs>=0?"+":"−"}${ms?(Math.abs(F.vs)*.00508).toFixed(1)+" m/s":fmtN(Math.round(Math.abs(F.vs)/10)*10)+" ft/min"}`;
+  $("fly-hdg").textContent=pad3(F.hdg)+"°";
+  const d=AP[F.to];if(d){const b=gcBrg(F.la,F.lo,d.la,d.lo);$("fly-dst").innerHTML=`<svg viewBox="-6 -6 12 12" aria-hidden="true" style="transform:rotate(${wrap180(b-F.hdg).toFixed(0)}deg)"><path d="M0-5 4 4 0 2-4 4z"/></svg>${esc(F.to)} ${fmtDist(gcKm(F.la,F.lo,d.la,d.lo))} · ${pad3(b)}°`;}
+  const w=$("fly-warn"),msg={stall:"Stall: lower the nose and add thrust",over:"Overspeed",pull:"Pull up"}[F.warn];
+  if(msg){w.hidden=false;w.textContent=msg;w.className="";}
+  else if(F.gnd&&!F.end){w.hidden=false;w.className="soft";w.textContent=F.spd<1?"On the ground · add thrust to roll":`Rolling · hold climb past ${flyVstall()+15} kts to take off`;}
+  else w.hidden=true;
+}
+function flyLayout(){const c=document.querySelector(".fly-card");if(c)$("fly").style.setProperty("--fly-top",Math.round(c.getBoundingClientRect().bottom+10)+"px");}
+function flyView(){FLY.view=(FLY.view+1)%3;flyPaint(true);}
+function flyAP(){const F=FLY;if(F.gnd){toast("The autopilot works once you're in the air.");return;}
+  F.ap=!F.ap;if(F.ap){F.apAlt=Math.max(4000,Math.round(F.alt/1000)*1000);F.apSpd=clampN(F.spd,flyVstall()+60,flyVmax(F.apAlt)*.95);}
+  flyPaint(true);}
+/* every plane in the air within 700 km, nearest first */
+function flyHopList(){
+  const P=S.P,F=FLY,fi=flyIdx(),out=[],box=$("fly-hop");if(!P)return;
+  for(let i=0;i<S.n;i++){if(i===fi||P.gr[i]||!shown(i)||Math.abs(P.la[i]-F.la)>7)continue;const d=gcKm(F.la,F.lo,P.la[i],P.lo[i]);if(d<700)out.push([d,i]);}
+  out.sort((a,b)=>a[0]-b[0]);
+  const rows=out.slice(0,8).map(([d,i])=>{const l=C.legAt(P.ri[i],P.day[i],P.seq[i]);if(!l)return "";const m=acName(l.r.ac);
+    return `<button type="button" class="fly-row" data-k="${P.ri[i]}:${P.day[i]}:${P.seq[i]}"><b>${esc(AL[P.ai[i]].code+l.fn)}</b><em>${fmtDist(d)}</em><span>${esc(ICAO[m]||m)} · ${l.from} to ${l.to} · ${fmtAlt(P.alt[i])}</span></button>`;}).join("");
+  box.innerHTML=`<div class="fly-k">Hop into a plane nearby</div>${rows||`<p class="muted">No other planes within ${fmtDist(700)}. Leave fly mode and pick one on the map.</p>`}<p class="fly-tip">Or tap any plane you can see.</p>`;
+  box.hidden=false;
+  box.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const [ri,day,seq]=b.dataset.k.split(":").map(Number),i=findPlane(ri,day,seq);if(i>=0)flyHop(i);else{toast("That plane has landed.");flyHopList();}});}
+$("fly-x").onclick=flyStop;$("fly-viewb").onclick=flyView;$("fly-apb").onclick=flyAP;
+$("fly-hopb").onclick=()=>{if($("fly-hop").hidden)flyHopList();else $("fly-hop").hidden=true;};
+addEventListener("keydown",e=>{
+  if(!FLY.on||(e.target.closest&&e.target.closest("input,textarea,select,[contenteditable]")))return;
+  const k=e.key.toLowerCase();
+  if(k==="escape"){if(!$("fly-hop").hidden)$("fly-hop").hidden=true;else flyStop();return;}
+  if(e.repeat&&FLY.keys.has(k)){e.preventDefault();return;}
+  if(k==="p"){flyAP();return;}if(k==="v"){flyView();return;}if(k==="h"){$("fly-hopb").click();return;}
+  if(["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d","q","e","shift","control","+","-","=","_"].includes(k)){FLY.keys.add(k);e.preventDefault();}});
+addEventListener("keyup",e=>{FLY.keys.delete(e.key.toLowerCase());});
+addEventListener("blur",()=>FLY.keys.clear());
+addEventListener("hashchange",()=>{if(FLY.on)flyStop();});
+M.getCanvasContainer().addEventListener("wheel",e=>{if(!FLY.on)return;e.preventDefault();FLY.zo=clampN(FLY.zo-e.deltaY*.0015,-4,3);},{passive:false});
+/* on a touch screen: a stick on the left (bank and climb) and a thrust lever on the right */
+(()=>{const st=$("fly-stick"),kn=$("fly-knob"),tr=$("fly-thr");let sid=null,tid=null;
+  const setS=e=>{const r=st.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/R,y=(e.clientY-r.top-R)/R;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m;}
+    FLY.stick={x,y};kn.style.transform=`translate(${(x*R*.6).toFixed(1)}px,${(y*R*.6).toFixed(1)}px)`;};
+  st.addEventListener("pointerdown",e=>{sid=e.pointerId;try{st.setPointerCapture(sid);}catch(_){}setS(e);e.preventDefault();});
+  st.addEventListener("pointermove",e=>{if(e.pointerId===sid)setS(e);});
+  const endS=e=>{if(e.pointerId!==sid)return;sid=null;FLY.stick=null;kn.style.transform="";};
+  st.addEventListener("pointerup",endS);st.addEventListener("pointercancel",endS);
+  const setT=e=>{const r=tr.getBoundingClientRect();FLY.thr=clampN(1-(e.clientY-r.top)/r.height,0,1);if(FLY.ap){FLY.ap=false;flyPaint(true);}else flyPaint(false);};
+  tr.addEventListener("pointerdown",e=>{tid=e.pointerId;try{tr.setPointerCapture(tid);}catch(_){}setT(e);e.preventDefault();});
+  tr.addEventListener("pointermove",e=>{if(e.pointerId===tid)setT(e);});
+  const endT=e=>{if(e.pointerId===tid)tid=null;};tr.addEventListener("pointerup",endT);tr.addEventListener("pointercancel",endT);
+})();
+addEventListener("resize",()=>{if(FLY.on){flyMe();flyLayout();}});
+
 const TSZ={s:.9,n:1,l:1.15,x:1.3};
 function applyTextSize(){const z=EMBED?1:(TSZ[S.ly.ts]||1);document.documentElement.style.setProperty("--tz",String(z));
   document.querySelectorAll("[data-ts]").forEach(b=>b.setAttribute("aria-pressed",String((S.ly.ts||"n")===b.dataset.ts)));}
@@ -3207,6 +3512,7 @@ async function checkAdmin(){
   const was=!!ACC.admin;ACC.admin=false;
   if(ACC.c&&ACC.u){try{const {data}=await ACC.c.rpc("echo_is_admin");ACC.admin=data===true;}catch(_){}}
   if($("nav-admin"))$("nav-admin").hidden=!ACC.admin;
+  if(!ACC.admin&&FLY&&FLY.on)flyStop();
   checkAsk();
   if(was!==ACC.admin&&D){if(S.view==="home")renderHome();else if(S.view==="admin")renderAdmin();}
 }
