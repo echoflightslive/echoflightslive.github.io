@@ -279,6 +279,8 @@ figure.hourc .hb:hover path{opacity:1}
 .ly{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--rule);font-size:14.5px;cursor:pointer}
 .ly input{width:17px;height:17px;accent-color:var(--kyra);margin:0}
 .ly small{color:var(--muted);font-size:12px;margin-left:auto}
+#ly3d[hidden]{display:none}.ly-adm{font:700 9.5px var(--ui);letter-spacing:.12em;color:var(--kyra-ink);margin-left:6px}
+.ly-note{margin:6px 0 0;font-size:12px;line-height:1.4;color:var(--muted)}
 /* the top bar: sections in one row that scrolls sideways when it doesn't fit */
 #top{position:fixed;z-index:1100;left:0;right:0;top:0;height:56px;display:flex;align-items:center;gap:26px;padding:0 18px 0 20px;
   background:rgba(6,5,7,.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid #1c1a20}
@@ -742,6 +744,14 @@ body.flying #map{background:var(--fly-sky,linear-gradient(#5f8fcc,#c9dcf0))}
     <div class="un">Distance <div class="seg" role="group" aria-label="Distance in"><button type="button" data-un="d" data-v="km">km</button><button type="button" data-un="d" data-v="mi">mi</button><button type="button" data-un="d" data-v="nm">nm</button></div></div>
     <div class="un">Altitude <div class="seg" role="group" aria-label="Altitude in"><button type="button" data-un="a" data-v="ft">ft</button><button type="button" data-un="a" data-v="m">m</button></div></div>
     <div class="un">Speed <div class="seg" role="group" aria-label="Speed in"><button type="button" data-un="s" data-v="kts">kts</button><button type="button" data-un="s" data-v="kmh">km/h</button><button type="button" data-un="s" data-v="mph">mph</button></div></div>
+    <div id="ly3d" hidden>
+      <p class="ly-h" style="margin-top:8px">3D map <small class="ly-adm">admins</small></p>
+      <label class="ly"><input type="checkbox" data-t3="ter"> Mountains <small>terrain</small></label>
+      <label class="ly"><input type="checkbox" data-t3="bld"> 3D buildings <small>zoomed into a city</small></label>
+      <label class="ly"><input type="checkbox" data-t3="pl"> 3D planes <small>zoomed in, and in fly mode</small></label>
+      <label class="ly"><input type="checkbox" data-t3="sat"> Satellite ground</label>
+      <p class="ly-note">Tilt and turn: right-drag or Ctrl-drag, or two fingers on a phone. The compass puts it back.</p>
+    </div>
     <p class="ly-h" style="margin-top:8px">Text size</p>
     <div class="seg" role="group" aria-label="Text size"><button type="button" data-ts="s">Small</button><button type="button" data-ts="n">Normal</button><button type="button" data-ts="l">Large</button><button type="button" data-ts="x">Larger</button></div>
   </div>
@@ -1603,6 +1613,7 @@ M.on("load",()=>{
   MREADY=true;apsDone=false;
   applyTheme();
   if(S.ly.rain)setRain(true);if(S.ly.clouds)setClouds(true);
+  T3ON=null;apply3D();
   draw();
 });
 let APLIST=[],apsDone=false,raf=0,viewT=0;
@@ -1729,6 +1740,7 @@ function nearAround(x,y,r){
   const c=M.unproject([x,y]),dpp=360/(512*Math.pow(2,M.getZoom()))*1.6*r*(1+M.getPitch()/25),cl=Math.max(.15,Math.cos(c.lat*D2R));
   return {c,dla:dpp,dlo:Math.min(180,dpp/cl)};}
 function nearestPlane(x,y,r){
+  if(typeof pl3dHit==="function"){const h=pl3dHit(x,y,r*1.2);if(h!==-2)return h;}   // zoomed in with 3D planes: tap the plane where it's drawn, in the air
   if(!S.P)return -1;const {c,dla,dlo}=nearAround(x,y,r),P=S.P,si=selIndex();let best=-1,bd=r*r;
   for(let i=0;i<S.n;i++){if(i!==si&&!shown(i))continue;if(Math.abs(P.la[i]-c.lat)>dla)continue;
     let d=P.lo[i]-c.lng;d-=Math.round(d/360)*360;if(Math.abs(d)>dlo)continue;
@@ -2733,6 +2745,171 @@ function savePic(caption,name){
   M.triggerRepaint();}
 $("cam-tour").onchange=()=>{CAM.next=performance.now()+75000;};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&CAM.on)camStop();});setTimeout(dockSync,600);
+/* ---------- 3D map (admins only for now) ----------
+   Four switches under Map layers: mountains (free elevation tiles from the AWS open data registry, as terrain
+   plus soft shading), 3D buildings (OpenFreeMap's OpenStreetMap tiles, which carry building heights), 3D planes
+   (three.js models in each airline's colours) and satellite ground (Sentinel-2 cloudless by EOX). Kept in this
+   browser only. With any of them on, the map can be tilted and turned: right-drag or Ctrl-drag with a mouse,
+   two fingers on a phone; the compass top right puts it back. */
+const T3K="echo_3d";
+var T3={ter:false,bld:false,pl:false,sat:false};
+try{Object.assign(T3,JSON.parse(localStorage.getItem(T3K)||"{}"));}catch(_){}
+var T3ON=null,T3NAV=null;
+const t3eff=()=>{const a=!!(ACC.admin&&!EMBED);return {ter:a&&!!T3.ter,bld:a&&!!T3.bld,pl:a&&!!T3.pl,sat:a&&!!T3.sat};};
+function t3before(){for(const id of ["apron","rwy-glow","night"])if(M.getLayer(id))return id;return undefined;}
+function apply3D(){
+  if(!MREADY)return;const E=t3eff(),any=E.ter||E.bld||E.pl||E.sat,k=JSON.stringify(E);
+  if(k===T3ON)return;T3ON=k;
+  try{
+    /* satellite under everything else, with the drawn map hidden beneath it */
+    if(E.sat&&!M.getSource("sat"))M.addSource("sat",{type:"raster",tiles:["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg"],tileSize:256,maxzoom:15,
+      attribution:'<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2020)'});
+    if(E.sat&&!M.getLayer("sat"))M.addLayer({id:"sat",type:"raster",source:"sat",paint:{"raster-brightness-max":S.ly.light?1:.88,"raster-saturation":-.1}},M.getLayer("hills")?"hills":t3before());
+    if(M.getLayer("sat"))M.setLayoutProperty("sat","visibility",E.sat?"visible":"none");
+    M.setLayoutProperty("osm","visibility",E.sat?"none":"visible");
+    /* mountains: the same elevation tiles raise the ground and shade it */
+    if(E.ter){
+      if(!M.getSource("dem"))M.addSource("dem",{type:"raster-dem",tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],encoding:"terrarium",tileSize:256,maxzoom:14,
+        attribution:'Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen terrain tiles, AWS open data</a>'});
+      if(!M.getSource("demh"))M.addSource("demh",{type:"raster-dem",tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],encoding:"terrarium",tileSize:256,maxzoom:14});
+      if(!M.getLayer("hills"))M.addLayer({id:"hills",type:"hillshade",source:"demh",paint:{"hillshade-exaggeration":.45,"hillshade-shadow-color":"rgba(0,0,0,.55)","hillshade-highlight-color":"rgba(255,255,255,.18)","hillshade-accent-color":"rgba(0,0,0,.2)"}},t3before());
+      M.setLayoutProperty("hills","visibility","visible");}
+    else if(M.getLayer("hills"))M.setLayoutProperty("hills","visibility","none");
+    t3terr();
+    /* buildings stand up from zoom 13 */
+    if(E.bld&&!M.getSource("omt"))M.addSource("omt",{type:"vector",url:"https://tiles.openfreemap.org/planet"});
+    if(E.bld&&!M.getLayer("bld3d"))M.addLayer({id:"bld3d",type:"fill-extrusion",source:"omt","source-layer":"building",minzoom:13,
+      paint:{"fill-extrusion-color":S.ly.light?"#d3cfdb":"#4b4559","fill-extrusion-height":["coalesce",["get","render_height"],8],"fill-extrusion-base":["coalesce",["get","render_min_height"],0],
+        "fill-extrusion-opacity":["interpolate",["linear"],["zoom"],13,0,13.6,.9]}},M.getLayer("aps")?"aps":undefined);
+    if(M.getLayer("bld3d"))M.setLayoutProperty("bld3d","visibility",E.bld?"visible":"none");
+  }catch(e){console.warn("3D map",e);}
+  /* tilting and turning the map, and a compass to put it back */
+  const flying=typeof FLY!=="undefined"&&FLY.on;
+  if(any){try{M.dragRotate._pitchWithRotate=true;}catch(_){}if(!flying){M.dragRotate.enable();M.touchPitch.enable();}M.setMaxPitch(85);
+    if(!T3NAV){T3NAV=new maplibregl.NavigationControl({showZoom:false,visualizePitch:true});M.addControl(T3NAV,"top-right");}}
+  else{if(!flying){M.dragRotate.disable();M.touchPitch.disable();}
+    if(T3NAV){M.removeControl(T3NAV);T3NAV=null;}
+    if(!flying&&!S.d3&&!CAM.on){M.setMaxPitch(60);if(M.getPitch()||M.getBearing())M.easeTo({pitch:0,bearing:0,duration:600});}}
+  if(typeof pl3dSync==="function")pl3dSync();
+  syncT3UI();
+}
+/* the ground is raised from zoom 7.5 in (it can't be seen further out), on a flat map: at that zoom the globe's
+   curve hardly shows, and terrain on the round globe is far slower */
+function t3terr(){
+  if(!MREADY||!M.getSource("dem")&&!t3eff().ter)return;
+  const want=t3eff().ter&&M.getZoom()>=7.5,has=!!(M.getTerrain&&M.getTerrain());if(want===has)return;
+  try{if(want){M.setProjection({type:"mercator"});M.setTerrain({source:"dem",exaggeration:1});}else{M.setTerrain(null);M.setProjection({type:"globe"});}}catch(e){console.warn("3D map",e);}}
+M.on("zoomend",t3terr);
+function syncT3UI(){const box=$("ly3d");if(!box)return;box.hidden=!(ACC.admin&&!EMBED);box.querySelectorAll("[data-t3]").forEach(b=>b.checked=!!T3[b.dataset.t3]);}
+document.querySelectorAll("[data-t3]").forEach(b=>b.onchange=()=>{T3[b.dataset.t3]=b.checked;try{localStorage.setItem(T3K,JSON.stringify(T3));}catch(_){}apply3D();});
+/* the height of the ground under a point, in feet (0 where there's no terrain or it hasn't loaded) */
+function groundFt(lo,la){if(!MREADY||!(M.getTerrain&&M.getTerrain()))return 0;try{const e=M.queryTerrainElevation([lo,la]);return e>0?e/.3048:0;}catch(_){return 0;}}
+/* ---------- 3D planes (part of the 3D map, admins only) ----------
+   Zoomed in (globe zoom 8.5 and closer), the nearest planes are drawn as small 3D airliners at their
+   height and heading, in their airline's colours: fuselage, tail, a stripe in the accent colour, and a
+   disc on the tail in the logo colour. They're drawn bigger than life so they can be seen, like the icons.
+   three.js (from jsDelivr) draws them inside the map, so mountains and buildings hide them properly.
+   In fly mode your own plane is one of them, banking and pitching with you. */
+var P3={on:false,T:null,loading:false,failed:false,list:[],src:null,lt:0,vp:null,pos:null,cnt:0};
+const P3MAX=matchMedia("(pointer:coarse)").matches?500:1500,P3Z=8.5;   // fewer on phones
+async function pl3dLoad(){
+  if(P3.T||P3.loading||P3.failed)return;P3.loading=true;
+  try{P3.T=await import("https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js");}
+  catch(e){P3.failed=true;console.warn("3D planes",e);toast("The 3D planes couldn't load.");}
+  P3.loading=false;pl3dSync();}
+function pl3dSync(){
+  if(!MREADY)return;const want=t3eff().pl;
+  if(want&&!P3.T){pl3dLoad();return;}
+  try{if(want&&!M.getLayer("pl3d"))M.addLayer(pl3dLayer());if(!want&&M.getLayer("pl3d"))M.removeLayer("pl3d");}catch(e){console.warn("3D planes",e);}
+  P3.on=want&&!!M.getLayer("pl3d");
+  /* the flat icons, flight numbers and trails step aside where the 3D planes take over */
+  for(const k of [...PL,"sel","labels","trail"])if(M.getLayer(k))M.setLayerZoomRange(k,0,P3.on?P3Z:24);
+  P3.src=null;redraw();}
+/* one airliner, nose along +y, right wing +x, up +z, about 40 m long; four parts by colour */
+function pl3dGeo(T){
+  const parts={body:[],grey:[],tail:[],acc:[]};
+  const put=(k,g,{x=0,y=0,z=0,rx=0,ry=0,rz=0}={})=>{g.rotateX(rx);g.rotateY(ry);g.rotateZ(rz);g.translate(x,y,z);parts[k].push(g.toNonIndexed());};
+  put("body",new T.CylinderGeometry(2,2,28,14,1));
+  put("body",new T.SphereGeometry(2,14,8,0,Math.PI*2,0,Math.PI/2),{y:14});           // nose
+  put("body",new T.ConeGeometry(2,8,14,1,true),{y:-18,rz:Math.PI});                    // tail cone
+  put("grey",new T.BoxGeometry(17,5,.5),{x:-8.6,y:-.5,z:-.9,rz:.42});                    // wings, swept back
+  put("grey",new T.BoxGeometry(17,5,.5),{x:8.6,y:-.5,z:-.9,rz:-.42});
+  put("grey",new T.BoxGeometry(7,2.6,.35),{x:-3.6,y:-18.5,z:.4,rz:.5});                  // tailplane
+  put("grey",new T.BoxGeometry(7,2.6,.35),{x:3.6,y:-18.5,z:.4,rz:-.5});
+  put("grey",new T.CylinderGeometry(1.25,1.1,4.6,12),{x:-6.8,y:1.6,z:-2.3});              // engines
+  put("grey",new T.CylinderGeometry(1.25,1.1,4.6,12),{x:6.8,y:1.6,z:-2.3});
+  put("tail",new T.BoxGeometry(.5,6.2,7.5),{y:-17.6,z:4.6,rx:-.5});                       // fin
+  put("acc",new T.BoxGeometry(.12,26,.55),{x:2.02,z:.35});                                // stripe each side
+  put("acc",new T.BoxGeometry(.12,26,.55),{x:-2.02,z:.35});
+  put("acc",new T.CylinderGeometry(1.3,1.3,.6,16),{y:-18.6,z:5.3,rz:Math.PI/2});           // logo disc on the fin
+  const merge=gs=>{let n=0;for(const g of gs)n+=g.attributes.position.count;const p=new Float32Array(n*3),q=new Float32Array(n*3);let o=0;
+    for(const g of gs){p.set(g.attributes.position.array,o*3);q.set(g.attributes.normal.array,o*3);o+=g.attributes.position.count;}
+    const m=new T.BufferGeometry();m.setAttribute("position",new T.BufferAttribute(p,3));m.setAttribute("normal",new T.BufferAttribute(q,3));return m;};
+  return {body:merge(parts.body),grey:merge(parts.grey),tail:merge(parts.tail),acc:merge(parts.acc)};}
+const p3len=ri=>{const s=szOf(ri);return s>=1.3?1.85:s>=1.1?1.6:s<.8?.72:s<.95?.85:1;};
+const P3COL=new Map();
+function p3cols(ai){let c=P3COL.get(ai);if(c)return c;const T=P3.T,v=AL[ai].liv,base=AL[ai].color||"#c4a1ff";
+  c={f:new T.Color(v?v.f:"#f3f1ec"),t:new T.Color(v?v.t:base),a:new T.Color(v?(v.a||v.t):base),l:new T.Color(v?(v.l||v.t):base)};P3COL.set(ai,c);return c;}
+/* which planes: the nearest to the middle of the view, worked out again when the positions change */
+function pl3dPick(){
+  const P=S.P;if(!P)return [];const c=M.getCenter(),b=M.getBounds(),si=selIndex(),fi=FLY&&FLY.on?flyIdx():-1;
+  let s=Math.max(-85,b.getSouth()),n=Math.min(85,b.getNorth()),w=b.getWest(),e=b.getEast();const span=Math.max(.6,Math.min(6,(n-s)));
+  s=Math.max(s,c.lat-span);n=Math.min(n,c.lat+span);const cl=Math.cos(c.lat*D2R),out=[];
+  for(let i=0;i<S.n;i++){if(i===fi||!shown(i))continue;const la=P.la[i];if(la<s||la>n)continue;let d=P.lo[i]-c.lng;d-=Math.round(d/360)*360;
+    if(Math.abs(d)*cl>span*1.2)continue;if(e-w<360){let x=P.lo[i];while(x<w)x+=360;while(x>w+360)x-=360;if(x>e+1)continue;}
+    out.push([(la-c.lat)**2+(d*cl)**2,i]);}
+  out.sort((a,b)=>a[0]-b[0]);return out.slice(0,P3MAX).map(x=>x[1]);}
+function pl3dLayer(){
+  const T=P3.T;
+  return {id:"pl3d",type:"custom",renderingMode:"3d",
+    onAdd(map,gl){
+      this.cam=new T.Camera();this.scene=new T.Scene();
+      const sun=new T.DirectionalLight(0xffffff,2.1);sun.position.set(.35,-.5,1);this.scene.add(sun);this.scene.add(new T.AmbientLight(0xffffff,1.25));
+      const g=pl3dGeo(T),mk=(geo,inst,col)=>{const m=new T.InstancedMesh(geo,new T.MeshLambertMaterial({color:col||0xffffff}),P3MAX+1);m.frustumCulled=false;m.count=0;
+        if(inst)m.instanceColor=new T.InstancedBufferAttribute(new Float32Array((P3MAX+1)*3),3);this.scene.add(m);return m;};
+      this.ms={body:mk(g.body,true),grey:mk(g.grey,false,0xc9c6d0),tail:mk(g.tail,true),acc:mk(g.acc,true)};
+      this.renderer=new T.WebGLRenderer({canvas:map.getCanvas(),context:gl,antialias:true});this.renderer.autoClear=false;
+      this.o=new T.Matrix4();this.oi=new T.Matrix4();this.mi=new T.Matrix4();this.l=new T.Matrix4();this.r=new T.Matrix4();this.e=new T.Euler(0,0,0,"ZXY");this.v=new T.Vector3();this.C=new T.Matrix4().makeRotationX(-Math.PI/2);   // the map's model frame is y-up; the planes are built z-up
+      this.orange=new T.Color("#ff5b26");},
+    render(gl,args){
+      const T=P3.T,z=M.getZoom(),now=performance.now(),flying=FLY&&FLY.on&&FLY.view!==1&&!(FLY.end&&FLY.end.crash);
+      if(z>=P3Z&&S.P&&(P3.src!==S.P||now-P3.lt>700)){P3.src=S.P;P3.lt=now;P3.list=pl3dPick();}
+      const list=z>=P3Z?P3.list:[],P=S.P,c=M.getCenter(),mpp=40075016*Math.cos(c.lat*D2R)/(512*Math.pow(2,z));
+      const px=z<=10?30:z>=13?12:30-(z-10)*6,k=Math.max(1,mpp*px/40);   // about 30 px long zoomed out, nearer life size over an airport, never smaller than life
+      this.o.fromArray(M.transform.getMatrixForModel([c.lng,c.lat],0));this.oi.copy(this.o).invert();
+      const ms=this.ms,si=selIndex();let n=0;
+      if(!P3.pos||P3.pos.length<(P3MAX+1)*3)P3.pos=new Float32Array((P3MAX+1)*3);P3.idx=P3.idx||new Int32Array(P3MAX+1);
+      const put=(lo,la,altM,hdg,pitch,bank,sc,col,i)=>{
+        this.mi.fromArray(M.transform.getMatrixForModel([lo,la],altM));
+        this.e.set(pitch*D2R,bank*D2R,-hdg*D2R);this.r.makeRotationFromEuler(this.e);
+        this.l.copy(this.oi).multiply(this.mi).multiply(this.C).multiply(this.r).scale(this.v.set(sc,sc,sc));
+        for(const key in ms)ms[key].setMatrixAt(n,this.l);
+        ms.body.setColorAt(n,col.f);ms.tail.setColorAt(n,col.t);ms.acc.setColorAt(n,col.a);
+        const e=this.l.elements;P3.pos[n*3]=e[12];P3.pos[n*3+1]=e[13];P3.pos[n*3+2]=e[14];P3.idx[n]=i;n++;};
+      if(P)for(const i of list){if(i>=S.n)continue;let a=P.alt[i]*.3048;
+        if(a<3000&&M.getTerrain&&M.getTerrain()){const g=M.queryTerrainElevation([P.lo[i],P.la[i]])||0;a+=g*(1-a/3000);}
+        const col=i===si?{f:this.orange,t:this.orange,a:this.orange}:p3cols(P.ai[i]);
+        put(P.lo[i],P.la[i],a,P.brg[i],0,0,k*p3len(P.ri[i]),col,i);}
+      if(flying&&P3.T){const F=FLY,sc=Math.max(1,mpp*(innerWidth<=760?190:260)/34)*(F.view===2?.7:1);
+        put(F.lo,F.la,Math.max(F.alt,F.gft||0)*.3048,F.hdg,F.pitch*.6,F.bank,sc,p3cols(F.ai),-1);}
+      for(const key in ms){ms[key].count=n;ms[key].instanceMatrix.needsUpdate=true;if(ms[key].instanceColor)ms[key].instanceColor.needsUpdate=true;}
+      P3.cnt=n;
+      const m=new T.Matrix4().fromArray(args.defaultProjectionData.mainMatrix);P3.vp=m.clone().multiply(this.o);
+      this.cam.projectionMatrix.copy(P3.vp);
+      this.renderer.resetState();this.renderer.render(this.scene,this.cam);
+      if(flying)M.triggerRepaint();},
+    onRemove(){try{this.renderer.dispose();}catch(_){}P3.cnt=0;}};}
+/* a tap on a 3D plane: projected the same way the planes are drawn */
+function pl3dHit(x,y,r){
+  if(!P3.on||!P3.vp||!P3.cnt||M.getZoom()<P3Z)return -2;
+  const W=M.getCanvas().clientWidth,H=M.getCanvas().clientHeight,e=P3.vp.elements;let best=-1,bd=r*r;
+  for(let n=0;n<P3.cnt;n++){const i=P3.idx[n];if(i<0)continue;const px=P3.pos[n*3],py=P3.pos[n*3+1],pz=P3.pos[n*3+2];
+    const cw=e[3]*px+e[7]*py+e[11]*pz+e[15];if(cw<=0)continue;
+    const sx=(e[0]*px+e[4]*py+e[8]*pz+e[12])/cw,sy=(e[1]*px+e[5]*py+e[9]*pz+e[13])/cw;
+    const X=(sx+1)/2*W,Y=(1-sy)/2*H,d=(X-x)**2+(Y-y)**2;if(d<bd){bd=d;best=i;}}
+  return best;}
+
+
 /* ---------- fly mode (admins only for now) ----------
    Hop into any plane on the map and fly it yourself: a chase camera behind it, a cockpit view and a
    view from above. The plane you take over is hidden from the map while you fly it and is back on its
@@ -2740,7 +2917,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&CAM.on)camStop();})
    (no wind, no fuel, the ground at sea level): bank to turn, raise the nose to climb, thrust for speed,
    and set it down gently near an airport to land. */
 var FLY={on:false,view:0,zo:0,keys:new Set(),stick:null,ap:false};
-const FLYH=["dragPan","scrollZoom","boxZoom","keyboard","doubleClickZoom","touchZoomRotate"];
+const FLYH=["dragPan","scrollZoom","boxZoom","keyboard","doubleClickZoom","touchZoomRotate","dragRotate","touchPitch"];
 const clampN=(v,a,b)=>Math.max(a,Math.min(b,v)),wrap180=a=>mod(a+180,360)-180;
 const gcBrg=(a,o,b,p)=>{a*=D2R;b*=D2R;const dl=(p-o)*D2R;return mod(Math.atan2(Math.sin(dl)*Math.cos(b),Math.cos(a)*Math.sin(b)-Math.sin(a)*Math.cos(b)*Math.cos(dl))/D2R,360);};
 const gcKm=(a,o,b,p)=>{const x=Math.sin((b-a)*D2R/2)**2+Math.cos(a*D2R)*Math.cos(b*D2R)*Math.sin((p-o)*D2R/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(x)));};
@@ -2755,7 +2932,7 @@ function flyTake(i){
   const m=acName(l.r.ac),e=C.est(l,clampN(p.f,0,1))||{alt:0,spd:0};
   Object.assign(FLY,{k:{ri:p.ri,day:p.day,seq:p.seq},ai:p.ai,from:l.from,to:l.to,call:AL[p.ai].code+l.fn,model:m,cls:flyCls(m),
     la:p.la,lo:p.lo,hdg:p.brg,alt:p.ground?0:Math.max(0,e.alt||0),spd:Math.max(0,e.spd||0),pitch:0,bank:0,vs:0,gnd:!!p.ground||(e.alt||0)<5,ap:false,end:null,warn:""});
-  if(FLY.gnd){FLY.alt=0;FLY.spd=Math.min(FLY.spd,30);}
+  FLY.gft=groundFt(FLY.lo,FLY.la);if(FLY.gnd){FLY.alt=FLY.gft;FLY.spd=Math.min(FLY.spd,30);}
   FLY.thr=FLY.gnd?0:clampN(FLY.spd/(flyVmax(FLY.alt)*1.06),.15,1);
   FLY.start={};for(const k of FLYKEEP)FLY.start[k]=FLY[k];
   wantGround([l.from,l.to]);   // real stands and taxiways at both ends, ready for the landing
@@ -2780,7 +2957,7 @@ function flyStop(){
   document.body.classList.remove("flying");$("fly").hidden=true;$("fly-hop").hidden=true;
   for(const h in FLY.hs)if(FLY.hs[h]&&M[h])M[h].enable();
   try{if(M.setSky)M.setSky(FLY.sky||undefined);}catch(_){}
-  const o={padding:FLY.pad||{top:0,bottom:0,left:0,right:0}};if(M.setRoll)o.roll=0;M.jumpTo(o);
+  const o={padding:FLY.pad||{top:0,bottom:0,left:0,right:0},elevation:0};if(M.setRoll)o.roll=0;try{M.setCenterClampedToGround(true);}catch(_){}M.jumpTo(o);
   M.easeTo({center:[FLY.lo,FLY.la],zoom:Math.min(M.getZoom(),7),pitch:0,bearing:0,duration:900});
   M.once("moveend",()=>{if(!FLY.on)try{M.setMaxPitch(FLY.mp||60);}catch(_){}});
   redraw();
@@ -2805,11 +2982,11 @@ function flyStep(dt){
     F.thr=clampN(F.thr+clampN((F.apSpd-F.spd)*.01,-.2,.2)*dt,.05,1);}
   F.thr=clampN(F.thr+inp.thr*.4*dt,0,1);
   if(F.gnd){
-    F.bank=0;F.pitch=0;F.vs=0;
+    F.bank=0;F.pitch=0;F.vs=0;F.alt=F.gft||0;
     if(F.spd>.5)F.hdg=mod(F.hdg+inp.roll*Math.min(25,3+F.spd*.5)*(F.spd>80?.25:1)*dt,360);
     const a=F.thr>.03?.07*(F.thr*flyVmax(0)*1.1-F.spd):-(F.spd>60?5:3);
     F.spd=Math.max(0,F.spd+a*dt);
-    if(F.spd>=flyVstall()+15&&inp.pitch>.2){F.gnd=false;F.pitch=7;F.alt=3;}   // rotate and lift off
+    if(F.spd>=flyVstall()+15&&inp.pitch>.2){F.gnd=false;F.pitch=7;F.alt=(F.gft||0)+3;}   // rotate and lift off
   }else{
     F.bank+=clampN(tb-F.bank,-45*dt,45*dt);
     const vst=flyVstall(),stall=F.spd<vst;if(stall)tp=Math.min(tp,-10);
@@ -2820,10 +2997,10 @@ function flyStep(dt){
     F.vs=F.spd*101.27*Math.sin(F.pitch*.5*D2R)-(stall?(vst-F.spd)*25:0);   // the flight path is about half the nose angle
     F.alt=Math.min(43500,F.alt+F.vs/60*dt);
     F.hdg=mod(F.hdg+1091*Math.tan(F.bank*D2R)/Math.max(F.spd,90)*dt,360);   // rate of turn from bank and speed
-    if(F.alt<=0)flyTouch();
+    if(F.alt<=(F.gft||0))flyTouch();   // the ground: sea level, or the mountains when they're on
   }
   flyMove(F.spd*.514444*dt);
-  F.warn=F.gnd?"":F.spd<flyVstall()?"stall":F.spd>flyVmax(F.alt)*1.04?"over":F.alt<2500&&F.vs<-2200?"pull":"";
+  F.warn=F.gnd?"":F.spd<flyVstall()?"stall":F.spd>flyVmax(F.alt)*1.04?"over":F.alt-(F.gft||0)<2500&&F.vs<-2200?"pull":"";
 }
 /* along the great circle the plane is pointing on; the heading follows it round */
 function flyMove(m){if(m<=0)return;const F=FLY,d=m/6371000,h=F.hdg*D2R,a=F.la*D2R,o=F.lo*D2R;
@@ -2833,21 +3010,23 @@ function flyMove(m){if(m<=0)return;const F=FLY,d=m/6371000,h=F.hdg*D2R,a=F.la*D2
   F.la=a2/D2R;F.lo=mod(o2/D2R+180,360)-180;F.hdg=mod(back/D2R+180,360);}
 /* wheels on the ground: a landing if it's gentle and near an airport, otherwise it's over */
 function flyTouch(){
-  const F=FLY,vs=F.vs;F.alt=0;let best=null,bd=1e9;
+  const F=FLY,vs=F.vs;F.alt=F.gft||0;let best=null,bd=1e9;
   for(const c of APLIST){const a=AP[c];if(!a||Math.abs(a.la-F.la)>.3)continue;const d=gcKm(F.la,F.lo,a.la,a.lo);if(d<bd){bd=d;best=c;}}
   F.gnd=true;F.vs=0;
   if(!best||bd>5||vs<-1500||Math.abs(F.bank)>15||F.pitch<-6){F.end={crash:true,ap:best,km:bd,vs};F.spd=0;F.pitch=0;F.bank=0;F.ap=false;flyPaint(true);return;}
   F.pitch=0;F.bank=0;F.thr=0;F.ap=false;
   F.end={land:true,ap:best,vs,word:vs>-150?"Butter":vs>-400?"Smooth landing":vs>-800?"Firm landing":"Hard landing"};flyPaint(true);}
 function flyCam(){
-  const F=FLY,h=innerHeight;let z=15.4-.8*Math.log2(Math.max(F.alt,120)/120)+F.zo,pitch=74,roll=0,top=Math.round(h*.4);
+  const F=FLY,h=innerHeight;let z=15.4-.8*Math.log2(Math.max(F.alt-(F.gft||0),120)/120)+F.zo,pitch=74,roll=0,top=Math.round(h*.4);
   if(F.view===1){z+=.9;pitch=clampN(80+F.pitch*.6,55,85);roll=F.bank;top=Math.round(h*.05);}
   else if(F.view===2){z-=.6;pitch=0;top=0;}
   const o={center:[F.lo,F.la],zoom:clampN(z,1.5,16),bearing:F.hdg,pitch,padding:{top,bottom:0,left:0,right:0}};
   if(M.setRoll)o.roll=roll;
+  if(P3.on&&F.view!==1){o.elevation=Math.max(F.alt,F.gft||0)*.3048;try{M.setCenterClampedToGround(false);}catch(_){}}   // the view centres on the plane up in the air
+  else{o.elevation=0;try{M.setCenterClampedToGround(true);}catch(_){}}
   M.jumpTo(o);}
 function flyMe(){
-  const F=FLY,el=$("fly-me");if(F.view===1||(F.end&&F.end.crash)){el.hidden=true;return;}
+  const F=FLY,el=$("fly-me");if(F.view===1||(F.end&&F.end.crash)||P3.on){el.hidden=true;return;}   // with 3D planes on, your plane is drawn in 3D instead
   el.hidden=false;const h=innerHeight,top=F.view===2?0:Math.round(h*.4);el.style.top=(top+(h-top)/2)+"px";el.dataset.v=String(F.view);
   const r=el.querySelector(".rear");if(r)r.style.transform=`translateY(${(-F.pitch*1.6).toFixed(1)}px) rotate(${F.bank.toFixed(1)}deg)`;}
 /* the sky behind the horizon: day, dusk or night where the plane is */
@@ -2858,7 +3037,7 @@ function flySky(){if(!M.setSky)return;
   try{M.setSky({"sky-color":k[0],"horizon-color":k[1],"fog-color":k[2],"sky-horizon-blend":.6,"horizon-fog-blend":.6,"fog-ground-blend":.8,"atmosphere-blend":["interpolate",["linear"],["zoom"],0,1,5,1,7,0]});}catch(_){}}
 function flyTick(t){
   if(!FLY.on)return;
-  let dt=Math.min(.5,Math.max(0,(t-FLY.t)/1000));FLY.t=t;FLY.fps=FLY.fps?FLY.fps*.95+(dt>0?.05/dt:0):60;
+  let dt=Math.min(.5,Math.max(0,(t-FLY.t)/1000));FLY.t=t;FLY.gft=groundFt(FLY.lo,FLY.la);FLY.fps=FLY.fps?FLY.fps*.95+(dt>0?.05/dt:0):60;
   while(dt>1e-4&&!(FLY.end&&FLY.end.crash)&&FLY.on){const h=Math.min(.05,dt);flyStep(h);dt-=h;}   // small steps, so a slow phone flies at the same pace
   flyCam();flyMe();
   if(t-FLY.ht>120){FLY.ht=t;flyPaint(false);}
@@ -2965,6 +3144,7 @@ function applyTheme(){
             :{"raster-brightness-min":.82,"raster-brightness-max":.08,"raster-saturation":-.75,"raster-hue-rotate":200,"raster-contrast":.1};
   for(const k in o)M.setPaintProperty("osm",k,o[k]);
   M.setPaintProperty("night","fill-opacity",lt?.14:.42);
+  if(M.getLayer("bld3d"))M.setPaintProperty("bld3d","fill-extrusion-color",lt?"#d3cfdb":"#4b4559");if(M.getLayer("sat"))M.setPaintProperty("sat","raster-brightness-max",lt?1:.88);
   for(const k of PL)M.setPaintProperty(k,"icon-halo-color",lt?"rgba(255,255,255,.85)":"rgba(10,12,28,.75)");
   for(const k of ["route-ahead","day-ahead"])M.setPaintProperty(k,"line-color",lt?"rgba(45,40,66,.8)":"rgba(214,219,232,.9)");
   const tp=TP();
@@ -3513,6 +3693,7 @@ async function checkAdmin(){
   if(ACC.c&&ACC.u){try{const {data}=await ACC.c.rpc("echo_is_admin");ACC.admin=data===true;}catch(_){}}
   if($("nav-admin"))$("nav-admin").hidden=!ACC.admin;
   if(!ACC.admin&&FLY&&FLY.on)flyStop();
+  if(typeof apply3D==="function"){T3ON=null;apply3D();}
   checkAsk();
   if(was!==ACC.admin&&D){if(S.view==="home")renderHome();else if(S.view==="admin")renderAdmin();}
 }
