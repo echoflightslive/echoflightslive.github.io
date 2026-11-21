@@ -652,6 +652,11 @@ body.flying #map{background:var(--fly-sky,linear-gradient(#5f8fcc,#c9dcf0))}
 .ask-m.ai p{margin:0 0 6px}.ask-m.ai p:last-child{margin:0}
 .ask-m.ai ul{margin:2px 0 6px;padding-left:18px}.ask-m.ai li{margin:1px 0}
 .ask-m.err{color:#ffb38f}
+.ask-ok{align-self:stretch;border:1px solid var(--rule);background:var(--paper2);border-radius:12px;padding:11px 13px;font-size:14px;line-height:1.45}
+.ask-ok b{display:block;color:var(--lav);margin-bottom:4px}
+.ask-ok ul{margin:2px 0 8px;padding-left:18px;color:var(--muted)}
+.ask-ok-b{display:flex;gap:8px;align-items:center;margin-top:6px}
+.ask-ok.no{opacity:.6}
 .ask-m b{color:var(--lav);font-weight:700}
 .ask-ln{background:none;border:0;padding:0;color:var(--kyra-ink);font:inherit;text-decoration:underline;text-decoration-color:rgba(196,161,255,.45);text-underline-offset:3px;cursor:pointer}
 .ask-ln:hover{text-decoration-color:var(--kyra)}
@@ -669,7 +674,10 @@ body.flying #map{background:var(--fly-sky,linear-gradient(#5f8fcc,#c9dcf0))}
 #ask-q:focus{outline:none;border-color:var(--kyra)}
 #ask-go{flex:none;height:40px}
 #ask-go:disabled{opacity:.5}
-.ask-foot{margin:0;padding:0 14px 10px;font-size:11.5px;color:var(--muted)}
+.ask-foot{margin:0;padding:0 14px 10px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.ask-mdl{display:flex;align-items:center;gap:8px;font:700 10.5px var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#ask-model{flex:1;min-width:0;background:var(--paper2);color:var(--ink);border:1px solid var(--rule);border-radius:8px;padding:5px 8px;font:500 13px var(--ui);letter-spacing:0;text-transform:none}
+.ask-note{display:block;margin-top:5px;font-size:11.5px;color:var(--muted)}
 #ask.mini .ask-h{border-bottom:0;cursor:pointer}
 #ask.mini #ask-log,#ask.mini #ask-f,#ask.mini .ask-foot,#ask.mini #ask-new{display:none}
 @media (max-width:760px){
@@ -796,11 +804,15 @@ body.flying #map{background:var(--fly-sky,linear-gradient(#5f8fcc,#c9dcf0))}
 </div>
 <div id="tip"></div>
 <section id="ask" hidden aria-label="Ask Echo">
-  <header class="ask-h" id="ask-h"><div><span class="ask-t">Ask<em>Echo</em></span><span class="ask-tag">Testing</span></div>
+  <header class="ask-h" id="ask-h"><div><span class="ask-t">Ask<em>Echo</em></span><span class="ask-tag">Beta</span></div>
     <div class="ask-hb"><button type="button" class="link" id="ask-new">New chat</button><button type="button" id="ask-x" aria-label="Close Ask Echo">×</button></div></header>
   <div id="ask-log" aria-live="polite"></div>
   <form id="ask-f"><textarea id="ask-q" rows="1" placeholder="Ask about a flight, airport or airline" aria-label="Your question" maxlength="1500"></textarea><button class="btn prim" id="ask-go">Ask</button></form>
-  <p class="ask-foot">Answers come from the same timetable as the map. Only you and Chai can see this while it's tested.</p>
+  <div class="ask-foot"><label class="ask-mdl">AI <select id="ask-model" aria-label="Which AI answers">
+    <option value="auto">Automatic</option><option value="gemini-flash-latest">Gemini 3.8 Flash · best</option>
+    <option value="gemini-flash-lite-latest">Gemini Flash-Lite · fastest</option><option value="gemini-2.5-flash">Gemini 2.5 Flash · classic</option>
+    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite · light</option></select></label>
+    <span>Answers come from the same timetable as the map. It can also save favourites, follow flights and change map layers for you. If the AI you pick has used up its free allowance today, the next one answers.</span></div>
 </section>
 <a id="emb" target="_blank" rel="noopener"></a>
 <div id="emcard" hidden></div>
@@ -2515,11 +2527,16 @@ document.querySelectorAll("#dock [data-dk]").forEach(b=>b.onclick=()=>{const k=b
   else if(k==="ask"){popClose();askShow(!ASK.open||$("ask").classList.contains("mini"));}
   else popOpen(k);});
 /* ---------- Ask Echo: the assistant ----------
-   While it's tested only two accounts can use it (Supabase's echo_can_ask: Charan GOP signed in with
-   Google, Chai with Discord). The conversation goes to the echo-ask function, which holds the AI key,
-   checks who's asking and keeps a daily cap. When the AI wants a fact it asks this page, and the page
+   Anyone signed in can use it (Supabase's echo_can_ask); admins get more questions a day. The
+   conversation goes to the echo-ask function, which holds the AI key, checks who's asking and keeps a
+   daily cap. Besides looking things up it can do a few things for the person (see ASKDO below). When the AI wants a fact it asks this page, and the page
    answers from the same timetable and positions the map shows, so the two never disagree. */
-const ASK={on:false,open:false,busy:false,msgs:[],links:new Map(),left:null};
+const ASK={on:false,open:false,busy:false,msgs:[],links:new Map(),left:null,model:"auto"};
+try{const m=localStorage.getItem("echo_ask_model");if(m)ASK.model=m;}catch(_){}
+/* which AI answers: "auto" starts with the best and moves down when one has used up its free allowance */
+const ASKMODELS={"gemini-flash-latest":"Gemini 3.8 Flash","gemini-flash-lite-latest":"Gemini Flash-Lite","gemini-2.5-flash":"Gemini 2.5 Flash","gemini-2.5-flash-lite":"Gemini 2.5 Flash-Lite"};
+const askModelName=m=>{m=String(m||"");for(const k in ASKMODELS)if(m===k)return ASKMODELS[k];
+  const g=m.match(/^gemini-([\d.]+)-flash(-lite)?/);if(g)return `Gemini ${g[1]} Flash${g[2]?"-Lite":""}`;if(/haiku/i.test(m))return "Claude Haiku";return m;};
 async function checkAsk(){
   let ok=false;if(ACC.c&&ACC.u&&!EMBED){try{const {data}=await ACC.c.rpc("echo_can_ask");ok=data===true;}catch(_){}}
   ASK.on=ok;const b=document.querySelector('#dock [data-dk="ask"]');if(b)b.hidden=!ok;if(!ok&&ASK.open)askShow(false);}
@@ -2556,7 +2573,11 @@ function askWait(){const d=document.createElement("div");d.className="ask-wait";
   $("ask-log").appendChild(d);$("ask-log").scrollTop=$("ask-log").scrollHeight;return d;}
 const ASKSTEP={search:i=>`Searching for “${i.query||""}”`,flight:i=>`Looking up ${i.number||"the flight"}`,airport:i=>`Checking ${(i.code||"").toUpperCase()}`,
   airline:i=>`Looking up ${i.name||"the airline"}`,between:i=>`Finding flights ${(i.from||"").toUpperCase()} to ${(i.to||"").toUpperCase()}`,aircraft:i=>`Finding ${(i.registration||"").toUpperCase()}`,
-  divisions:()=>"Comparing the divisions",rankings:()=>"Ranking",show_on_map:()=>"Opening it on the map"};
+  divisions:()=>"Comparing the divisions",rankings:()=>"Ranking",show_on_map:()=>"Opening it on the map",
+  favourite:i=>`${i.action==="remove"?"Removing":"Saving"} ${i.name||"it"}`,favourites:()=>"Checking your favourites",follow_flight:i=>`Following ${i.number||"the flight"}`,
+  map_layer:i=>`Turning ${i.on===false?"off":"on"} ${String(i.layer||"the layer").replace(/_/g," ")}`,filter_map:i=>i.division&&i.division!=="all"?`Showing only ${i.division}`:"Showing every division",
+  airport_camera:i=>i.on===false?"Stopping the camera":`Starting the camera at ${(i.airport||"").toUpperCase()}`,fly:i=>`Getting ${i.number||"the plane"} ready to fly`,
+  refresh_timetable:()=>"Refreshing the timetable",set_announcement:()=>"Updating the announcement",set_route_of_week:()=>"Updating the route of the week",set_airline_of_week:()=>"Updating the airline of the week"};
 function askStep(w,u){const s=document.createElement("span");s.textContent=(ASKSTEP[u.name]||(()=>"Working"))(u.input||{})+"…";w.insertBefore(s,w.lastChild);$("ask-log").scrollTop=$("ask-log").scrollHeight;}
 
 function askCtx(){const parts=[];
@@ -2567,12 +2588,12 @@ function askCtx(){const parts=[];
 async function askCall(){
   const {data}=await ACC.c.auth.getSession();const t=data&&data.session&&data.session.access_token;if(!t)throw new Error("signin");
   const r=await fetch(`${SB_URL}/functions/v1/echo-ask`,{method:"POST",headers:{"Content-Type":"application/json",apikey:SB_KEY,Authorization:"Bearer "+t},
-    body:JSON.stringify({messages:ASK.msgs,context:askCtx()})});
+    body:JSON.stringify({messages:ASK.msgs,context:askCtx(),admin:!!ACC.admin,model:ASK.model})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||("HTTP "+r.status));
   if(typeof j.left==="number")ASK.left=j.left;return j;}
-const askErr=e=>({signin:"Sign in again to use Ask Echo.",not_allowed:"This account can't use Ask Echo while it's being tested.",
+const askErr=e=>({signin:"Sign in again to use Ask Echo.",not_allowed:"Sign in to use Ask Echo.",
   not_set_up:"Ask Echo isn't switched on yet: the AI key still needs adding in Supabase.",cap:"That's today's limit. It resets at midnight UTC.",
-  ai_error:"The AI didn't answer properly. Try again in a moment.",ai_unreachable:"The AI couldn't be reached. Try again in a moment."})[e&&e.message]||"Something went wrong. Try again.";
+  ai_error:"The AI didn't answer properly. Try again in a moment.",busy:"Ask Echo has used up today's free AI allowance. Try again later.",ai_unreachable:"The AI couldn't be reached. Try again in a moment."})[e&&e.message]||"Something went wrong. Try again.";
 /* the history sent each time: the last few questions with their answers, never cut mid-exchange */
 function askTrim(){while(ASK.msgs.length>2&&(ASK.msgs.length>36||JSON.stringify(ASK.msgs).length>90000)){
   let k=1;while(k<ASK.msgs.length&&!(ASK.msgs[k].role==="user"&&typeof ASK.msgs[k].content==="string"))k++;if(k>=ASK.msgs.length)break;ASK.msgs=ASK.msgs.slice(k);}}
@@ -2584,11 +2605,14 @@ async function askSend(text){
       const res=await askCall();const parts=Array.isArray(res.content)?res.content:[];
       ASK.msgs.push({role:"assistant",content:parts});
       const uses=parts.filter(p=>p.type==="tool_use"),txt=parts.filter(p=>p.type==="text").map(p=>p.text).join("\n").trim();
-      if(res.stop_reason!=="tool_use"||!uses.length){w.remove();askAdd("ai",txt||"I couldn't find an answer to that.");break;}
+      if(res.stop_reason!=="tool_use"||!uses.length){w.remove();const d=askAdd("ai",txt||"I couldn't find an answer to that.");
+        if(res.fell_back&&res.model){const n=document.createElement("small");n.className="ask-note";
+          n.textContent=`Answered by ${askModelName(res.model)}: ${ASK.model==="auto"?"the better ones":askModelName(ASK.model)} ${ASK.model==="auto"?"have":"has"} used up today's free allowance.`;d.appendChild(n);}
+        break;}
       if(round>=7){w.remove();ASK.msgs.length=keep;askAdd("ai err","That took too many steps. Try a narrower question.");break;}
       const results=[];
       for(const u of uses){askStep(w,u);let o;
-        try{o=ASKT[u.name]?ASKT[u.name](u.input||{}):{error:"There's no such tool."};}catch(e){o={error:"That lookup failed: "+String((e&&e.message)||e).slice(0,120)};}
+        try{o=ASKT[u.name]?await ASKT[u.name](u.input||{},w):{error:"There's no such tool."};}catch(e){o={error:"That lookup failed: "+String((e&&e.message)||e).slice(0,120)};}
         results.push({type:"tool_result",tool_use_id:u.id,content:JSON.stringify(o).slice(0,10000)});}
       ASK.msgs.push({role:"user",content:results});
     }
@@ -2690,13 +2714,102 @@ const ASKT={
     if(kind==="between"){go(`#/between/${s.toUpperCase()}/${String(to||"").toUpperCase()}`);return {shown:true};}
     if(kind==="division"){const d=askDiv(s);if(!d)return {shown:false};go("#/");setTimeout(()=>{setDiv(d.code);if(S.view==="home")renderHome();},60);return {shown:true};}
     return {shown:false};},
+  /* ---------- things it can do for the person (ASKDO) ----------
+     For everyone: favourites, following a flight, map layers, the division filter and the airport
+     camera. For admins only (Supabase checks again): fly mode, refreshing the timetable, the
+     announcement, and the route and airline of the week. Anything that changes the site for
+     everyone shows a confirm card in the chat first and only runs if the person presses Do it. */
+  favourite({kind,name,action}){
+    const act=action==="remove"?"remove":"add";let fav,label,toggle;
+    if(kind==="airport"){const c=String(name||"").toUpperCase().trim();if(!AP[c])return {done:false,note:`${c} isn't an airport any Echo airline flies to.`};
+      fav=isFavAp(c);label=apOut(linkAp(c));toggle=()=>toggleFav("ap",c);}
+    else{const m=alFind(name);if(!m.length)return {done:false,note:`No Echo airline called “${name}”.`};
+      if(m.length>1)return {done:false,several_match:m.slice(0,15).map(alShort),note:"Ask which one they mean."};
+      const i=m[0];fav=isFavAl(i);label=AL[i].name;toggle=()=>toggleFav("al",i);ASK.links.set(AL[i].name,"#/airline/"+i);}
+    if((act==="add")===fav)return {done:true,note:`${label} ${fav?"was already":"wasn't"} a favourite.`};
+    toggle();if(S.view==="home")renderHome();
+    return {done:true,now:`${label} ${act==="add"?"added to":"removed from"} favourites`,saved_to:ACC.u?"their account":"this browser"};},
+  favourites(){const als=FAV.al.map(k=>AL.findIndex((a,i)=>alKey(i)===k)).filter(i=>i>=0&&!AL[i].hidden),aps=FAV.ap.filter(x=>AP[x]);
+    return {airlines:als.map(i=>{ASK.links.set(AL[i].name,"#/airline/"+i);return AL[i].name;}),airports:aps.map(c=>apOut(linkAp(c)))};},
+  follow_flight({number}){const q=String(number||"").toUpperCase().replace(/\s+/g,"");
+    const ls=(results(q)||[]).filter(x=>x.leg).map(x=>x.leg);if(!ls.length)return {done:false,note:`No Echo flight ${q} runs in the next two days.`};
+    const now=nowMin(),l=ls.find(x=>now>=x.t-30&&now<=x.t+x.dur+30)||ls[0],i=findPlane(l.r.i,l.day,l.seq);askMini();
+    if(i<0){openLeg(l);return {done:false,note:"It isn't at the gate or in the air right now, so there's nothing to follow yet. Its flight card is open.",flight:legOut(l)};}
+    selectPlane(i,true);S.follow=true;const p=plane(i);M.easeTo({center:[p.lo,p.la],pitch:0,bearing:0,duration:600});renderFlight();
+    return {done:true,following:legOut(l)};},
+  map_layer({layer,on}){const want=on!==false;
+    const LY={day_night:"night",rain_radar:"rain",clouds:"clouds",traffic_heatmap:"heat",planes_on_ground:"ground",disruption_rings:"dis",light_map:"light"},
+      T3L={terrain:"ter",buildings_3d:"bld",planes_3d:"pl",satellite:"sat"};
+    if(LY[layer]){const b=document.querySelector(`#layers [data-ly="${LY[layer]}"]`);if(!b)return {done:false};
+      if(b.checked!==want){b.checked=want;b.onchange();}return {done:true,layer,on:want};}
+    if(T3L[layer]){if(!ACC.admin)return {done:false,note:"The 3D map is only for Echo Live admins for now."};
+      const b=document.querySelector(`[data-t3="${T3L[layer]}"]`);if(!b)return {done:false};
+      if(b.checked!==want){b.checked=want;b.onchange();}return {done:true,layer,on:want};}
+    return {done:false,note:"There's no such layer."};},
+  filter_map({division}){const s=String(division||"").trim().toLowerCase();
+    if(!s||s==="all"||s==="every"){S.filter.clear();updateCount();redraw();if(S.view==="home")renderHome();return {done:true,showing:"every division"};}
+    const d=askDiv(s);if(!d)return {done:false,note:`There's no division called “${division}”.`};
+    go("#/");setTimeout(()=>{setDiv(d.code);if(S.view==="home")renderHome();},60);return {done:true,showing:divShort(d)+" only"};},
+  airport_camera({airport,on}){if(on===false){if(CAM.on)camStop();return {done:true,camera:"off"};}
+    const c=String(airport||"").toUpperCase().trim();if(!AP[c]||!APROT[c])return {done:false,note:`${c} isn't an airport any Echo airline flies to.`};
+    askShow(false);camStart(c);return {done:CAM.on,camera:"watching "+apOut(c)};},
+  fly({number}){if(!ACC.admin)return {done:false,note:"Fly mode is only for Echo Live admins for now."};
+    const q=String(number||"").toUpperCase().replace(/\s+/g,"");const ls=(results(q)||[]).filter(x=>x.leg).map(x=>x.leg);
+    let i=-1;for(const l of ls){i=findPlane(l.r.i,l.day,l.seq);if(i>=0&&!plane(i).ground)break;}
+    if(i<0)return {done:false,note:`${q} isn't in the air right now, so there's no plane to take over.`};
+    flyStart(i);return {done:!!FLY.on,note:FLY.on?"Fly mode is on; the chat closed so the controls are clear.":"Fly mode couldn't start."};},
+  async refresh_timetable(_,w){if(!ACC.admin)return {done:false,note:"Only Echo Live admins can do that."};
+    if(!await askConfirm(w,"Refresh the timetable?",["Reads data.json and data-2.json from the site again and imports them for everyone.","Takes up to a couple of minutes."]))return {done:false,cancelled:true};
+    try{const {job}=await adm("echo_admin_refresh");let r="not arrived yet";
+      for(let k=0;k<25&&r==="not arrived yet";k++){await new Promise(z=>setTimeout(z,4000));r=(await adm("echo_admin_refresh",{p_job:job})).result;}
+      return {done:/parts checked/.test(r),result:r==="not arrived yet"?"Still waiting on GitHub; try again in a minute.":r,note:"Reloading the page shows the new timetable."};}
+    catch(e){return {done:false,error:String(e.message||e).slice(0,160)};}},
+  async set_announcement({text,link},w){if(!ACC.admin)return {done:false,note:"Only Echo Live admins can do that."};
+    const t=String(text||"").trim().slice(0,240),ln=String(link||"").trim().slice(0,300);
+    if(ln&&!/^(https:\/\/|#\/)/.test(ln))return {done:false,note:"The link has to start with https:// or #/."};
+    const cur=SETS.announce&&SETS.announce.text;
+    if(!t&&!cur)return {done:true,note:"No announcement is showing anyway."};
+    if(!await askConfirm(w,t?"Post this announcement for everyone?":"Take the announcement down?",t?[`“${t}”`,...(ln?["Link: "+ln]:[])]:[`Now showing: “${cur}”`]))return {done:false,cancelled:true};
+    try{await admSave("announce",t?{text:t,link:ln,id:Date.now()}:null);paintAnn();return {done:true,announcement:t||"removed"};}
+    catch(e){return {done:false,error:String(e.message||e).slice(0,160)};}},
+  async set_route_of_week({from,to,note},w){if(!ACC.admin)return {done:false,note:"Only Echo Live admins can do that."};
+    const a=String(from||"").toUpperCase().trim(),b=String(to||"").toUpperCase().trim(),n=String(note||"").trim().slice(0,200);
+    if(a==="NONE"||a===""){if(!(SETS.route_week&&SETS.route_week.from))return {done:true,note:"No route of the week is showing."};
+      if(!await askConfirm(w,"Take the route of the week down?",[`Now showing: ${SETS.route_week.from} → ${SETS.route_week.to}`]))return {done:false,cancelled:true};
+      try{await admSave("route_week",null);if(S.view==="home")renderHome();return {done:true,route_of_week:"removed"};}catch(e){return {done:false,error:String(e.message||e).slice(0,160)};}}
+    if(!AP[a]||!AP[b])return {done:false,note:`${!AP[a]?a:b} isn't an airport any Echo airline flies to.`};
+    if(a===b)return {done:false,note:"Pick two different airports."};
+    const cnt=abFlights(a,b).length;
+    if(!await askConfirm(w,"Set the route of the week?",[`${apOut(a)} → ${apOut(b)}`,...(n?[`“${n}”`]:[]),cnt?`${cnt} Echo flights fly it`:"No Echo airline flies it nonstop right now"]))return {done:false,cancelled:true};
+    try{await admSave("route_week",{from:a,to:b,note:n});if(S.view==="home")renderHome();return {done:true,route_of_week:`${a} → ${b}`,flights:cnt};}
+    catch(e){return {done:false,error:String(e.message||e).slice(0,160)};}},
+  async set_airline_of_week({airline,note},w){if(!ACC.admin)return {done:false,note:"Only Echo Live admins can do that."};
+    const n=String(note||"").trim().slice(0,200),s=String(airline||"").trim();
+    if(!s||s.toLowerCase()==="none"){if(!(SETS.airline_week&&SETS.airline_week.uid))return {done:true,note:"No airline of the week is showing."};
+      if(!await askConfirm(w,"Take the airline of the week down?",[]))return {done:false,cancelled:true};
+      try{await admSave("airline_week",null);if(S.view==="home")renderHome();return {done:true,airline_of_week:"removed"};}catch(e){return {done:false,error:String(e.message||e).slice(0,160)};}}
+    const m=alFind(s).filter(i=>AL[i].uid);if(!m.length)return {done:false,note:`No Echo airline called “${s}”.`};
+    if(m.length>1)return {done:false,several_match:m.slice(0,15).map(alShort),note:"Ask which one they mean."};
+    const i=m[0];
+    if(!await askConfirm(w,"Set the airline of the week?",[`${AL[i].name} (${divShort(divOf(i))})`,...(n?[`“${n}”`]:[])]))return {done:false,cancelled:true};
+    try{await admSave("airline_week",{uid:AL[i].uid,note:n});if(S.view==="home")renderHome();ASK.links.set(AL[i].name,"#/airline/"+i);return {done:true,airline_of_week:AL[i].name};}
+    catch(e){return {done:false,error:String(e.message||e).slice(0,160)};}},
 };
+/* a confirm card in the chat for anything that changes the site for everyone; resolves true only on "Do it" */
+function askConfirm(w,title,lines){return new Promise(res=>{
+  const d=document.createElement("div");d.className="ask-ok";d.setAttribute("role","group");d.setAttribute("aria-label",title);
+  d.innerHTML=`<b>${esc(title)}</b>${lines.length?`<ul>${lines.map(l=>`<li>${esc(l)}</li>`).join("")}</ul>`:""}<div class="ask-ok-b"><button type="button" class="btn prim" data-y>Do it</button><button type="button" class="btn" data-n>Cancel</button></div>`;
+  const log=$("ask-log");if(w&&w.parentNode===log)log.insertBefore(d,w);else log.appendChild(d);log.scrollTop=log.scrollHeight;
+  const done=v=>{d.classList.add(v?"yes":"no");d.querySelector(".ask-ok-b").innerHTML=`<span class="muted">${v?"Confirmed":"Cancelled"}</span>`;res(v);};
+  d.querySelector("[data-y]").onclick=()=>done(true);d.querySelector("[data-n]").onclick=()=>done(false);});}
 
 /* the panel */
 $("ask-f").addEventListener("submit",e=>{e.preventDefault();const q=$("ask-q");const t=q.value;q.value="";q.style.height="";askSend(t);});
 $("ask-q").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();$("ask-f").requestSubmit();}});
 $("ask-q").addEventListener("input",e=>{const q=e.target;q.style.height="";q.style.height=Math.min(132,q.scrollHeight+2)+"px";});
 $("ask-x").addEventListener("click",e=>{e.stopPropagation();askShow(false);});
+(()=>{const sel=$("ask-model");if(!sel)return;if(![...sel.options].some(o=>o.value===ASK.model))ASK.model="auto";sel.value=ASK.model;
+  sel.onchange=()=>{ASK.model=sel.value;try{localStorage.setItem("echo_ask_model",ASK.model);}catch(_){}};})();
 $("ask-new").addEventListener("click",()=>{if(ASK.busy)return;ASK.msgs=[];ASK.links.clear();askHello();$("ask-q").focus();});
 $("ask-h").addEventListener("click",e=>{if($("ask").classList.contains("mini")&&!e.target.closest("#ask-x"))$("ask").classList.remove("mini");});
 addEventListener("keydown",e=>{if(e.key==="Escape"&&ASK.open&&!e.target.closest("#auth"))askShow(false);});
